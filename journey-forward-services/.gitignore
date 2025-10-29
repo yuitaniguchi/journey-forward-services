@@ -39,3 +39,20 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# Local secrets
+.env
+.env.local
+journey-forward-services/.env
+journey-forward-services/.env.local
+
+# Prisma Studio local data
+.prisma/**
+
+# Node
+node_modules
+npm-debug.log*
+yarn.lock
+pnpm-lock.yaml

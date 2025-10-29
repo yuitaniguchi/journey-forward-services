@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+// 顧客
+model Customer {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  phone     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  requests  Request[]
+}
+// リクエスト
+model Request {
+  id                    String    @id @default(cuid())
+  customerId            String
+  customer              Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  serviceType           String    // "pickup" or "pickup_delivery"
+  address               String
+  floor                 String?
+  hasElevator           Boolean   @default(false)
+  preferredDate         DateTime
+  preferredTime         String
+  status                String    @default("received") // received, quoted, confirmed, invoiced, paid, cancelled
+  quotedAmount          Float?
+  finalAmount           Float?
+  cancellationFee       Float?
+  quotationSentAt       DateTime?
+  confirmedAt           DateTime?
+  invoicedAt            DateTime?
+  paidAt                DateTime?
+  cancelledAt           DateTime?
+  stripePaymentIntentId String?
+  stripeChargeId        String?
+  notes                 String?
+  adminNotes            String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  items                 Item[]
+}
+// アイテム
+model Item {
+  id          String   @id @default(cuid())
+  requestId   String
+  request     Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  name        String
+  size        String
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+
+
+
+
+
+
+
