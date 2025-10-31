@@ -1,7 +1,6 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -44,9 +43,6 @@ next-env.d.ts
 
 # Local secrets
 .env
-.env.local
-journey-forward-services/.env
-journey-forward-services/.env.local
 
 # Prisma Studio local data
 .prisma/**
