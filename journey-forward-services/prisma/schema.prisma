@@ -1,0 +1,150 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/* ===== Enums ===== */
+enum ServiceType {
+  PICKUP
+  PICKUP_DELIVERY
+}
+
+enum RequestStatus {
+  RECEIVED
+  QUOTED
+  CONFIRMED
+  INVOICED
+  PAID
+  CANCELLED
+}
+
+/* ===== Models ===== */
+
+model Customer {
+  id Int @id @default(autoincrement()) @map("customer_id")
+ firstName String @map("first_name")
+ lastName String @map("last_name")
+  email     String    @unique
+  phone     String?
+ createdAt DateTime  @default(now()) @map("created_at")
+ updatedAt DateTime  @updatedAt      @map("updated_at")
+
+  requests  Request[]
+
+  @@map("customer")
+}
+
+
+model Request {
+id Int @id @default(autoincrement()) @map("request_id")
+customerId Int @map("customer_id")
+deliveryRequired Boolean @default(false) @map("delivery_required")
+
+pickupPostalCode String @map("pickup_postal_code")
+pickupAddressLine1 String @map("pickup_address_line1")
+pickupAddressLine2 String? @map("pickup_address_line2")
+pickupCity String @map("pickup_city")
+pickupState String @default("BC") @map("pickup_state")
+pickupFloor Int? @map("pickup_floor")
+pickupElevator Boolean? @map("pickup_elevator")
+
+deliveryPostalCode String? @map("delivery_postal_code")
+deliveryAddressLine1 String? @map("delivery_address_line1")
+deliveryAddressLine2 String? @map("delivery_address_line2")
+deliveryCity String? @map("delivery_city")
+deliveryState String? @map("delivery_state")
+deliveryFloor Int? @map("delivery_floor")
+deliveryElevator Boolean? @map("delivery_elevator")
+
+preferredDatetime DateTime @map("preferred_datetime")
+status RequestStatus @default(RECEIVED)
+freeCancellationDeadline DateTime @map("free_cancellation_deadline")
+cancelledAt DateTime? @map("cancelled_at")
+cancellationFee Decimal? @map("cancellation_fee") @db.Decimal(10, 2)
+
+createdAt DateTime @default(now()) @map("created_at")
+updatedAt DateTime @updatedAt @map("updated_at")
+
+customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+items Item[]
+quotation Quotation?
+payment Payment?
+
+@@index([id])
+@@index([status])
+@@map("requests")
+}
+
+model Item {
+ id Int @id @default(autoincrement()) @map("item_id")
+ requestId Int @map("request_id")
+  request     Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  size        String
+  quantity    Int
+  photoUrl    String?  @map("photo_url")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt      @map("updated_at")
+
+  @@index([requestId])
+  @@map("item")
+}
+
+
+model Quotation {
+id Int @id @default(autoincrement()) @map("quotation_id")
+requestId Int @unique @map("request_id")
+subtotal Decimal @db.Decimal(10, 2)
+tax Decimal @db.Decimal(10, 2)
+total Decimal @db.Decimal(10, 2)
+bookingLink String @unique @map("booking_link")
+createdAt DateTime @default(now()) @map("created_at")
+updatedAt DateTime @updatedAt @map("updated_at")
+
+request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+@@map("quotations")
+}
+
+
+model Payment {
+id Int @id @default(autoincrement()) @map("payment_id")
+requestId Int @unique @map("request_id")
+subtotal Decimal @db.Decimal(10, 2)
+tax Decimal @db.Decimal(10, 2)
+total Decimal @db.Decimal(10, 2)
+currency String @default("CAD")
+status String
+stripePaymentIntentId String? @unique @map("stripe_payment_intent_id")
+stripeCustomerId String? @map("stripe_customer_id")
+paymentMethod String? @map("payment_method")
+createdAt DateTime @default(now()) @map("created_at")
+updatedAt DateTime @updatedAt @map("updated_at")
+
+request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+@@index([stripePaymentIntentId])
+@@map("payments")
+}
+
+
+model Admin {
+ id Int @id @default(autoincrement()) @map("admin_id")
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  email        String   @unique
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt      @map("updated_at")
+
+  @@map("admin")
+}
+
