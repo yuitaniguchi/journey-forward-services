@@ -16,6 +16,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@sendgrid/mail": "^8.1.6",
     "@stripe/stripe-js": "^8.2.0",
+    "@tailwindcss/postcss": "^4.1.17",
     "bcrypt": "^6.0.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
