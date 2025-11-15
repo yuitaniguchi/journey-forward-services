@@ -1,13 +1,74 @@
-type RequestCardProps = {
+"use client";
+
+import Link from "next/link";
+import type { RequestStatus } from "@prisma/client";
+import StatusBadge from "./StatusBadge";
+
+type RequestWithRelations = {
   id: number;
+  status: RequestStatus;
+  preferredDatetime: string;
+  customer: {
+    firstName: string;
+    lastName: string;
+  };
+  quotation: {
+    total: string;
+  } | null;
 };
 
-export default function RequestCard({ id }: RequestCardProps) {
+function formatPickupDate(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+
+  return d.toLocaleString("en-US", {
+    month: "short", // Nov
+    day: "numeric", // 23
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+export default function RequestCard({
+  request,
+}: {
+  request: RequestWithRelations;
+}) {
+  const fullName = `${request.customer.firstName} ${request.customer.lastName}`;
+  const pickup = formatPickupDate(request.preferredDatetime);
+  const estimate = request.quotation ? `$${request.quotation.total}` : "-";
+
   return (
-    <div className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm">
-      <h2 className="text-2xl font-semibold mb-4">Request Details</h2>
-      <p className="text-slate-700 mb-2">Request ID: #{id}</p>
-      <p className="text-slate-500 text-sm"></p>
-    </div>
+    <tr className="bg-white text-sm md:text-base text-slate-900 border-b border-slate-100">
+      <td className="px-8 py-5 whitespace-nowrap align-middle">
+        <span className="font-semibold text-slate-900">#{request.id}</span>
+      </td>
+
+      <td className="px-4 py-5 whitespace-nowrap align-middle">
+        <span>{fullName}</span>
+      </td>
+
+      <td className="px-4 py-5 whitespace-nowrap align-middle">
+        <span>{pickup}</span>
+      </td>
+
+      <td className="px-4 py-5 whitespace-nowrap align-middle">
+        <span>{estimate}</span>
+      </td>
+
+      <td className="px-4 py-5 whitespace-nowrap align-middle">
+        <StatusBadge status={request.status} />
+      </td>
+
+      <td className="px-8 py-5 whitespace-nowrap text-right align-middle">
+        <Link
+          href={`/admin/requests/${request.id}`}
+          className="text-emerald-700 font-semibold hover:underline"
+        >
+          View
+        </Link>
+      </td>
+    </tr>
   );
 }
