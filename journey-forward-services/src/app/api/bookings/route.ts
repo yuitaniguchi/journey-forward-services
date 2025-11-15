@@ -11,6 +11,33 @@ const ALLOWED_STATUSES: RequestStatus[] = [
   "CANCELLED",
 ];
 
+/**
+ * GET /api/bookings – Admin
+ */
+export async function GET() {
+  try {
+    const bookings = await prisma.request.findMany({
+      orderBy: { id: "desc" },
+      include: {
+        customer: true,
+        quotation: true,
+        payment: true,
+      },
+    });
+
+    return NextResponse.json({ data: bookings }, { status: 200 });
+  } catch (err) {
+    console.error("GET /api/bookings error:", err);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/bookings – new booking request
+ */
 export async function POST(request: NextRequest) {
   try {
     let body: any;
@@ -57,7 +84,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // pickup//
+    // pickup
     if (!pickupPostalCode || typeof pickupPostalCode !== "string") {
       return NextResponse.json(
         { error: "pickupPostalCode is required and must be a string" },
