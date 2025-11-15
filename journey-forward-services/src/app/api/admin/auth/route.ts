@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     const token = await signAdminJWT({
-      sub: admin.id,
+      sub: admin.id.toString(),
       username: admin.username,
     });
     await setSessionCookie(token);
