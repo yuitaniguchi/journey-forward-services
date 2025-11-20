@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import Input from "../../components/ui/input";
+import { Input } from "../../components/ui/input";
 
 interface DateTimePickerProps {
   /** Current selected datetime (ISO string) */
@@ -46,14 +46,20 @@ export default function DateTimePicker({
 
   return (
     <div className="w-full">
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {label}
+        </label>
+      )}
       <Input
-        label={label}
         type="datetime-local"
         value={value}
         onChange={handleChange}
         onBlur={() => validateDate(value)}
-        error={error || localError}
       />
+      {(error || localError) && (
+        <p className="mt-1 text-sm text-red-600">{error || localError}</p>
+      )}
     </div>
   );
 }

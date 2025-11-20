@@ -1,10 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import Input from "../../components/ui/input";
 import Select from "../../components/ui/select";
-import Button from "../../components/ui/button";
-import AddressInput from "../../components/forms/AddressInput"
+import { Button } from "../../components/ui/button";
+import AddressInput from "../../components/forms/AddressInput";
 import DateTimePicker from "../../components/forms/DateTimePicker";
 import ItemList from "../../components/forms/ItemList";
 
@@ -30,9 +29,11 @@ export default function BookingForm() {
 
   const validateForm = () => {
     const newErrors: any = {};
-    if (!form.serviceType) newErrors.serviceType = "Please select a service type.";
+    if (!form.serviceType)
+      newErrors.serviceType = "Please select a service type.";
     if (!form.address.trim()) newErrors.address = "Address is required.";
-    if (!form.dateTime) newErrors.dateTime = "Please select a valid date & time.";
+    if (!form.dateTime)
+      newErrors.dateTime = "Please select a valid date & time.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -50,7 +51,9 @@ export default function BookingForm() {
       onSubmit={handleSubmit}
       className="max-w-xl mx-auto bg-white shadow-md rounded-lg p-6 space-y-5 border border-[#BFEEEE]"
     >
-      <h2 className="text-2xl font-semibold text-[#22503B] mb-4">Create Booking</h2>
+      <h2 className="text-2xl font-semibold text-[#22503B] mb-4">
+        Create Booking
+      </h2>
 
       <Select
         label="Service Type"
@@ -64,11 +67,11 @@ export default function BookingForm() {
         error={errors.serviceType}
       />
 
-<AddressInput
-  value={form.address}
-  onChange={(v) => handleChange("address", v)}
-  error={errors.address}
-/>
+      <AddressInput
+        value={form.address}
+        onChange={(v) => handleChange("address", v)}
+        error={errors.address}
+      />
 
       <DateTimePicker
         value={form.dateTime}

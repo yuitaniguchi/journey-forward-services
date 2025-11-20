@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import Input from "../../components/ui/input";
+import { Input } from "../../components/ui/input";
 
 interface AddressInputProps {
   /** Current address value */
@@ -36,16 +36,27 @@ export default function AddressInput({
     }
   };
 
+  const mergedError = error || cityError;
+
   return (
     <div className="w-full">
+      <label className="block text-sm font-medium mb-1 text-slate-900">
+        {label}
+      </label>
+
       <Input
-        label={label}
         placeholder="123 Main St, Vancouver"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={handleBlur}
-        error={error || cityError}
+        className={
+          mergedError ? "border-red-500 focus-visible:ring-red-500" : undefined
+        }
       />
+
+      {mergedError && (
+        <p className="text-sm text-red-600 mt-1">{mergedError}</p>
+      )}
 
       <p className="text-sm text-[#22503B] mt-1">
         <strong>Tip:</strong> Format should be “Street, City”
