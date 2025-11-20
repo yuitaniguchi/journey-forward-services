@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import Button from "../../components/ui/button";
-import Input from "../../components/ui/input";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 
 interface Item {
   id: string;
@@ -54,12 +54,20 @@ export default function ItemList({ items, onChange }: ItemListProps) {
 
       {/* Add item section */}
       <div className="flex items-center gap-3">
-        <Input
-          label="Item name"
-          value={newItemName}
-          onChange={(e) => setNewItemName(e.target.value)}
-          placeholder="e.g., Sofa, Bed Frame"
-        />
+        <div className="flex-1">
+          <label
+            htmlFor="item-name"
+            className="block text-sm font-medium text-[#22503B]"
+          >
+            Item name
+          </label>
+          <Input
+            id="item-name"
+            value={newItemName}
+            onChange={(e) => setNewItemName(e.target.value)}
+            placeholder="e.g., Sofa, Bed Frame"
+          />
+        </div>
         <Button type="button" onClick={handleAddItem}>
           Add
         </Button>
