@@ -1,114 +1,643 @@
 "use client";
 
 import React, { useState } from "react";
-import Select from "../../components/ui/select";
-import { Button } from "../../components/ui/button";
-import AddressInput from "../../components/forms/AddressInput";
-import DateTimePicker from "../../components/forms/DateTimePicker";
-import ItemList from "../../components/forms/ItemList";
+import { useForm, FormProvider } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+import AddressInput from "./AddressInput";
+import DateTimePicker from "./DateTimePicker";
+import ItemList, { Item } from "./ItemList";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+
+// 24時間以上先チェック
+const pickupDateTimeSchema = z
+  .string()
+  .min(1, "Pickup date & time is required")
+  .refine((value) => {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return false;
+    const diff = d.getTime() - Date.now();
+    return diff >= 24 * 60 * 60 * 1000;
+  }, "Pickup time must be at least 24 hours from now");
+
+const bookingSchema = z.object({
+  postalCode: z.string().min(1, "Postal code is required"),
+  pickupDateTime: pickupDateTimeSchema,
+  deliveryRequired: z.boolean(),
+  address: z.string().min(1, "Pickup address is required"),
+  floor: z
+    .string()
+    .optional()
+    .refine((val) => !val || /^[0-9]+$/.test(val), "Floor must be a number"),
+  hasElevator: z.boolean(),
+
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().min(1, "Phone number is required"),
+});
+
+export type BookingFormValues = z.infer<typeof bookingSchema>;
+
+const STEPS = [
+  "Postal Code",
+  "Date",
+  "Address",
+  "Size of Items",
+  "Your info",
+  "Confirmation",
+] as const;
 
 export default function BookingForm() {
-  const [form, setForm] = useState({
-    serviceType: "",
-    address: "",
-    hasElevator: false,
-    upperFloor: false,
-    dateTime: "",
-    items: [],
+  const methods = useForm<BookingFormValues>({
+    resolver: zodResolver(bookingSchema),
+    defaultValues: {
+      postalCode: "",
+      pickupDateTime: "",
+      deliveryRequired: false,
+      address: "",
+      floor: "",
+      hasElevator: false,
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+    },
   });
 
-  const [errors, setErrors] = useState({
-    serviceType: "",
-    address: "",
-    dateTime: "",
-  });
+  const {
+    register,
+    handleSubmit,
+    trigger,
+    setValue,
+    watch,
+    formState: { errors },
+  } = methods;
 
-  const handleChange = (field: string, value: any) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+  const [step, setStep] = useState(0); // 0〜5
+  const [items, setItems] = useState<Item[]>([]);
+  const [itemsError, setItemsError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedRequestNumber, setSubmittedRequestNumber] = useState<
+    string | null
+  >(null);
+
+  const deliveryRequired = watch("deliveryRequired");
+  const addressValue = watch("address");
+  const pickupDateTime = watch("pickupDateTime");
+
+  // --- ステップ毎にバリデーションするフィールドを指定 ---
+  const stepFields: (keyof BookingFormValues)[][] = [
+    ["postalCode"],
+    ["pickupDateTime"],
+    ["address", "floor"],
+    [], // items は独自バリデーション
+    ["firstName", "lastName", "email", "phone"],
+    [], // confirm画面は追加チェックなし
+  ];
+
+  const handleNext = async () => {
+    const fields = stepFields[step];
+    if (fields.length > 0) {
+      const ok = await trigger(fields);
+      if (!ok) return;
+    }
+
+    // Step4 の items チェック
+    if (step === 3) {
+      if (items.length === 0) {
+        setItemsError("Please add at least one item.");
+        return;
+      }
+      setItemsError("");
+    }
+
+    setStep((prev) => Math.min(prev + 1, STEPS.length - 1));
   };
 
-  const validateForm = () => {
-    const newErrors: any = {};
-    if (!form.serviceType)
-      newErrors.serviceType = "Please select a service type.";
-    if (!form.address.trim()) newErrors.address = "Address is required.";
-    if (!form.dateTime)
-      newErrors.dateTime = "Please select a valid date & time.";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const handleBack = () => {
+    setStep((prev) => Math.max(prev - 1, 0));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (validateForm()) {
-      console.log("Booking data:", form);
-      alert("Booking submitted!");
+  const onSubmit = async (data: BookingFormValues) => {
+    // 最終submitは Confirmation ステップから
+    if (items.length === 0) {
+      setItemsError("Please add at least one item.");
+      setStep(3);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // ★ 実際のAPI仕様に合わせてここを書き換えてね ★
+      // ここでは例として /api/bookings に投げる形のダミー実装にしておく
+      const body = {
+        // ここはバックエンドのAPIに合わせてマッピングする
+        postalCode: data.postalCode,
+        pickupDateTime: data.pickupDateTime,
+        deliveryRequired: data.deliveryRequired,
+        address: data.address,
+        floor: data.floor,
+        hasElevator: data.hasElevator,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        items: items.map((it) => ({
+          name: it.name,
+          size: it.size,
+        })),
+      };
+
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alert(json.error || "Failed to submit booking");
+        return;
+      }
+
+      const json = await res.json().catch(() => ({}));
+      const requestNumber =
+        json?.data?.id?.toString() ||
+        Math.floor(Math.random() * 1_000_000).toString();
+
+      setSubmittedRequestNumber(requestNumber);
+      setStep(STEPS.length);
+    } catch (e) {
+      console.error(e);
+      alert("Network error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ---- レンダリングするステップ内容 ----
+  const renderStep = () => {
+    // success screen
+    if (step === STEPS.length) {
+      return (
+        <div className="flex flex-col items-center py-16 text-center">
+          <div className="mb-8 flex h-16 w-16 items-center justify-center rounded-full bg-[#2f7d4a] text-white text-3xl">
+            ✓
+          </div>
+          <h2 className="mb-3 text-2xl font-semibold text-[#22503B]">
+            Your Estimate is coming!
+          </h2>
+          <p className="mb-2 text-lg font-semibold text-[#22503B]">
+            Request Number: {submittedRequestNumber}
+          </p>
+          <p className="mb-8 max-w-xl text-sm text-slate-600">
+            Thanks for submitting the form! Our team will review your info and
+            send you a detailed quote based on your items, location, and any
+            special requests.
+          </p>
+          <Button
+            type="button"
+            onClick={() => {
+              window.location.href = "/";
+            }}
+          >
+            Go to Main Page
+          </Button>
+        </div>
+      );
+    }
+
+    switch (step) {
+      case 0:
+        // Step1 Postal Code
+        return (
+          <div className="space-y-6">
+            <p className="font-semibold text-[#22503B]">Step 1</p>
+            <h2 className="text-xl font-semibold text-[#22503B]">
+              Where are we Picking up?
+            </h2>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-800">
+                Postal Code <span className="text-red-500">*</span>
+              </label>
+              <Input placeholder="V6T 2J9" {...register("postalCode")} />
+              {errors.postalCode && (
+                <p className="text-sm text-red-600">
+                  {errors.postalCode.message}
+                </p>
+              )}
+              <p className="text-xs text-slate-500">
+                Let&apos;s make sure you&apos;re in our pickup zone.
+              </p>
+            </div>
+          </div>
+        );
+
+      case 1:
+        // Step2 Date / Delivery
+        return (
+          <div className="space-y-6">
+            <p className="font-semibold text-[#22503B]">Step 2</p>
+            <h2 className="text-xl font-semibold text-[#22503B]">
+              When are we Picking up?
+            </h2>
+
+            <DateTimePicker
+              value={watch("pickupDateTime") ?? ""}
+              onChange={(v) =>
+                setValue("pickupDateTime", v, { shouldValidate: true })
+              }
+              error={errors.pickupDateTime?.message}
+            />
+
+            <div className="mt-4 flex items-center gap-3 text-sm text-[#22503B]">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="accent-[#2f7d4a]"
+                  checked={deliveryRequired}
+                  onChange={(e) =>
+                    setValue("deliveryRequired", e.target.checked)
+                  }
+                />
+                Need Delivery?
+              </label>
+            </div>
+          </div>
+        );
+
+      case 2:
+        // Step3 Address
+        return (
+          <div className="space-y-6">
+            <p className="font-semibold text-[#22503B]">Step 3</p>
+            <h2 className="text-xl font-semibold text-[#22503B]">
+              Pickup Address
+            </h2>
+
+            <AddressInput
+              value={addressValue}
+              onChange={(v) => setValue("address", v)}
+              error={errors.address?.message}
+            />
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-800">
+                  Which floor is it? <span className="text-red-500">*</span>
+                </label>
+                <Input placeholder="Floor" {...register("floor")} />
+                {errors.floor && (
+                  <p className="text-sm text-red-600">
+                    {errors.floor.message as string}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-800">
+                  Is there an elevator? <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-center gap-4 text-sm text-[#22503B]">
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="hasElevator"
+                      className="accent-[#2f7d4a]"
+                      checked={watch("hasElevator") === true}
+                      onChange={() => setValue("hasElevator", true)}
+                    />
+                    Yes
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="hasElevator"
+                      className="accent-[#2f7d4a]"
+                      checked={watch("hasElevator") === false}
+                      onChange={() => setValue("hasElevator", false)}
+                    />
+                    No
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 3:
+        // Step4 Items
+        return (
+          <div className="space-y-6">
+            <p className="font-semibold text-[#22503B]">Step 4</p>
+            <h2 className="text-xl font-semibold text-[#22503B]">
+              Size of Items
+            </h2>
+
+            <p className="text-xs text-slate-500">
+              Uploading pictures is optional.
+            </p>
+
+            <ItemList
+              items={items}
+              onChange={(list) => {
+                setItems(list);
+                if (list.length > 0) setItemsError("");
+              }}
+            />
+
+            {itemsError && <p className="text-sm text-red-600">{itemsError}</p>}
+          </div>
+        );
+
+      case 4:
+        // Step5 Your info
+        return (
+          <div className="space-y-6">
+            <p className="font-semibold text-[#22503B]">Step 5</p>
+            <h2 className="text-xl font-semibold text-[#22503B]">
+              Your Details
+            </h2>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-800">
+                  First Name <span className="text-red-500">*</span>
+                </label>
+                <Input placeholder="First Name" {...register("firstName")} />
+                {errors.firstName && (
+                  <p className="text-sm text-red-600">
+                    {errors.firstName.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-800">
+                  Last Name <span className="text-red-500">*</span>
+                </label>
+                <Input placeholder="Last Name" {...register("lastName")} />
+                {errors.lastName && (
+                  <p className="text-sm text-red-600">
+                    {errors.lastName.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-800">
+                  Email <span className="text-red-500">*</span>
+                </label>
+                <Input placeholder="Email" {...register("email")} />
+                {errors.email && (
+                  <p className="text-sm text-red-600">{errors.email.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-800">
+                  Phone Number <span className="text-red-500">*</span>
+                </label>
+                <Input placeholder="Phone Number" {...register("phone")} />
+                {errors.phone && (
+                  <p className="text-sm text-red-600">{errors.phone.message}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 5:
+        // Step6 Confirmation
+        return (
+          <div className="space-y-8">
+            {/* 大見出し */}
+            <h2 className="text-xl font-semibold text-[#22503B]">
+              Confirmation
+            </h2>
+
+            {/* Pickup Info */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-[#22503B]">Pickup Info</h3>
+                <button
+                  type="button"
+                  onClick={() => setStep(1)} // Date ステップへ戻る
+                  className="rounded border border-[#3F7253] px-3 py-1 text-xs font-medium text-[#3F7253] hover:bg-[#e7f0eb]"
+                >
+                  Edit
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-[#f9fafb] px-6 py-4 text-sm text-slate-700">
+                <div className="grid gap-y-2 gap-x-8 md:grid-cols-[120px,1fr]">
+                  <span className="font-medium">Pickup Date</span>
+                  <span>
+                    {pickupDateTime
+                      ? new Date(pickupDateTime).toLocaleString()
+                      : "-"}
+                  </span>
+
+                  <span className="font-medium">Pickup Address</span>
+                  <span>{addressValue || "-"}</span>
+
+                  <span className="font-medium">Other</span>
+                  <span>
+                    {watch("floor") || "-"} floor /{" "}
+                    {watch("hasElevator") ? "Elevator" : "No elevator"}
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            {/* Item Info */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-[#22503B]">Item Info</h3>
+                <button
+                  type="button"
+                  onClick={() => setStep(3)} // Size of Items ステップへ
+                  className="rounded border border-[#3F7253] px-3 py-1 text-xs font-medium text-[#3F7253] hover:bg-[#e7f0eb]"
+                >
+                  Edit
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-[#f9fafb] px-6 py-4 text-sm text-slate-700">
+                <div className="grid gap-y-2 gap-x-8 md:grid-cols-[120px,1fr]">
+                  <span className="font-medium">Item Info</span>
+                  <span>
+                    {items.length === 0 ? (
+                      "-"
+                    ) : (
+                      <div className="space-y-1">
+                        {items.map((it) => (
+                          <div key={it.id}>
+                            {it.name} [{it.size}]
+                            {it.quantity ? ` x${it.quantity}` : ""}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            {/* Your Info */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-[#22503B]">Your Info</h3>
+                <button
+                  type="button"
+                  onClick={() => setStep(4)} // Your info ステップへ
+                  className="rounded border border-[#3F7253] px-3 py-1 text-xs font-medium text-[#3F7253] hover:bg-[#e7f0eb]"
+                >
+                  Edit
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-[#f9fafb] px-6 py-4 text-sm text-slate-700">
+                <div className="grid gap-y-2 gap-x-8 md:grid-cols-[120px,1fr]">
+                  <span className="font-medium">Name</span>
+                  <span>
+                    {watch("firstName")} {watch("lastName")}
+                  </span>
+
+                  <span className="font-medium">Email</span>
+                  <span>{watch("email")}</span>
+
+                  <span className="font-medium">Phone Number</span>
+                  <span>{watch("phone")}</span>
+
+                  <span className="font-medium">Address</span>
+                  <span>{addressValue || "-"}</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        );
+
+      default:
+        return null;
     }
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="max-w-xl mx-auto bg-white shadow-md rounded-lg p-6 space-y-5 border border-[#BFEEEE]"
-    >
-      <h2 className="text-2xl font-semibold text-[#22503B] mb-4">
-        Create Booking
-      </h2>
+    <FormProvider {...methods}>
+      {/* ✅ 全体ラッパー。ここは白い箱じゃない */}
+      <div className="mx-auto max-w-3xl space-y-8">
+        {/* ステップナビ */}
+        <div className="mb-10 flex flex-col items-center">
+          <div className="flex w-full max-w-3xl items-center justify-between text-xs md:text-sm text-slate-600">
+            {STEPS.map((label, index) => {
+              const active = index === step; // 今いるステップ
+              const completed = index < step; // 終わったステップ
+              const lineCompleted = index < step; // 次のステップへの線
 
-      <Select
-        label="Service Type"
-        options={[
-          { value: "moving", label: "Moving Service" },
-          { value: "cleaning", label: "Cleaning Service" },
-          { value: "delivery", label: "Delivery Service" },
-        ]}
-        value={form.serviceType}
-        onChange={(val) => handleChange("serviceType", val)}
-        error={errors.serviceType}
-      />
+              return (
+                <div key={label} className="flex flex-1 items-center">
+                  {/* 丸いアイコン＋ラベル */}
+                  <div className="flex flex-col items-center gap-2">
+                    <div
+                      className={
+                        "flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold shadow-sm " +
+                        (completed
+                          ? "border-[#2f7d4a] text-[#2f7d4a] bg-white" // ✓ になるやつ
+                          : active
+                          ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
+                          : "border-slate-300 text-slate-400 bg-white")
+                      }
+                    >
+                      {completed ? (
+                        <span className="text-lg leading-none">✓</span>
+                      ) : (
+                        index + 1
+                      )}
+                    </div>
+                    <span
+                      className={
+                        "text-[11px] md:text-[13px] " +
+                        (active
+                          ? "font-semibold text-slate-900"
+                          : "text-slate-600")
+                      }
+                    >
+                      {label}
+                    </span>
+                  </div>
 
-      <AddressInput
-        value={form.address}
-        onChange={(v) => handleChange("address", v)}
-        error={errors.address}
-      />
+                  {/* 丸と丸をつなぐ線 */}
+                  {index < STEPS.length - 1 && (
+                    <div
+                      className={
+                        "mt-[-20px] flex-1 border-t-2 " +
+                        (lineCompleted
+                          ? "border-[#2f7d4a]" // クリア済み → 緑の実線
+                          : "border-dashed border-slate-300") // これから → グレーの点線
+                      }
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-      <DateTimePicker
-        value={form.dateTime}
-        onChange={(v) => handleChange("dateTime", v)}
-        error={errors.dateTime}
-      />
+        {/* ✅ ここからが白いカード */}
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="rounded-xl border border-[#e0e7e2] bg-white px-6 py-8 md:px-10 md:py-10 shadow-sm"
+        >
+          {/* ステップの中身 */}
+          {renderStep()}
 
-      <div className="flex items-center gap-6 mt-4">
-        <label className="flex items-center gap-2 text-[#22503B]">
-          <input
-            type="checkbox"
-            checked={form.upperFloor}
-            onChange={(e) => handleChange("upperFloor", e.target.checked)}
-            className="accent-[#367D5E]"
-          />
-          Upper Floor
-        </label>
+          {/* ボタン列 */}
+          {step < STEPS.length && (
+            <div className="mt-10 flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-center sm:gap-6">
+              {/* Back ボタン（緑枠＋白） */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleBack}
+                disabled={step === 0}
+                className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md border-[#3F7253] bg-white text-[#3F7253] hover:bg-[#e7f0eb] hover:text-[#3F7253] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back</span>
+              </Button>
 
-        <label className="flex items-center gap-2 text-[#22503B]">
-          <input
-            type="checkbox"
-            checked={form.hasElevator}
-            onChange={(e) => handleChange("hasElevator", e.target.checked)}
-            className="accent-[#367D5E]"
-          />
-          Elevator Available
-        </label>
+              {/* Next / Submit ボタン（緑塗り＋白文字） */}
+              {step < STEPS.length - 1 ? (
+                <Button
+                  type="button"
+                  onClick={handleNext}
+                  className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md bg-[#3F7253] text-white hover:bg-[#315e45]"
+                >
+                  <span>Next</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md bg-[#3F7253] text-white hover:bg-[#315e45] disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? "Submitting..." : "Submit"}
+                </Button>
+              )}
+            </div>
+          )}
+        </form>
       </div>
-
-      <ItemList
-        items={form.items}
-        onChange={(list) => handleChange("items", list)}
-      />
-
-      <div className="pt-4">
-        <Button type="submit">Submit Booking</Button>
-      </div>
-    </form>
+    </FormProvider>
   );
 }
