@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 import { X, Plus, Minus } from "lucide-react";
 import type { Item } from "./ItemList";
 
-// カテゴリ & アイテムのマスターデータ（必要に応じて増やしてOK）
+// カテゴリ & アイテムのマスターデータ
 const ITEM_CATALOG = [
   {
     category: "Living Room",
@@ -45,27 +45,19 @@ const ITEM_CATALOG = [
 ] as const;
 
 const SIZE_OPTIONS = [
-  {
-    id: "small",
-    label: "Small",
-    description: "up to 65 inches",
-  },
-  {
-    id: "medium",
-    label: "Medium",
-    description: "66–85 inches",
-  },
-  {
-    id: "large",
-    label: "Large",
-    description: "86+ inches",
-  },
+  { id: "small", label: "Small", description: "up to 65 inches" },
+  { id: "medium", label: "Medium", description: "66–85 inches" },
+  { id: "large", label: "Large", description: "86+ inches" },
 ] as const;
+
+type SizeId = (typeof SIZE_OPTIONS)[number]["id"];
+
+// 「アイテム名 × サイズ」ごとの数量
+type QuantityState = Record<string, Record<SizeId, number>>;
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  // モーダルで確定したアイテム（1つだけ）を親に渡す
   onAdd: (items: Item[]) => void;
 };
 
@@ -73,25 +65,55 @@ export default function ItemPickerModal({ open, onClose, onAdd }: Props) {
   const [activeCategory, setActiveCategory] = useState<
     (typeof ITEM_CATALOG)[number]["category"]
   >(ITEM_CATALOG[0].category);
+
   const [activeItemName, setActiveItemName] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [selectedSizeId, setSelectedSizeId] = useState<string | null>("large");
-  const [quantity, setQuantity] = useState(1);
 
-  // 検索後のアイテム一覧
+  // 選択中のサイズ
+  const [selectedSizeId, setSelectedSizeId] = useState<SizeId | null>("large");
+
+  // ✅ アイテム × サイズごとの数量（デフォルトはすべて 0）
+  const [quantities, setQuantities] = useState<QuantityState>({});
+
+  // 数量取得ヘルパー
+  const getQuantity = (itemName: string, sizeId: SizeId) =>
+    quantities[itemName]?.[sizeId] ?? 0;
+
+  // 数量変更ヘルパー（このアイテム・このサイズだけ変える）
+  const changeQuantity = (itemName: string, sizeId: SizeId, delta: 1 | -1) => {
+    setQuantities((prev) => {
+      const itemQty = prev[itemName] ?? { small: 0, medium: 0, large: 0 };
+      const current = itemQty[sizeId] ?? 0;
+      const nextForItem = {
+        ...itemQty,
+        [sizeId]: Math.max(0, current + delta),
+      };
+      return {
+        ...prev,
+        [itemName]: nextForItem,
+      };
+    });
+  };
+
   const filteredItems = useMemo(() => {
     const cat = ITEM_CATALOG.find((c) => c.category === activeCategory);
     if (!cat) return [];
     if (!search.trim()) return cat.items;
-
     const q = search.toLowerCase();
     return cat.items.filter((name) => name.toLowerCase().includes(q));
   }, [activeCategory, search]);
 
   if (!open) return null;
 
+  const selectedQty =
+    activeItemName && selectedSizeId
+      ? getQuantity(activeItemName, selectedSizeId)
+      : 0;
+
   const handleConfirmAdd = () => {
-    if (!activeItemName || !selectedSizeId || quantity <= 0) return;
+    if (!activeItemName || !selectedSizeId) return;
+    const quantity = getQuantity(activeItemName, selectedSizeId);
+    if (quantity <= 0) return;
 
     const newItem: Item = {
       id: `${activeItemName}-${selectedSizeId}-${Date.now()}`,
@@ -102,8 +124,7 @@ export default function ItemPickerModal({ open, onClose, onAdd }: Props) {
     };
 
     onAdd([newItem]);
-    // リセットはお好みで
-    setQuantity(1);
+    // 追加後のリセットはお好みで（ここでは数量は保持しておく）
   };
 
   return (
@@ -169,7 +190,6 @@ export default function ItemPickerModal({ open, onClose, onAdd }: Props) {
 
           {/* 右：アイテム & サイズ */}
           <section className="flex-1 overflow-y-auto">
-            {/* アイテム一覧 */}
             <div className="divide-y">
               {filteredItems.map((name) => {
                 const isActive = name === activeItemName;
@@ -186,7 +206,6 @@ export default function ItemPickerModal({ open, onClose, onAdd }: Props) {
                             prev === name ? null : name
                           );
                           setSelectedSizeId("large");
-                          setQuantity(1);
                         }}
                         className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100"
                       >
@@ -194,16 +213,19 @@ export default function ItemPickerModal({ open, onClose, onAdd }: Props) {
                       </button>
                     </div>
 
-                    {/* サイズ選択（アクティブなアイテムだけ表示） */}
+                    {/* サイズ選択（アクティブなアイテムだけ） */}
                     {isActive && (
                       <div className="mt-3 space-y-2">
                         {SIZE_OPTIONS.map((size) => {
-                          const active = size.id === selectedSizeId;
+                          const sizeId = size.id as SizeId;
+                          const active = sizeId === selectedSizeId;
+                          const qty = getQuantity(name, sizeId); // ← このアイテム・このサイズだけ
+
                           return (
                             <button
                               key={size.id}
                               type="button"
-                              onClick={() => setSelectedSizeId(size.id)}
+                              onClick={() => setSelectedSizeId(sizeId)}
                               className={
                                 "flex w-full items-center justify-between rounded-lg border px-4 py-2 text-left text-sm " +
                                 (active
@@ -228,20 +250,20 @@ export default function ItemPickerModal({ open, onClose, onAdd }: Props) {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setQuantity((q) => Math.max(1, q - 1));
+                                    changeQuantity(name, sizeId, -1);
                                   }}
                                   className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-500 hover:bg-slate-100"
                                 >
                                   <Minus className="h-3 w-3" />
                                 </button>
                                 <span className="w-4 text-center text-sm">
-                                  {quantity}
+                                  {qty}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setQuantity((q) => q + 1);
+                                    changeQuantity(name, sizeId, 1);
                                   }}
                                   className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-500 hover:bg-slate-100"
                                 >
@@ -268,10 +290,9 @@ export default function ItemPickerModal({ open, onClose, onAdd }: Props) {
 
         {/* フッター */}
         <div className="flex items-center justify-between border-t px-6 py-4">
-          {/* 選択中の要約 */}
           {activeItemName && selectedSizeId ? (
             <div className="rounded-full bg-[#f1f5f2] px-4 py-2 text-xs text-slate-700">
-              {activeItemName} ({selectedSizeId}) x {quantity}
+              {activeItemName} ({selectedSizeId}) x {selectedQty}
             </div>
           ) : (
             <span className="text-xs text-slate-500">
@@ -289,11 +310,13 @@ export default function ItemPickerModal({ open, onClose, onAdd }: Props) {
             </button>
             <button
               type="button"
-              disabled={!activeItemName || !selectedSizeId}
+              disabled={!activeItemName || !selectedSizeId || selectedQty <= 0}
               onClick={handleConfirmAdd}
               className="rounded-md bg-[#2f7d4a] px-6 py-2 text-sm font-semibold text-white hover:bg-[#25633b] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {activeItemName ? "Add (1)" : "Add"}
+              {activeItemName && selectedSizeId
+                ? `Add (${selectedQty})`
+                : "Add"}
             </button>
           </div>
         </div>
