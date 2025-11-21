@@ -41,6 +41,17 @@ const bookingSchema = z.object({
   phone: z.string().min(1, "Phone number is required"),
 });
 
+// 対応エリアの郵便番号プレフィックス（例：V5 / V6 / V7）
+const SUPPORTED_POSTAL_PREFIXES = ["V5", "V6", "V7"];
+
+// 郵便番号が対応エリアかどうかを判定
+function isSupportedPostalCode(postalRaw: string) {
+  const code = postalRaw.replace(/\s+/g, "").toUpperCase();
+  return SUPPORTED_POSTAL_PREFIXES.some((prefix) =>
+    code.startsWith(prefix.replace(/\s+/g, "").toUpperCase())
+  );
+}
+
 export type BookingFormValues = z.infer<typeof bookingSchema>;
 
 const STEPS = [
@@ -85,7 +96,8 @@ export default function BookingForm() {
   const [submittedRequestNumber, setSubmittedRequestNumber] = useState<
     string | null
   >(null);
-
+  // ★ Step1 で対象外エリアだったかどうか
+  const [outOfArea, setOutOfArea] = useState(false);
   const deliveryRequired = watch("deliveryRequired");
   const addressValue = watch("address");
   const pickupDateTime = watch("pickupDateTime");
@@ -105,6 +117,18 @@ export default function BookingForm() {
     if (fields.length > 0) {
       const ok = await trigger(fields);
       if (!ok) return;
+    }
+
+    // ★ Step1（Postal Code）のときは、対応エリアチェック
+    if (step === 0) {
+      const postal = methods.getValues("postalCode")?.trim() ?? "";
+      if (!isSupportedPostalCode(postal)) {
+        // 対象外 → メッセージ画面を出す
+        setOutOfArea(true);
+        return; // 次のステップに進まない
+      } else {
+        setOutOfArea(false);
+      }
     }
 
     // Step4 の items チェック
@@ -215,6 +239,27 @@ export default function BookingForm() {
     switch (step) {
       case 0:
         // Step1 Postal Code
+
+        // ★ 対象外エリアだった場合：メッセージ画面
+        if (outOfArea) {
+          return (
+            <div className="flex justify-center py-8">
+              <div className="max-w-xl space-y-4 text-left">
+                <p className="text-lg font-semibold text-[#22503B]">
+                  We&apos;re sorry...
+                </p>
+                <p className="text-sm leading-relaxed text-slate-700">
+                  It looks like we haven&apos;t reached your area yet.
+                  <br />
+                  We&apos;re working hard to expand our service and hope to help
+                  you say goodbye to your junk soon!
+                </p>
+              </div>
+            </div>
+          );
+        }
+
+        // ★ 通常の Step1 フォーム
         return (
           <div className="space-y-6">
             <p className="font-semibold text-[#22503B]">Step 1</p>
@@ -601,22 +646,44 @@ export default function BookingForm() {
           {renderStep()}
 
           {/* ボタン列 */}
-          {step < STEPS.length && (
-            <div className="mt-10 flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-center sm:gap-6">
-              {/* Back ボタン（緑枠＋白） */}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleBack}
-                disabled={step === 0}
-                className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md border-[#3F7253] bg-white text-[#3F7253] hover:bg-[#e7f0eb] hover:text-[#3F7253] disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span>Back</span>
-              </Button>
+          {step < STEPS.length &&
+            (outOfArea ? (
+              // ★ 対象外エリア画面：Back だけ中央
+              <div className="mt-10 flex justify-center">
+                <Button
+                  type="button"
+                  onClick={() => setOutOfArea(false)}
+                  className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md border-[#3F7253] bg-white text-[#3F7253] hover:bg-[#e7f0eb]"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Back</span>
+                </Button>
+              </div>
+            ) : step === 5 ? (
+              // Confirmation ステップ：Submit だけ
+              <div className="mt-10 flex justify-center">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md bg-[#3F7253] text-white hover:bg-[#315e45] disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? "Submitting..." : "Submit"}
+                </Button>
+              </div>
+            ) : (
+              // その他のステップ：Back / Next
+              <div className="mt-10 flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBack}
+                  disabled={step === 0}
+                  className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md border-[#3F7253] bg-white text-[#3F7253] hover:bg-[#e7f0eb] hover:text-[#3F7253] disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Back</span>
+                </Button>
 
-              {/* Next / Submit ボタン（緑塗り＋白文字） */}
-              {step < STEPS.length - 1 ? (
                 <Button
                   type="button"
                   onClick={handleNext}
@@ -625,17 +692,8 @@ export default function BookingForm() {
                   <span>Next</span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md bg-[#3F7253] text-white hover:bg-[#315e45] disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? "Submitting..." : "Submit"}
-                </Button>
-              )}
-            </div>
-          )}
+              </div>
+            ))}
         </form>
       </div>
     </FormProvider>
