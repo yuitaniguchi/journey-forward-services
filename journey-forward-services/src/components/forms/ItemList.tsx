@@ -1,117 +1,87 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Plus, Trash2 } from "lucide-react";
+import ItemPickerModal from "./ItemPickerModal";
 
-interface Item {
+export type ItemSize = "small" | "medium" | "large";
+
+export type Item = {
   id: string;
+  category: string;
   name: string;
-  image?: string; // object URL
-}
+  size: ItemSize | string;
+  quantity: number;
+  // 画像アップロードに備えておきたいなら:
+  // imageFile?: File;
+};
 
-interface ItemListProps {
-  /** Current list of items */
+type Props = {
   items: Item[];
-  /** Callback when the list changes */
   onChange: (items: Item[]) => void;
-}
+};
 
-export default function ItemList({ items, onChange }: ItemListProps) {
-  const [newItemName, setNewItemName] = useState("");
+export default function ItemList({ items, onChange }: Props) {
+  const [open, setOpen] = useState(false);
 
-  const handleAddItem = () => {
-    if (!newItemName.trim()) return;
-
-    const newItem: Item = {
-      id: crypto.randomUUID(),
-      name: newItemName,
-      image: undefined,
-    };
-
-    onChange([...items, newItem]);
-    setNewItemName("");
-  };
-
-  const handleRemoveItem = (id: string) => {
-    onChange(items.filter((item) => item.id !== id));
-  };
-
-  const handleImageUpload = (id: string, file: File | null) => {
-    if (!file) return;
-    const imageUrl = URL.createObjectURL(file);
-
-    onChange(
-      items.map((item) =>
-        item.id === id ? { ...item, image: imageUrl } : item
-      )
-    );
+  const handleRemove = (id: string) => {
+    onChange(items.filter((it) => it.id !== id));
   };
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-xl font-semibold text-[#22503B]">Items</h3>
-
-      {/* Add item section */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <label
-            htmlFor="item-name"
-            className="block text-sm font-medium text-[#22503B]"
-          >
-            Item name
-          </label>
-          <Input
-            id="item-name"
-            value={newItemName}
-            onChange={(e) => setNewItemName(e.target.value)}
-            placeholder="e.g., Sofa, Bed Frame"
-          />
-        </div>
-        <Button type="button" onClick={handleAddItem}>
-          Add
-        </Button>
-      </div>
-
-      {/* Items list */}
-      <div className="space-y-4">
-        {items.length === 0 && (
-          <p className="text-[#367D5E]">No items added yet.</p>
-        )}
-
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="p-4 border border-[#BFEEEE] rounded-lg flex justify-between items-center bg-white shadow-sm"
-          >
-            <div>
-              <p className="font-medium text-[#22503B]">{item.name}</p>
-              {item.image && (
-                <img
-                  src={item.image}
-                  alt="Item"
-                  className="mt-2 w-24 h-24 object-cover rounded-md border"
-                />
-              )}
-            </div>
-
-            <div className="flex flex-col items-end gap-2">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) =>
-                  handleImageUpload(item.id, e.target.files?.[0] || null)
-                }
-                className="text-sm"
-              />
-
-              <Button type="button" onClick={() => handleRemoveItem(item.id)}>
-                Remove
-              </Button>
-            </div>
+    <div className="flex flex-col gap-6">
+      {/* Add New Item カード */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex h-56 w-64 items-center justify-center rounded-xl border border-slate-300 bg-[#fbfdfc] text-[#22503B] shadow-sm transition hover:border-[#2f7d4a] hover:bg-[#f2faf5]"
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#2f7d4a]">
+            <Plus className="h-4 w-4 text-[#2f7d4a]" />
           </div>
-        ))}
-      </div>
+          <span className="text-sm font-semibold">Add New Item</span>
+        </div>
+      </button>
+
+      {/* 追加済みアイテム一覧 */}
+      {items.length > 0 && (
+        <div className="grid gap-3 md:grid-cols-2">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm"
+            >
+              <div>
+                <p className="font-medium text-slate-900">
+                  {item.name} ({item.size})
+                </p>
+                <p className="text-xs text-slate-500">
+                  {item.category} ・ Qty {item.quantity}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRemove(item.id)}
+                className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-red-500"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* モーダル */}
+      <ItemPickerModal
+        open={open}
+        onClose={() => setOpen(false)}
+        onAdd={(newItems) => {
+          if (newItems.length === 0) return;
+          onChange([...items, ...newItems]);
+          setOpen(false);
+        }}
+      />
     </div>
   );
 }
