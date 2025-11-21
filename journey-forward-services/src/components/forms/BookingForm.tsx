@@ -148,7 +148,6 @@ export default function BookingForm() {
   };
 
   const onSubmit = async (data: BookingFormValues) => {
-    // 最終submitは Confirmation ステップから
     if (items.length === 0) {
       setItemsError("Please add at least one item.");
       setStep(3);
@@ -157,23 +156,63 @@ export default function BookingForm() {
 
     setIsSubmitting(true);
     try {
-      // ★ 実際のAPI仕様に合わせてここを書き換えてね ★
-      // ここでは例として /api/bookings に投げる形のダミー実装にしておく
+      // address は「Street, City」の形式なので分解
+      const [streetPart, cityPartRaw] = (data.address || "")
+        .split(",")
+        .map((s) => s.trim());
+      const cityPart = cityPartRaw || "";
+
+      const pickupPostalCode = data.postalCode;
+      const pickupAddressLine1 = streetPart || data.address;
+      const pickupCity = cityPart || "Vancouver"; // ここは好みで
+
+      // 日時
+      const pickupDate = new Date(data.pickupDateTime);
+      const preferredDatetime = pickupDate.toISOString();
+      const freeCancellationDeadline = new Date(
+        pickupDate.getTime() - 24 * 60 * 60 * 1000
+      ).toISOString(); // 24時間前を締切にしている例
+
       const body = {
-        // ここはバックエンドのAPIに合わせてマッピングする
-        postalCode: data.postalCode,
-        pickupDateTime: data.pickupDateTime,
+        // ✅ ここが route.ts 側で扱う customer オブジェクト
+        customer: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          phone: data.phone,
+        },
+
         deliveryRequired: data.deliveryRequired,
-        address: data.address,
-        floor: data.floor,
-        hasElevator: data.hasElevator,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        phone: data.phone,
+
+        pickupPostalCode,
+        pickupAddressLine1,
+        pickupAddressLine2: null,
+        pickupCity,
+        pickupState: "BC",
+        pickupFloor: data.floor ? Number(data.floor) : null,
+        pickupElevator: data.hasElevator,
+
+        // Delivery 情報はまだフォームがないので、
+        // deliveryRequired のときだけ pickup と同じ値を入れておく簡易実装
+        ...(data.deliveryRequired
+          ? {
+              deliveryPostalCode: pickupPostalCode,
+              deliveryAddressLine1: pickupAddressLine1,
+              deliveryAddressLine2: null,
+              deliveryCity: pickupCity,
+              deliveryState: "BC",
+            }
+          : {}),
+
+        preferredDatetime,
+        freeCancellationDeadline,
+        status: "RECEIVED" as const,
+        // items は今の route.ts では使っていないけど、
+        // 今後の拡張用に送っておくのはアリ
         items: items.map((it) => ({
           name: it.name,
           size: it.size,
+          quantity: it.quantity,
         })),
       };
 
