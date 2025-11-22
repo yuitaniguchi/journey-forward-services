@@ -617,25 +617,85 @@ export default function BookingForm() {
 
   return (
     <FormProvider {...methods}>
-      {/* ✅ 全体ラッパー。ここは白い箱じゃない */}
+      {/* ✅ 全体ラッパー */}
       <div className="mx-auto max-w-3xl space-y-8">
-        {/* ステップナビ */}
+        {/* ===== ステップナビ ===== */}
         <div className="mb-10 flex flex-col items-center">
-          <div className="flex w-full max-w-3xl items-center justify-between text-xs md:text-sm text-slate-600">
-            {STEPS.map((label, index) => {
-              const active = index === step; // 今いるステップ
-              const completed = index < step; // 終わったステップ
-              const lineCompleted = index < step; // 次のステップへの線
+          {/* --- モバイル用：縦並びステップバー --- */}
+          <div className="w-full max-w-xs md:hidden">
+            <div className="flex flex-col gap-4">
+              {STEPS.slice(0, 5).map((label, index) => {
+                const active = index === step;
+                const completed = index < step;
+
+                return (
+                  <div key={label} className="flex">
+                    {/* 丸 + 縦ライン */}
+                    <div className="flex flex-col items-center mr-3">
+                      <div
+                        className={
+                          "flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-semibold " +
+                          (completed
+                            ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
+                            : active
+                            ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
+                            : "border-slate-300 text-slate-400 bg-white")
+                        }
+                      >
+                        {completed ? (
+                          <span className="text-lg leading-none">✓</span>
+                        ) : (
+                          index + 1
+                        )}
+                      </div>
+
+                      {/* 下の縦の点線 / 線 */}
+                      {index < 4 && (
+                        <div
+                          className={
+                            "mt-1 h-8 border-l-2 " +
+                            (index < step
+                              ? "border-[#2f7d4a]"
+                              : "border-dashed border-slate-300")
+                          }
+                        />
+                      )}
+                    </div>
+
+                    {/* ラベル */}
+                    <div className="pt-1">
+                      <p
+                        className={
+                          "text-sm " +
+                          (active
+                            ? "font-semibold text-slate-900"
+                            : "text-slate-600")
+                        }
+                      >
+                        {label}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* --- PC/タブレット用：横並びステップバー --- */}
+          <div className="hidden w-full max-w-3xl items-center justify-between text-xs text-slate-600 md:flex md:text-sm">
+            {STEPS.slice(0, 5).map((label, index) => {
+              const active = index === step;
+              const completed = index < step;
+              const lineCompleted = index < step;
 
               return (
                 <div key={label} className="flex flex-1 items-center">
-                  {/* 丸いアイコン＋ラベル */}
                   <div className="flex flex-col items-center gap-2">
                     <div
                       className={
                         "flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold shadow-sm " +
                         (completed
-                          ? "border-[#2f7d4a] text-[#2f7d4a] bg-white" // ✓ になるやつ
+                          ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
                           : active
                           ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
                           : "border-slate-300 text-slate-400 bg-white")
@@ -659,14 +719,13 @@ export default function BookingForm() {
                     </span>
                   </div>
 
-                  {/* 丸と丸をつなぐ線 */}
-                  {index < STEPS.length - 1 && (
+                  {index < 4 && (
                     <div
                       className={
                         "mt-[-20px] flex-1 border-t-2 " +
                         (lineCompleted
-                          ? "border-[#2f7d4a]" // クリア済み → 緑の実線
-                          : "border-dashed border-slate-300") // これから → グレーの点線
+                          ? "border-[#2f7d4a]"
+                          : "border-dashed border-slate-300")
                       }
                     />
                   )}
@@ -676,53 +735,30 @@ export default function BookingForm() {
           </div>
         </div>
 
-        {/* ✅ ここからが白いカード */}
+        {/* ===== 白いカード（ステップの中身） ===== */}
         <form
           onSubmit={handleSubmit(onSubmit)}
           className="rounded-xl border border-[#e0e7e2] bg-white px-6 py-8 md:px-10 md:py-10 shadow-sm"
         >
-          {/* ステップの中身 */}
           {renderStep()}
 
-          {/* ボタン列 */}
-          {step < STEPS.length &&
-            (outOfArea ? (
-              // ★ 対象外エリア画面：Back だけ中央
-              <div className="mt-10 flex justify-center">
-                <Button
-                  type="button"
-                  onClick={() => setOutOfArea(false)}
-                  className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md border-[#3F7253] bg-white text-[#3F7253] hover:bg-[#e7f0eb]"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  <span>Back</span>
-                </Button>
-              </div>
-            ) : step === 5 ? (
-              // Confirmation ステップ：Submit だけ
-              <div className="mt-10 flex justify-center">
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md bg-[#3F7253] text-white hover:bg-[#315e45] disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? "Submitting..." : "Submit"}
-                </Button>
-              </div>
-            ) : (
-              // その他のステップ：Back / Next
-              <div className="mt-10 flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleBack}
-                  disabled={step === 0}
-                  className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md border-[#3F7253] bg-white text-[#3F7253] hover:bg-[#e7f0eb] hover:text-[#3F7253] disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  <span>Back</span>
-                </Button>
+          {/* ボタン列（既存のものをそのまま） */}
+          {step < STEPS.length && (
+            <div className="mt-10 flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-center sm:gap-6">
+              {/* Back */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleBack}
+                disabled={step === 0}
+                className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md border-[#3F7253] bg-white text-[#3F7253] hover:bg-[#e7f0eb] hover:text-[#3F7253] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back</span>
+              </Button>
 
+              {/* Next / Submit */}
+              {step < STEPS.length - 1 ? (
                 <Button
                   type="button"
                   onClick={handleNext}
@@ -731,8 +767,17 @@ export default function BookingForm() {
                   <span>Next</span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>
-              </div>
-            ))}
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md bg-[#3F7253] text-white hover:bg-[#315e45] disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? "Submitting..." : "Submit"}
+                </Button>
+              )}
+            </div>
+          )}
         </form>
       </div>
     </FormProvider>
