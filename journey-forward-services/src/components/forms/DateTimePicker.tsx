@@ -6,307 +6,298 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 
 type Props = {
-  value: string; // ISO 文字列
-  onChange: (value: string) => void;
+  value: string;
+  onChange: (v: string) => void;
   error?: string;
 };
 
-const TIME_SLOTS = Array.from({ length: 13 }, (_, i) => 9 + i); // 9:00〜21:00
+const HOURS = Array.from({ length: 13 }, (_, i) => 9 + i); // 9〜21
 
-function formatTimeLabel(hour: number) {
-  const isPm = hour >= 12;
-  const h12 = ((hour + 11) % 12) + 1;
-  return `${h12}:00${isPm ? "pm" : "am"}`;
+function formatTime(hour: number) {
+  const h12 = hour > 12 ? hour - 12 : hour;
+  const ampm = hour >= 12 ? "pm" : "am";
+  return `${h12}:00${ampm}`;
 }
 
 export default function DateTimePicker({ value, onChange, error }: Props) {
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
-  const parsed = useMemo(() => {
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const base = value ? new Date(value) : new Date();
+    return new Date(base.getFullYear(), base.getMonth(), 1);
+  });
+
+  const [selectedDate, setSelectedDate] = useState<Date | null>(() =>
+    value ? new Date(value) : null
+  );
+  const [selectedHour, setSelectedHour] = useState<number | null>(() => {
     if (!value) return null;
     const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? null : d;
+    return d.getHours();
+  });
+
+  // value が外から変わったときに同期
+  useEffect(() => {
+    if (!value) return;
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return;
+    setSelectedDate(d);
+    setSelectedHour(d.getHours());
+    setCurrentMonth(new Date(d.getFullYear(), d.getMonth(), 1));
   }, [value]);
 
-  const [month, setMonth] = useState<Date>(parsed ?? new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(
-    parsed
-      ? new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
-      : null
-  );
-  const [selectedHour, setSelectedHour] = useState<number | null>(
-    parsed ? parsed.getHours() : null
-  );
+  // カレンダー用の日付配列
+  const daysInMonth = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
 
-  // value が外から変わった時に state を同步
-  useEffect(() => {
-    if (!parsed) {
-      setSelectedDate(null);
-      setSelectedHour(null);
-      return;
+    const leading = firstDay.getDay(); // 0–6 (日曜始まり)
+    const totalCells = leading + lastDay.getDate();
+    const weeks = Math.ceil(totalCells / 7);
+    const cells: (Date | null)[] = [];
+
+    for (let i = 0; i < leading; i++) {
+      cells.push(null);
     }
-    setMonth(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
-    setSelectedDate(
-      new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      cells.push(new Date(year, month, d));
+    }
+    while (cells.length < weeks * 7) {
+      cells.push(null);
+    }
+
+    return cells;
+  }, [currentMonth]);
+
+  const monthLabel = useMemo(() => {
+    return currentMonth.toLocaleDateString(undefined, {
+      month: "long",
+      year: "numeric",
+    });
+  }, [currentMonth]);
+
+  // 24時間以上先ならOK
+  const isSlotDisabled = (date: Date | null, hour: number) => {
+    if (!date) return true;
+    const candidate = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      hour,
+      0,
+      0,
+      0
     );
-    setSelectedHour(parsed.getHours());
-  }, [parsed]);
-
-  const minAllowed = useMemo(
-    () => new Date(Date.now() + 24 * 60 * 60 * 1000),
-    []
-  );
-
-  const displayValue = parsed
-    ? parsed.toLocaleString("en-CA", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      })
-    : "";
-
-  const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
-  const startWeekDay = startOfMonth.getDay(); // 0:Sun〜
-  const daysInMonth = new Date(
-    month.getFullYear(),
-    month.getMonth() + 1,
-    0
-  ).getDate();
-
-  const handleSelectDate = (day: number) => {
-    const d = new Date(month.getFullYear(), month.getMonth(), day);
-    setSelectedDate(d);
-    // 日付だけ変えた場合、時間はそのまま保持
-    if (selectedHour != null) {
-      const dt = new Date(d);
-      dt.setHours(selectedHour, 0, 0, 0);
-      onChange(dt.toISOString());
-    }
+    const min = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    return candidate.getTime() < min.getTime();
   };
 
-  const handleSelectTime = (hour: number) => {
-    if (!selectedDate) return;
-    const dt = new Date(selectedDate);
-    dt.setHours(hour, 0, 0, 0);
+  const handleConfirm = () => {
+    if (!selectedDate || selectedHour === null) return;
 
-    // 24 時間より前の枠は押しても何もしない
-    if (dt.getTime() < minAllowed.getTime()) return;
-
-    setSelectedHour(hour);
-    onChange(dt.toISOString());
+    const combined = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth(),
+      selectedDate.getDate(),
+      selectedHour,
+      0,
+      0,
+      0
+    );
+    onChange(combined.toISOString());
+    setIsOpen(false);
   };
 
-  const handleResetAndClose = () => {
-    if (!parsed) {
-      setSelectedDate(null);
-      setSelectedHour(null);
-    }
-    setOpen(false);
-  };
+  const displayValue = useMemo(() => {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    const datePart = d.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+    const timePart = d.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    return `${datePart} – ${timePart}`;
+  }, [value]);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       <label className="text-sm font-medium text-slate-800">
         Pickup Date <span className="text-red-500">*</span>
       </label>
 
-      {/* 入力欄＋カレンダーアイコン */}
-      <div className="relative">
-        <Input
-          readOnly
-          placeholder="YYYY-MM-DD, 9:00am"
-          value={displayValue}
-          onClick={() => setOpen((o) => !o)}
-          className="cursor-pointer pr-10"
-        />
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-slate-500 hover:text-slate-700"
-        >
-          <CalendarIcon className="h-4 w-4" />
-        </button>
-      </div>
+      {/* 入力フィールド（モーダル起動） */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="flex w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-800 shadow-sm hover:border-[#2f7d4a]/60 focus:outline-none focus:ring-2 focus:ring-[#2f7d4a]"
+      >
+        <span className={displayValue ? "" : "text-slate-400"}>
+          {displayValue || "YYYY-MM-DD – Select time"}
+        </span>
+        <CalendarIcon className="h-4 w-4 text-slate-500" />
+      </button>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      {/* カレンダーパネル */}
-      {open && (
-        <div className="mt-3 w-full rounded-xl border border-[#e0e7e2] bg-white p-4 shadow-lg">
-          {/* カレンダー & 時間リスト：SP では縦1列、md 以上で2列 */}
-          <div className="grid gap-4 md:grid-cols-[2fr,1.4fr]">
-            {/* カレンダー */}
-            <div>
-              <div className="mb-3 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setMonth(
-                      (prev) =>
-                        new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
-                    )
-                  }
-                  className="rounded-full p-1 text-slate-600 hover:bg-slate-100"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <p className="text-sm font-semibold text-slate-900">
-                  {month.toLocaleString("en-US", {
-                    month: "long",
-                    year: "numeric",
+      {/* モーダル */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-2">
+          <div className="flex w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-xl max-h-[90vh]">
+            {/* ヘッダー */}
+            <div className="flex items-center justify-between border-b px-4 py-3 md:px-6">
+              <h3 className="text-base font-semibold text-slate-900">
+                Choose date &amp; time
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="rounded-full p-1 text-slate-500 hover:bg-slate-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 本体：モバイルは縦並び + スクロール、デスクトップは左右並び */}
+            <div className="flex flex-1 flex-col overflow-y-auto md:flex-row">
+              {/* カレンダー部分 */}
+              <div className="w-full border-b px-4 py-4 md:w-[60%] md:border-b-0 md:border-r md:px-6 md:py-6">
+                {/* 月ナビ */}
+                <div className="mb-4 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCurrentMonth(
+                        new Date(
+                          currentMonth.getFullYear(),
+                          currentMonth.getMonth() - 1,
+                          1
+                        )
+                      )
+                    }
+                    className="rounded-full p-1 text-slate-600 hover:bg-slate-100"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <div className="text-base font-semibold text-slate-900">
+                    {monthLabel}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCurrentMonth(
+                        new Date(
+                          currentMonth.getFullYear(),
+                          currentMonth.getMonth() + 1,
+                          1
+                        )
+                      )
+                    }
+                    className="rounded-full p-1 text-slate-600 hover:bg-slate-100"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* 曜日ヘッダー */}
+                <div className="mb-2 grid grid-cols-7 text-center text-xs font-medium text-[#2f7d4a]">
+                  {["S", "M", "T", "W", "T", "F", "S"].map((d, idx) => (
+                    <div key={`weekday-${idx}`}>{d}</div>
+                  ))}
+                </div>
+
+                {/* 日付グリッド */}
+                <div className="grid grid-cols-7 gap-1 text-sm">
+                  {daysInMonth.map((d, idx) => {
+                    if (!d) {
+                      return <div key={`empty-${idx}`} />;
+                    }
+
+                    const isSelected =
+                      selectedDate &&
+                      d.getFullYear() === selectedDate.getFullYear() &&
+                      d.getMonth() === selectedDate.getMonth() &&
+                      d.getDate() === selectedDate.getDate();
+
+                    return (
+                      <button
+                        key={d.toISOString()}
+                        type="button"
+                        onClick={() => setSelectedDate(d)}
+                        className={
+                          "flex h-9 w-9 items-center justify-center rounded-full mx-auto " +
+                          (isSelected
+                            ? "bg-[#2f7d4a] text-white"
+                            : "text-slate-800 hover:bg-slate-100")
+                        }
+                      >
+                        {d.getDate()}
+                      </button>
+                    );
                   })}
+                </div>
+              </div>
+
+              {/* 時間帯部分 */}
+              <div className="w-full px-4 py-4 md:w-[40%] md:px-6 md:py-6">
+                <p className="mb-3 text-sm font-semibold text-slate-900">
+                  Select a time
                 </p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setMonth(
-                      (prev) =>
-                        new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
-                    )
-                  }
-                  className="rounded-full p-1 text-slate-600 hover:bg-slate-100"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
 
-              {/* 曜日ヘッダー */}
-              <div className="mb-1 grid grid-cols-7 text-center text-xs font-medium text-[#2f7d4a]">
-                {["S", "M", "T", "W", "T", "F", "S"].map((d) => (
-                  <div key={d}>{d}</div>
-                ))}
-              </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {HOURS.map((h) => {
+                    const disabled = isSlotDisabled(selectedDate, h);
+                    const isSelected = selectedHour === h;
 
-              {/* 日付グリッド */}
-              <div className="grid grid-cols-7 gap-y-1 text-center text-sm">
-                {/* 先頭の空白マス */}
-                {Array.from({ length: startWeekDay }).map((_, i) => (
-                  <div key={`blank-${i}`} />
-                ))}
-                {/* 当月の日付 */}
-                {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const day = i + 1;
-                  const d = new Date(
-                    month.getFullYear(),
-                    month.getMonth(),
-                    day
-                  );
-
-                  const isSelected =
-                    selectedDate &&
-                    d.getFullYear() === selectedDate.getFullYear() &&
-                    d.getMonth() === selectedDate.getMonth() &&
-                    d.getDate() === selectedDate.getDate();
-
-                  const isPast =
-                    d <
-                    new Date(
-                      new Date().getFullYear(),
-                      new Date().getMonth(),
-                      new Date().getDate()
+                    return (
+                      <button
+                        key={h}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => !disabled && setSelectedHour(h)}
+                        className={
+                          "rounded-md border px-3 py-2 text-sm " +
+                          (disabled
+                            ? "border-slate-300 bg-slate-200 text-slate-400 cursor-not-allowed"
+                            : isSelected
+                            ? "border-[#2f7d4a] bg-[#2f7d4a] text-white"
+                            : "border-[#2f7d4a] bg-white text-[#2f7d4a] hover:bg-[#eaf5ef]")
+                        }
+                      >
+                        {formatTime(h)}
+                      </button>
                     );
-
-                  return (
-                    <button
-                      key={day}
-                      type="button"
-                      disabled={isPast}
-                      onClick={() => handleSelectDate(day)}
-                      className={
-                        "mx-auto flex h-8 w-8 items-center justify-center rounded-full text-sm " +
-                        (isSelected
-                          ? "bg-[#2f7d4a] text-white"
-                          : isPast
-                          ? "text-slate-300"
-                          : "text-slate-800 hover:bg-[#e8f3ec]")
-                      }
-                    >
-                      {day}
-                    </button>
-                  );
-                })}
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* 時間帯：SP は 2 列グリッド、md 以上は1列縦並び */}
-            <div className="flex flex-col">
-              <p className="mb-2 text-sm font-medium text-slate-800">
-                Select a time
-              </p>
-              {!selectedDate && (
-                <p className="mb-2 text-xs text-slate-500">
-                  Please select a date first.
-                </p>
-              )}
-
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-1 md:gap-2">
-                {TIME_SLOTS.map((hour) => {
-                  const label = formatTimeLabel(hour);
-                  const dt =
-                    selectedDate &&
-                    new Date(
-                      selectedDate.getFullYear(),
-                      selectedDate.getMonth(),
-                      selectedDate.getDate(),
-                      hour,
-                      0,
-                      0,
-                      0
-                    );
-                  const disabled =
-                    !selectedDate || !dt || dt.getTime() < minAllowed.getTime();
-
-                  const isActive =
-                    !disabled && selectedHour != null && selectedHour === hour;
-
-                  return (
-                    <button
-                      key={hour}
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => handleSelectTime(hour)}
-                      className={
-                        "rounded-md border px-3 py-2 text-sm " +
-                        (disabled
-                          ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
-                          : isActive
-                          ? "border-[#2f7d4a] bg-[#2f7d4a] text-white"
-                          : "border-[#2f7d4a] bg-white text-[#22503B] hover:bg-[#eaf5ef]")
-                      }
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
+            {/* フッター */}
+            <div className="flex justify-end gap-3 border-t px-4 py-3 md:px-6">
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="rounded-md border border-[#2f7d4a] px-4 py-2 text-sm font-semibold text-[#2f7d4a] hover:bg-[#e7f0eb]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!selectedDate || selectedHour === null}
+                onClick={handleConfirm}
+                className="rounded-md bg-[#2f7d4a] px-5 py-2 text-sm font-semibold text-white hover:bg-[#25633b] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Confirm
+              </button>
             </div>
-          </div>
-
-          {/* フッターボタン：SP では縦並び、sm 以上で横並び右寄せ */}
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleResetAndClose}
-              className="w-full sm:w-32 border-[#2f7d4a] text-[#2f7d4a] hover:bg-[#e7f0eb]"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              disabled={!selectedDate || selectedHour == null}
-              onClick={() => setOpen(false)}
-              className="w-full sm:w-32 bg-[#2f7d4a] text-white hover:bg-[#25633b] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Confirm
-            </Button>
           </div>
         </div>
       )}
