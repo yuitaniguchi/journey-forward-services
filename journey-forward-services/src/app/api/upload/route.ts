@@ -6,25 +6,17 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    const file = formData.get("file") as File | null;
+    const file = formData.get("file");
 
     if (!file) {
-      return NextResponse.json(
-        { error: "No file uploaded" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // Convert File → Buffer
-    const arrayBuffer = await file.arrayBuffer();
+    // Convert Blob/File → Buffer
+    const arrayBuffer = await (file as Blob).arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Upload to Cloudinary
-    const uploadResponse = await cloudinary.uploader.upload_stream(
-      { folder: "journey-forward-items" },
-      (error, result) => {}
-    );
-
+    // Upload to Cloudinary using a single stream
     const result: any = await new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         { folder: "journey-forward-items" },
@@ -42,9 +34,6 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Upload API Error:", error);
-    return NextResponse.json(
-      { error: "Failed to upload image" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to upload image" }, { status: 500 });
   }
 }

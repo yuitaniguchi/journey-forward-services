@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import Button from "../../components/ui/button";
-import Input from "../../components/ui/input";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 
 interface Item {
   id: string;
@@ -20,6 +20,7 @@ interface ItemListProps {
 
 export default function ItemList({ items, onChange }: ItemListProps) {
   const [newItemName, setNewItemName] = useState("");
+  const [loadingIds, setLoadingIds] = useState<string[]>([]);
 
   const handleAddItem = () => {
     if (!newItemName.trim()) return;
@@ -39,20 +40,30 @@ export default function ItemList({ items, onChange }: ItemListProps) {
   };
 
   const handleImageUpload = async (id: string, file: File | null) => {
-    if (!file) return;
-
+    if (!file) {
+      console.warn("No file selected for upload");
+      return;
+    }
+  
+    setLoadingIds((prev) => [...prev, id]);
+  
     const formData = new FormData();
     formData.append("file", file);
-
+  
     try {
-      const res = await fetch("/api/booking/upload", {
+      const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
-
-      if (!res.ok) throw new Error("Upload failed");
+  
+      console.log("Upload response status:", res.status);
       const data = await res.json();
-
+      console.log("Upload response data:", data);
+  
+      if (!res.ok) {
+        throw new Error(`Upload failed: ${data.error || "Unknown error"}`);
+      }
+  
       onChange(
         items.map((item) =>
           item.id === id
@@ -60,8 +71,11 @@ export default function ItemList({ items, onChange }: ItemListProps) {
             : item
         )
       );
-    } catch (err) {
+    } catch (err: any) {
       console.error("Upload error:", err);
+      alert(`Failed to upload image:\n${err.message}`);
+    } finally {
+      setLoadingIds((prev) => prev.filter((itemId) => itemId !== id));
     }
   };
 
@@ -71,12 +85,20 @@ export default function ItemList({ items, onChange }: ItemListProps) {
 
       {/* Add item section */}
       <div className="flex items-center gap-3">
-        <Input
-          label="Item name"
-          value={newItemName}
-          onChange={(e) => setNewItemName(e.target.value)}
-          placeholder="e.g., Sofa, Bed Frame"
-        />
+        <div className="flex-1">
+          <label
+            htmlFor="item-name"
+            className="block text-sm font-medium text-[#22503B]"
+          >
+            Item name
+          </label>
+          <Input
+            id="item-name"
+            value={newItemName}
+            onChange={(e) => setNewItemName(e.target.value)}
+            placeholder="e.g., Sofa, Bed Frame"
+          />
+        </div>
         <Button type="button" onClick={handleAddItem}>
           Add
         </Button>
@@ -113,6 +135,9 @@ export default function ItemList({ items, onChange }: ItemListProps) {
                 }
                 className="text-sm"
               />
+              {loadingIds.includes(item.id) && (
+                <span className="text-sm text-[#367D5E]">Uploading...</span>
+              )}
 
               {item.image && (
                 <Button
@@ -120,7 +145,7 @@ export default function ItemList({ items, onChange }: ItemListProps) {
                   onClick={async () => {
                     try {
                       if (item.public_id) {
-                        await fetch("/api/booking/upload", {
+                        await fetch("/api/upload", {
                           method: "DELETE",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ public_id: item.public_id }),
