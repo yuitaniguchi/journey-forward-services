@@ -1,43 +1,123 @@
+// src/app/(user)/booking/booking-confirmation/page.tsx
 "use client";
 
-import { useCallback } from "react";
+import { useEffect, useState } from "react";
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import { stripePromise } from "@/lib/stripeClient";
 
-type BookingConfirmationPageProps = {
-  params: {
-    id: string;
-  };
-};
+const MOCK_BOOKING_ID = "342673"; // ひとまず固定。後で本物の予約IDに差し替え予定
+const MOCK_EMAIL = "johnsmith@gmail.com";
 
-export default function BookingConfirmationPage({
-  params,
-}: BookingConfirmationPageProps) {
-  const handleConfirm = useCallback(async () => {
-    console.log("go to payment");
+function PaymentForm({ bookingId }: { bookingId: string }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    try {
-      const res = await fetch("/api/payments/create-intent", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          bookingId: "342673", // ★ ここを追加（仮のIDでもOK）
-          customerEmail: "johnsmith@gmail.com",
-        }),
-      });
+  const handleSubmit = async () => {
+    if (!stripe || !elements) return;
 
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("Failed to create intent", res.status, text);
-        return;
-      }
+    setIsProcessing(true);
+    setErrorMessage(null);
 
-      const data = await res.json();
-      console.log("Stripe clientSecret:", data.clientSecret);
-    } catch (e) {
-      console.error("Unexpected error", e);
+    const { error, setupIntent } = await stripe.confirmSetup({
+      elements,
+      redirect: "if_required",
+      // redirect が必要なカード（3Dセキュア等）のときだけ Stripe 側に飛ぶ
+      // 必要に応じて return_url を設定してもOK
+      // confirmParams: {
+      //   return_url: `${window.location.origin}/payment-confirmation/${bookingId}`,
+      // },
+    });
+
+    setIsProcessing(false);
+
+    if (error) {
+      console.error("confirmSetup error:", error);
+      setErrorMessage(error.message ?? "Something went wrong.");
+      return;
     }
+
+    console.log("Setup succeeded ✅", setupIntent?.id);
+    // TODO: ここでバックエンドに「カード登録完了」を通知したり、
+    // /payment-confirmation/[id] に router.push したりする
+    alert("Card has been saved (authorized) successfully!");
+  };
+
+  return (
+    <>
+      {/* 本物のカードフォーム */}
+      <div className="mb-6">
+        <PaymentElement />
+      </div>
+
+      {errorMessage && (
+        <p className="mb-3 text-sm text-red-600">{errorMessage}</p>
+      )}
+
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={!stripe || isProcessing}
+        className="mt-2 flex w-full items-center justify-center rounded-full bg-[#1a7c4c] px-6 py-3 text-sm font-semibold text-white hover:bg-[#15603a] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isProcessing ? "Processing..." : "Save card & continue"}
+      </button>
+    </>
+  );
+}
+
+export default function BookingConfirmationPage() {
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [loadingIntent, setLoadingIntent] = useState(true);
+
+  // ページ表示時に Intent を作成して clientSecret を取得
+  useEffect(() => {
+    const createIntent = async () => {
+      try {
+        const res = await fetch("/api/payments/create-intent", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            bookingId: MOCK_BOOKING_ID,
+            customerEmail: MOCK_EMAIL,
+          }),
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("Failed to create intent", res.status, text);
+          return;
+        }
+
+        const data = await res.json();
+        console.log("Stripe clientSecret (from useEffect):", data.clientSecret);
+        setClientSecret(data.clientSecret);
+      } catch (e) {
+        console.error("Unexpected error while creating intent", e);
+      } finally {
+        setLoadingIntent(false);
+      }
+    };
+
+    createIntent();
   }, []);
+
+  const elementsOptions = clientSecret
+    ? {
+        clientSecret,
+        appearance: {
+          theme: "stripe" as const,
+        },
+      }
+    : undefined;
 
   return (
     <main className="min-h-screen bg-[#f7f7f7] py-10">
@@ -68,7 +148,7 @@ export default function BookingConfirmationPage({
           {/* Left column – Request detail */}
           <section className="rounded-xl bg-white p-8 shadow-sm">
             <h2 className="mb-6 text-xl font-semibold text-[#1a7c4c]">
-              Request Number: {params.id ?? "342673"}
+              Request Number: {MOCK_BOOKING_ID}
             </h2>
 
             <div className="space-y-1 text-sm leading-relaxed text-gray-800">
@@ -77,7 +157,7 @@ export default function BookingConfirmationPage({
               </p>
               <p>
                 <span className="font-semibold">Email: </span>
-                johnsmith@gmail.com
+                {MOCK_EMAIL}
               </p>
               <p>
                 <span className="font-semibold">Phone number: </span>
@@ -200,37 +280,15 @@ export default function BookingConfirmationPage({
                 will be charged to your registered credit card.
               </p>
             </div>
-
-            {/* Agree checkbox */}
-            <div className="mt-6 flex items-start gap-3 text-xs text-gray-800">
-              <input
-                type="checkbox"
-                className="mt-1 h-4 w-4 rounded border-gray-400 accent-[#1a7c4c]"
-              />
-              <p>
-                I have read and agree to the cancellation policy, including any
-                applicable cancellation fees for late cancellations.
-              </p>
-            </div>
-
-            {/* Confirm button */}
-            <div className="mt-8">
-              <button
-                type="button"
-                onClick={handleConfirm}
-                className="flex w-full items-center justify-center rounded-full bg-[#1a7c4c] px-6 py-3 text-sm font-semibold text-white hover:bg-[#15603a]"
-              >
-                Confirm
-              </button>
-            </div>
           </section>
 
-          {/* Right column – Payment (ダミー UI、後で Stripe をはめ込む) */}
+          {/* Right column – Stripe Elements 埋め込み */}
           <section className="rounded-xl bg-white p-8 shadow-sm">
             <h3 className="mb-6 text-lg font-semibold text-[#1a7c4c]">
               Credit card Information
             </h3>
 
+            {/* ブランド表示はシンプルにテキストだけ残す */}
             <div className="mb-6 flex flex-wrap items-center gap-3 text-xs text-gray-500">
               <span>Mastercard</span>
               <span>Visa</span>
@@ -239,72 +297,21 @@ export default function BookingConfirmationPage({
               <span>UnionPay</span>
             </div>
 
-            <div className="mb-4 space-y-1 text-sm">
-              <label className="flex items-center justify-between">
-                <span className="font-semibold text-gray-700">
-                  Name <span className="text-red-500">*</span>
-                </span>
-              </label>
-              <input
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#1a7c4c] focus:ring-1 focus:ring-[#1a7c4c]"
-                placeholder="Name"
-              />
-            </div>
+            {loadingIntent && (
+              <p className="text-sm text-gray-500">Loading payment form...</p>
+            )}
 
-            <div className="mb-4 space-y-1 text-sm">
-              <label className="flex items-center justify-between">
-                <span className="font-semibold text-gray-700">
-                  Card number <span className="text-red-500">*</span>
-                </span>
-              </label>
-              <input
-                className="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#1a7c4c] focus:ring-1 focus:ring-[#1a7c4c]"
-                placeholder="XXXX-XXXX-XXXX"
-              />
-              <div className="flex gap-2">
-                <input
-                  className="w-1/2 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#1a7c4c] focus:ring-1 focus:ring-[#1a7c4c]"
-                  placeholder="MM / YY"
-                />
-                <input
-                  className="w-1/2 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#1a7c4c] focus:ring-1 focus:ring-[#1a7c4c]"
-                  placeholder="CVC"
-                />
-              </div>
-            </div>
+            {!loadingIntent && clientSecret && elementsOptions && (
+              <Elements stripe={stripePromise} options={elementsOptions}>
+                <PaymentForm bookingId={MOCK_BOOKING_ID} />
+              </Elements>
+            )}
 
-            <div className="space-y-3 text-sm">
-              <p className="font-semibold text-gray-700">
-                Billing Address <span className="text-red-500">*</span>
+            {!loadingIntent && !clientSecret && (
+              <p className="text-sm text-red-600">
+                Failed to initialize payment. Please try again later.
               </p>
-
-              <input
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#1a7c4c] focus:ring-1 focus:ring-[#1a7c4c]"
-                placeholder="Address Line 1"
-              />
-              <input
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#1a7c4c] focus:ring-1 focus:ring-[#1a7c4c]"
-                placeholder="Address Line 2"
-              />
-              <input
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#1a7c4c] focus:ring-1 focus:ring-[#1a7c4c]"
-                placeholder="City"
-              />
-              <div className="flex gap-2">
-                <input
-                  className="w-1/2 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#1a7c4c] focus:ring-1 focus:ring-[#1a7c4c]"
-                  placeholder="State"
-                />
-                <input
-                  className="w-1/2 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#1a7c4c] focus:ring-1 focus:ring-[#1a7c4c]"
-                  placeholder="Zip Code"
-                />
-              </div>
-            </div>
-
-            <div className="mt-8 rounded-md border border-dashed border-gray-300 p-4 text-xs text-gray-500">
-              Stripe Elements をここに埋め込む予定のスペース
-            </div>
+            )}
           </section>
         </div>
       </div>
