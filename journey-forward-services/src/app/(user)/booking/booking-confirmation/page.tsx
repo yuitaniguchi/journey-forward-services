@@ -11,10 +11,33 @@ type BookingConfirmationPageProps = {
 export default function BookingConfirmationPage({
   params,
 }: BookingConfirmationPageProps) {
-  const handleConfirm = useCallback(() => {
-    console.log("go to payment", params.id);
-    // 後でここで Stripe 決済フローを呼び出す
-  }, [params.id]);
+  const handleConfirm = useCallback(async () => {
+    console.log("go to payment");
+
+    try {
+      const res = await fetch("/api/payments/create-intent", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          bookingId: "342673", // ★ ここを追加（仮のIDでもOK）
+          customerEmail: "johnsmith@gmail.com",
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Failed to create intent", res.status, text);
+        return;
+      }
+
+      const data = await res.json();
+      console.log("Stripe clientSecret:", data.clientSecret);
+    } catch (e) {
+      console.error("Unexpected error", e);
+    }
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#f7f7f7] py-10">
