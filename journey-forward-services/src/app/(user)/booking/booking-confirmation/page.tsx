@@ -1,7 +1,7 @@
-// src/app/(user)/booking/booking-confirmation/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 import {
   Elements,
   PaymentElement,
@@ -10,54 +10,82 @@ import {
 } from "@stripe/react-stripe-js";
 import { stripePromise } from "@/lib/stripeClient";
 
-const MOCK_BOOKING_ID = "342673"; // ひとまず固定。後で本物の予約IDに差し替え予定
+const MOCK_BOOKING_ID = "342673";
 const MOCK_EMAIL = "johnsmith@gmail.com";
 
-function PaymentForm({ bookingId }: { bookingId: string }) {
+type PaymentFormProps = {
+  bookingId: string;
+};
+
+function PaymentForm({ bookingId }: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
+  const router = useRouter(); // ★ 追加
   const [isProcessing, setIsProcessing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     if (!stripe || !elements) return;
 
+    // PaymentElement が本当にマウントされているかチェック
+    const paymentElement = elements.getElement(PaymentElement);
+    if (!paymentElement) {
+      console.error("PaymentElement is not loaded");
+      setMessage("Payment form failed to load. Please reload the page.");
+      return;
+    }
+
     setIsProcessing(true);
-    setErrorMessage(null);
+    setMessage(null);
 
     const { error, setupIntent } = await stripe.confirmSetup({
       elements,
       redirect: "if_required",
-      // redirect が必要なカード（3Dセキュア等）のときだけ Stripe 側に飛ぶ
-      // 必要に応じて return_url を設定してもOK
-      // confirmParams: {
-      //   return_url: `${window.location.origin}/payment-confirmation/${bookingId}`,
-      // },
     });
 
     setIsProcessing(false);
 
     if (error) {
-      console.error("confirmSetup error:", error);
-      setErrorMessage(error.message ?? "Something went wrong.");
+      // ここを強化
+      console.error("confirmSetup error RAW:", error);
+      console.error("confirmSetup error DETAILS:", {
+        type: (error as any).type,
+        code: (error as any).code,
+        decline_code: (error as any).decline_code,
+        message: error.message,
+      });
+
+      setMessage(error.message ?? "Something went wrong.");
       return;
     }
 
     console.log("Setup succeeded ✅", setupIntent?.id);
-    // TODO: ここでバックエンドに「カード登録完了」を通知したり、
-    // /payment-confirmation/[id] に router.push したりする
-    alert("Card has been saved (authorized) successfully!");
+    router.push(`/payment-confirmation/${bookingId}`);
   };
 
   return (
     <>
-      {/* 本物のカードフォーム */}
       <div className="mb-6">
-        <PaymentElement />
+        <PaymentElement
+          onReady={() => {
+            console.log("PaymentElement ready");
+          }}
+          // loaderror の詳細をログに出す
+          // 型が合わないので any で受けている
+          onError={(event: any) => {
+            console.error("PaymentElement error", event);
+            setMessage(
+              event?.error?.message ??
+                "Failed to load payment form. Please check your Stripe keys."
+            );
+          }}
+        />
       </div>
 
-      {errorMessage && (
-        <p className="mb-3 text-sm text-red-600">{errorMessage}</p>
+      {message && (
+        <p className="mb-3 text-sm text-red-600 whitespace-pre-line">
+          {message}
+        </p>
       )}
 
       <button
@@ -74,9 +102,8 @@ function PaymentForm({ bookingId }: { bookingId: string }) {
 
 export default function BookingConfirmationPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [loadingIntent, setLoadingIntent] = useState(true);
+  const [isLoadingIntent, setIsLoadingIntent] = useState(true);
 
-  // ページ表示時に Intent を作成して clientSecret を取得
   useEffect(() => {
     const createIntent = async () => {
       try {
@@ -103,7 +130,7 @@ export default function BookingConfirmationPage() {
       } catch (e) {
         console.error("Unexpected error while creating intent", e);
       } finally {
-        setLoadingIntent(false);
+        setIsLoadingIntent(false);
       }
     };
 
@@ -116,6 +143,7 @@ export default function BookingConfirmationPage() {
         appearance: {
           theme: "stripe" as const,
         },
+        locale: "en" as const,
       }
     : undefined;
 
@@ -184,7 +212,6 @@ export default function BookingConfirmationPage() {
                 Minimum location fee: $50
               </p>
 
-              {/* Items table */}
               <div className="mt-4 overflow-hidden rounded-md border border-gray-200 text-xs">
                 <table className="min-w-full border-collapse">
                   <thead className="bg-black text-white">
@@ -218,7 +245,6 @@ export default function BookingConfirmationPage() {
                 </table>
               </div>
 
-              {/* Totals */}
               <div className="mt-4 flex flex-col items-end text-sm text-gray-800">
                 <div className="flex w-40 justify-between">
                   <span>Sub Total:</span>
@@ -282,13 +308,12 @@ export default function BookingConfirmationPage() {
             </div>
           </section>
 
-          {/* Right column – Stripe Elements 埋め込み */}
+          {/* Right column – Stripe Elements */}
           <section className="rounded-xl bg-white p-8 shadow-sm">
             <h3 className="mb-6 text-lg font-semibold text-[#1a7c4c]">
               Credit card Information
             </h3>
 
-            {/* ブランド表示はシンプルにテキストだけ残す */}
             <div className="mb-6 flex flex-wrap items-center gap-3 text-xs text-gray-500">
               <span>Mastercard</span>
               <span>Visa</span>
@@ -297,17 +322,17 @@ export default function BookingConfirmationPage() {
               <span>UnionPay</span>
             </div>
 
-            {loadingIntent && (
+            {isLoadingIntent && (
               <p className="text-sm text-gray-500">Loading payment form...</p>
             )}
 
-            {!loadingIntent && clientSecret && elementsOptions && (
+            {!isLoadingIntent && clientSecret && elementsOptions && (
               <Elements stripe={stripePromise} options={elementsOptions}>
                 <PaymentForm bookingId={MOCK_BOOKING_ID} />
               </Elements>
             )}
 
-            {!loadingIntent && !clientSecret && (
+            {!isLoadingIntent && !clientSecret && (
               <p className="text-sm text-red-600">
                 Failed to initialize payment. Please try again later.
               </p>

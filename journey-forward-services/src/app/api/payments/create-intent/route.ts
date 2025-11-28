@@ -19,10 +19,10 @@ export async function POST(req: Request) {
       metadata: { bookingId },
     });
 
-    // ここでは「カード登録用」の SetupIntent を作る
     const setupIntent = await stripe.setupIntents.create({
       customer: customer.id,
       usage: "off_session",
+      payment_method_types: ["card"], // ★ 追加：カードだけ許可
       metadata: { bookingId },
     });
 
