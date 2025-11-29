@@ -10,14 +10,14 @@ import {
 } from "@stripe/react-stripe-js";
 import { stripePromise } from "@/lib/stripeClient";
 
-const MOCK_BOOKING_ID = "342673";
+const MOCK_REQUEST_ID = "4"; // Prisma Studio で実在する id にする
 const MOCK_EMAIL = "johnsmith@gmail.com";
 
 type PaymentFormProps = {
-  bookingId: string;
+  requestId: string;
 };
 
-function PaymentForm({ bookingId }: PaymentFormProps) {
+function PaymentForm({ requestId }: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter(); // ★ 追加
@@ -60,7 +60,7 @@ function PaymentForm({ bookingId }: PaymentFormProps) {
     }
 
     console.log("Setup succeeded ✅", setupIntent?.id);
-    router.push(`/payment-confirmation/${bookingId}`);
+    router.push(`/payment-confirmation/${requestId}`);
   };
 
   return (
@@ -113,7 +113,7 @@ export default function BookingConfirmationPage() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            bookingId: MOCK_BOOKING_ID,
+            requestId: MOCK_REQUEST_ID,
             customerEmail: MOCK_EMAIL,
           }),
         });
@@ -176,7 +176,7 @@ export default function BookingConfirmationPage() {
           {/* Left column – Request detail */}
           <section className="rounded-xl bg-white p-8 shadow-sm">
             <h2 className="mb-6 text-xl font-semibold text-[#1a7c4c]">
-              Request Number: {MOCK_BOOKING_ID}
+              Request Number: {MOCK_REQUEST_ID}
             </h2>
 
             <div className="space-y-1 text-sm leading-relaxed text-gray-800">
@@ -328,7 +328,7 @@ export default function BookingConfirmationPage() {
 
             {!isLoadingIntent && clientSecret && elementsOptions && (
               <Elements stripe={stripePromise} options={elementsOptions}>
-                <PaymentForm bookingId={MOCK_BOOKING_ID} />
+                <PaymentForm requestId={MOCK_REQUEST_ID} />
               </Elements>
             )}
 
