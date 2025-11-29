@@ -43,54 +43,56 @@ export async function POST(req: Request) {
        * - Quotation → Request を辿って requestId を取得
        * - Payment を upsert
        */
+      // src/app/api/payments/webhook/route.ts の switch(event.type) の中
+
       case "setup_intent.succeeded": {
         const setupIntent = event.data.object as Stripe.SetupIntent;
-        // requestId を優先、互換のため bookingId も一応見る
-        const requestIdRaw =
-          setupIntent.metadata?.requestId ?? setupIntent.metadata?.bookingId;
 
-        console.log("✅ setup_intent.succeeded, requestIdRaw:", requestIdRaw);
+        const requestIdRaw = setupIntent.metadata?.requestId;
+        const requestId = requestIdRaw ? Number(requestIdRaw) : NaN;
 
-        if (!requestIdRaw) {
-          console.warn("setup_intent.succeeded without requestId metadata");
+        const stripeCustomerId = setupIntent.customer as string | null;
+        const paymentMethodId = setupIntent.payment_method as string | null;
+
+        console.log(
+          "✅ setup_intent.succeeded:",
+          "requestId =",
+          requestIdRaw,
+          "customer =",
+          stripeCustomerId,
+          "pm =",
+          paymentMethodId
+        );
+
+        if (!requestIdRaw || Number.isNaN(requestId)) {
+          console.warn(
+            "setup_intent.succeeded triggered without valid requestId metadata"
+          );
           break;
         }
 
-        const requestId = Number(requestIdRaw);
-        if (Number.isNaN(requestId)) {
-          console.warn("requestId is not a valid number:", requestIdRaw);
-          break;
-        }
+        // Payment レコードが既にある前提で更新だけするパターン
+        try {
+          await prisma.payment.update({
+            where: { requestId },
+            data: {
+              stripeCustomerId: stripeCustomerId ?? undefined,
+              paymentMethod: paymentMethodId ?? undefined,
+              status: "AUTHORIZED", // カードがオーソライズ済
+            },
+          });
 
-        // Request が実在するか確認（Quotation は見に行かない！）
-        const request = await prisma.request.findUnique({
-          where: { id: requestId },
-        });
-
-        if (!request) {
-          console.warn("Request not found for id:", requestId);
-          break;
-        }
-
-        await prisma.payment.upsert({
-          where: { requestId },
-          create: {
+          console.log(
+            "💾 Payment updated on setup_intent.succeeded for requestId",
+            requestId
+          );
+        } catch (err: any) {
+          console.error(
+            "Failed to update Payment on setup_intent.succeeded for requestId",
             requestId,
-            subtotal: new Prisma.Decimal(0),
-            tax: new Prisma.Decimal(0),
-            total: new Prisma.Decimal(0),
-            currency: "CAD",
-            status: "AUTHORIZED",
-            stripeCustomerId:
-              (setupIntent.customer as string | null | undefined) ?? null,
-            paymentMethod: "card",
-          },
-          update: {
-            stripeCustomerId:
-              (setupIntent.customer as string | null | undefined) ?? null,
-            paymentMethod: "card",
-          },
-        });
+            err
+          );
+        }
 
         break;
       }

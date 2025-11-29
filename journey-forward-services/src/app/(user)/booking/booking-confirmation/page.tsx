@@ -46,7 +46,6 @@ function PaymentForm({ requestId }: PaymentFormProps) {
     setIsProcessing(false);
 
     if (error) {
-      // ここを強化
       console.error("confirmSetup error RAW:", error);
       console.error("confirmSetup error DETAILS:", {
         type: (error as any).type,
@@ -60,7 +59,9 @@ function PaymentForm({ requestId }: PaymentFormProps) {
     }
 
     console.log("Setup succeeded ✅", setupIntent?.id);
-    router.push(`/payment-confirmation/${requestId}`);
+
+    // ★ ここを修正：カード登録後は Booking Detail 画面へ
+    router.push(`/booking-detail/${requestId}`);
   };
 
   return (
