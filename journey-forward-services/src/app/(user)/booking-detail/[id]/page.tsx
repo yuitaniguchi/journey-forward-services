@@ -10,7 +10,7 @@ type BookingDetailPageProps = {
 export default async function BookingDetailPage({
   params,
 }: BookingDetailPageProps) {
-  // Next.js 16: params は Promise なので await で unwrap
+  // Next.js 16 で params が Promise なので await で unwrap
   const { id } = await params;
 
   // いまはモック表示（実データ連携はこのあとやる）
@@ -162,18 +162,9 @@ export default async function BookingDetailPage({
           </section>
         </div>
 
-        {/* Free cancellation banner + Cancel button */}
-        <div className="mt-10 flex flex-col items-center gap-4">
-          <div className="text-center text-sm font-semibold text-[#d34130]">
-            Free cancellation up to 8:59 AM, Aug 13, 2025
-          </div>
-
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-md bg-[#1a7c4c] px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#15603a] focus:outline-none focus:ring-2 focus:ring-[#1a7c4c] focus:ring-offset-2"
-          >
-            Cancel this Booking
-          </button>
+        {/* Free cancellation banner（テキストだけ雰囲気合わせ） */}
+        <div className="mt-10 text-center text-sm font-semibold text-[#d34130]">
+          Free cancellation up to 8:59 AM, Aug 13, 2025
         </div>
       </div>
     </main>
