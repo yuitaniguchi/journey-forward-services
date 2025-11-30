@@ -1,5 +1,6 @@
 // src/app/(user)/booking-detail/[id]/page.tsx
 import React from "react";
+import CancelBookingButton from "@/components/booking/CancelBookingButton";
 
 type PageParams = Promise<{ id: string }>;
 
@@ -158,6 +159,9 @@ export default async function BookingDetailPage({
                   <span>$78.40</span>
                 </div>
               </div>
+
+              {/* 👇 ここに Cancel ボタンを追加 */}
+              <CancelBookingButton requestId={Number(id)} />
             </div>
           </section>
         </div>
