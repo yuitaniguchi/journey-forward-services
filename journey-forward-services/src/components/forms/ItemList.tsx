@@ -1,69 +1,54 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Plus, Trash2, Image as ImageIcon, Loader2, X } from "lucide-react";
+import ItemPickerModal from "./ItemPickerModal";
 
-interface Item {
+export type ItemSize = "small" | "medium" | "large";
+
+export interface Item {
   id: string;
+  category: string;
   name: string;
-  image?: string; // object URL
-  public_id?: string;
+  size: ItemSize | string;
+  quantity: number;
+  image?: string;      
+  public_id?: string; 
 }
 
 interface ItemListProps {
-  /** Current list of items */
   items: Item[];
-  /** Callback when the list changes */
   onChange: (items: Item[]) => void;
 }
 
 export default function ItemList({ items, onChange }: ItemListProps) {
-  const [newItemName, setNewItemName] = useState("");
-  const [loadingIds, setLoadingIds] = useState<string[]>([]);
-
-  const handleAddItem = () => {
-    if (!newItemName.trim()) return;
-
-    const newItem: Item = {
-      id: crypto.randomUUID(),
-      name: newItemName,
-      image: undefined,
-    };
-
-    onChange([...items, newItem]);
-    setNewItemName("");
-  };
+  const [open, setOpen] = useState(false);
+  const [loadingIds, setLoadingIds] = useState<string[]>([]); 
 
   const handleRemoveItem = (id: string) => {
     onChange(items.filter((item) => item.id !== id));
   };
 
   const handleImageUpload = async (id: string, file: File | null) => {
-    if (!file) {
-      console.warn("No file selected for upload");
-      return;
-    }
-  
+    if (!file) return;
+    
     setLoadingIds((prev) => [...prev, id]);
-  
+    
     const formData = new FormData();
     formData.append("file", file);
-  
+    
     try {
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
-  
-      console.log("Upload response status:", res.status);
+      
       const data = await res.json();
-      console.log("Upload response data:", data);
-  
+      
       if (!res.ok) {
         throw new Error(`Upload failed: ${data.error || "Unknown error"}`);
       }
-  
+      
       onChange(
         items.map((item) =>
           item.id === id
@@ -79,102 +64,129 @@ export default function ItemList({ items, onChange }: ItemListProps) {
     }
   };
 
+  const handleDeleteImage = async (item: Item) => {
+    if (!item.public_id) return;
+
+    if (!confirm("Are you sure you want to delete this image?")) return;
+
+    try {
+      await fetch("/api/upload", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ public_id: item.public_id }),
+      });
+
+      onChange(
+        items.map((it) =>
+          it.id === item.id
+            ? { ...it, image: undefined, public_id: undefined }
+            : it
+        )
+      );
+    } catch (err) {
+      console.error("Delete image error:", err);
+      alert("Failed to delete image.");
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      <h3 className="text-xl font-semibold text-[#22503B]">Items</h3>
-
-      {/* Add item section */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <label
-            htmlFor="item-name"
-            className="block text-sm font-medium text-[#22503B]"
-          >
-            Item name
-          </label>
-          <Input
-            id="item-name"
-            value={newItemName}
-            onChange={(e) => setNewItemName(e.target.value)}
-            placeholder="e.g., Sofa, Bed Frame"
-          />
-        </div>
-        <Button type="button" onClick={handleAddItem}>
-          Add
-        </Button>
-      </div>
-
-      {/* Items list */}
-      <div className="space-y-4">
-        {items.length === 0 && (
-          <p className="text-[#367D5E]">No items added yet.</p>
-        )}
-
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="p-4 border border-[#BFEEEE] rounded-lg flex justify-between items-center bg-white shadow-sm"
-          >
-            <div>
-              <p className="font-medium text-[#22503B]">{item.name}</p>
-              {item.image && (
-                <img
-                  src={item.image}
-                  alt="Item"
-                  className="mt-2 w-24 h-24 object-cover rounded-md border"
-                />
-              )}
-            </div>
-
-            <div className="flex flex-col items-end gap-2">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) =>
-                  handleImageUpload(item.id, e.target.files?.[0] || null)
-                }
-                className="text-sm"
-              />
-              {loadingIds.includes(item.id) && (
-                <span className="text-sm text-[#367D5E]">Uploading...</span>
-              )}
-
-              {item.image && (
-                <Button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      if (item.public_id) {
-                        await fetch("/api/upload", {
-                          method: "DELETE",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ public_id: item.public_id }),
-                        });
-                      }
-
-                      onChange(
-                        items.map((it) =>
-                          it.id === item.id
-                            ? { ...it, image: undefined, public_id: undefined }
-                            : it
-                        )
-                      );
-                    } catch (err) {
-                      console.error("Delete image error:", err);
-                    }
-                  }}
-                >
-                  Delete Image
-                </Button>
-              )}
-
-              <Button type="button" onClick={() => handleRemoveItem(item.id)}>
-                Remove
-              </Button>
-            </div>
+    <div className="flex flex-col gap-6">
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex h-56 w-64 items-center justify-center rounded-xl border border-slate-300 bg-[#fbfdfc] text-[#22503B] shadow-sm transition hover:border-[#2f7d4a] hover:bg-[#f2faf5]"
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#2f7d4a]">
+            <Plus className="h-4 w-4 text-[#2f7d4a]" />
           </div>
-        ))}
-      </div>
+          <span className="text-sm font-semibold">Add New Item</span>
+        </div>
+      </button>
+
+      {items.length > 0 && (
+        <div className="grid gap-3 md:grid-cols-2">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 text-sm shadow-sm"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-medium text-slate-900">
+                    {item.name} <span className="text-slate-500">({item.size})</span>
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {item.category} ・ Qty {item.quantity}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveItem(item.id)}
+                  className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-red-500 transition"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mt-2 border-t border-slate-100 pt-3">
+                {item.image ? (
+                  <div className="relative inline-block">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="h-24 w-24 rounded-md object-cover border border-slate-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteImage(item)}
+                      className="absolute -right-2 -top-2 rounded-full bg-white p-1 text-slate-500 shadow hover:text-red-600 border border-slate-200"
+                      title="Delete Image"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-3 py-2 text-slate-600 hover:bg-slate-50 transition">
+                      {loadingIds.includes(item.id) ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ImageIcon className="h-4 w-4" />
+                      )}
+                      <span className="text-xs">Add Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={loadingIds.includes(item.id)}
+                        onChange={(e) =>
+                          handleImageUpload(item.id, e.target.files?.[0] || null)
+                        }
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <ItemPickerModal
+        open={open}
+        onClose={() => setOpen(false)}
+        onAdd={(newItems) => {
+          if (newItems.length === 0) return;
+          const itemsWithImageField = newItems.map(item => ({
+            ...item,
+            image: undefined,
+            public_id: undefined
+          }));
+          onChange([...items, ...itemsWithImageField]);
+          setOpen(false);
+        }}
+      />
     </div>
   );
 }
