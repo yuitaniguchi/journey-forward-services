@@ -1,0 +1,61 @@
+import { Text, Heading, Section } from "@react-email/components";
+import * as React from "react";
+import { Layout } from "./components/Layout";
+import { BookingReceivedProps } from "../types/email";
+
+interface CancellationCustomerProps extends BookingReceivedProps {
+  cancellationFee: number;
+}
+
+export const CancellationNotificationCustomer: React.FC<
+  CancellationCustomerProps
+> = ({ customer, request, cancellationFee }) => {
+  const isFree = cancellationFee === 0;
+
+  const formattedFee = new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: "CAD",
+  }).format(cancellationFee);
+
+  const previewText = `[Cancellation] Booking for Request #${request?.requestId} has been cancelled`;
+
+  const title = isFree
+    ? "Booking Cancelled"
+    : "Booking Cancelled (Fee Applied)";
+
+  const feeMessage = isFree
+    ? "No cancellation fee was applied."
+    : `In accordance with our cancellation policy, a cancellation fee of ${formattedFee} will be charged. You will receive a separate invoice shortly.`;
+
+  return (
+    <Layout previewText={previewText}>
+      <Heading className="text-2xl font-bold text-gray-800 my-6">
+        {title}
+      </Heading>
+
+      <Text className="text-base text-gray-700">Hi {customer?.firstName},</Text>
+
+      <Text className="text-base text-gray-700 font-bold">
+        Your booking for Request #{request?.requestId} has been cancelled.
+      </Text>
+
+      <Section
+        className={`p-4 mt-6 border border-solid rounded-md ${
+          isFree ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
+        }`}
+      >
+        <Text className="text-sm font-semibold text-gray-700 m-0">
+          Cancellation Fee Status
+        </Text>
+        <Text className="text-base font-bold m-0 mt-1">{feeMessage}</Text>
+      </Section>
+
+      <Text className="text-sm text-gray-600 mt-6">
+        For details regarding our cancellation policy, please refer to your
+        original booking documentation.
+      </Text>
+    </Layout>
+  );
+};
+
+export default CancellationNotificationCustomer;
