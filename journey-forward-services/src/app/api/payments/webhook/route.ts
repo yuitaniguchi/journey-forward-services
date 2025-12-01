@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { Prisma, RequestStatus } from "@prisma/client";
+import { sendPaymentConfirmedEmail } from "@/lib/sendgrid";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -97,11 +98,102 @@ export async function POST(req: Request) {
         break;
       }
 
-      // ここは将来の本決済（PaymentIntent）のときに使う想定なので、
-      // いったんログだけにしておいてもOK
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         console.log("✅ payment_intent.succeeded:", paymentIntent.id);
+
+        const requestIdRaw = paymentIntent.metadata?.requestId;
+        const requestId = requestIdRaw ? Number(requestIdRaw) : NaN;
+
+        if (!requestId || Number.isNaN(requestId)) {
+          console.warn("payment_intent.succeeded missing requestId metadata");
+          break;
+        }
+
+        try {
+          await prisma.$transaction([
+            prisma.payment.update({
+              where: { requestId },
+              data: { status: "PAID" }
+            }),
+            prisma.request.update({
+              where: { id: requestId },
+              data: { status: "PAID" }
+            })
+          ]);
+          console.log(`💾 DB updated to PAID for Request #${requestId}`);
+
+          const requestFromDb = await prisma.request.findUnique({
+            where: { id: requestId },
+            include: {
+              customer: true,
+              items: true
+            }
+          });
+
+          if (requestFromDb && requestFromDb.customer) {
+            const amountReceived = paymentIntent.amount_received / 100;
+
+            const pickupAddressString = [
+              requestFromDb.pickupAddressLine1,
+              requestFromDb.pickupAddressLine2,
+              requestFromDb.pickupCity,
+              requestFromDb.pickupState,
+              requestFromDb.pickupPostalCode
+            ].filter(Boolean).join(", ");
+
+            const deliveryAddressString = requestFromDb.deliveryAddressLine1
+              ? [
+                requestFromDb.deliveryAddressLine1,
+                requestFromDb.deliveryAddressLine2,
+                requestFromDb.deliveryCity,
+                requestFromDb.deliveryState,
+                requestFromDb.deliveryPostalCode
+              ].filter(Boolean).join(", ")
+              : undefined;
+
+            const emailRequestData = {
+              requestId: requestFromDb.id,
+              preferredDatetime: requestFromDb.preferredDatetime,
+              pickupAddress: pickupAddressString,
+              deliveryAddress: deliveryAddressString,
+              pickupFloor: requestFromDb.pickupFloor ?? undefined,
+              pickupElevator: requestFromDb.pickupElevator,
+              status: requestFromDb.status,
+              items: requestFromDb.items.map(item => ({
+                name: item.name,
+                size: item.size,
+                quantity: item.quantity,
+                price: 0,
+                delivery: false
+              })),
+              deliveryRequired: requestFromDb.deliveryRequired
+            };
+
+            await sendPaymentConfirmedEmail({
+              customer: requestFromDb.customer,
+              request: emailRequestData,
+              requestDate: requestFromDb.createdAt.toISOString(),
+              finalTotal: amountReceived,
+              isCustomer: true
+            });
+
+            await sendPaymentConfirmedEmail({
+              customer: requestFromDb.customer,
+              request: emailRequestData,
+              requestDate: requestFromDb.createdAt.toISOString(),
+              finalTotal: amountReceived,
+              isCustomer: false,
+              dashboardLink: `https://admin.managesmartr.com/requests/${requestId}`
+            });
+
+            console.log(`📧 Payment confirmation emails sent for Request #${requestId}`);
+          }
+
+        } catch (err) {
+          console.error(`❌ Error processing payment_intent.succeeded for Request #${requestId}:`, err);
+        }
+
         break;
       }
 
