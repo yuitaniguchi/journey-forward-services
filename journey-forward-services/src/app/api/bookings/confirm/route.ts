@@ -9,25 +9,62 @@ export async function POST(req: Request) {
         const request = await prisma.request.update({
             where: { id: body.requestId },
             data: { status: "CONFIRMED" },
-            include: { customer: true },
+            include: {
+                customer: true,
+                items: true,
+                quotation: true
+            },
         });
+
+        const pickupAddressString = [
+            request.pickupAddressLine1,
+            request.pickupAddressLine2,
+            request.pickupCity,
+            request.pickupState,
+            request.pickupPostalCode
+        ].filter(Boolean).join(", ");
+
+        const deliveryAddressString = request.deliveryAddressLine1
+            ? [
+                request.deliveryAddressLine1,
+                request.deliveryAddressLine2,
+                request.deliveryCity,
+                request.deliveryState,
+                request.deliveryPostalCode
+            ].filter(Boolean).join(", ")
+            : "";
+
+        const mappedItems = request.items.map(item => ({
+            name: item.name,
+            size: item.size,
+            quantity: item.quantity,
+            price: 0,
+            delivery: false
+        }));
+
+        const emailRequestData = {
+            requestId: request.id,
+            preferredDatetime: request.preferredDatetime,
+            pickupAddress: pickupAddressString,
+            deliveryAddress: deliveryAddressString,
+            pickupFloor: request.pickupFloor ?? undefined,
+            pickupElevator: request.pickupElevator,
+            status: request.status,
+            items: mappedItems,
+            deliveryRequired: request.deliveryRequired
+        };
 
         const adminProps = {
             customer: {
                 firstName: request.customer.firstName,
                 lastName: request.customer.lastName,
                 email: request.customer.email,
+                phone: request.customer.phone || "",
             },
-            request: {
-                requestId: request.id,
-                preferredDatetime: request.preferredDatetime,
-                pickupAddress: request.pickupAddressLine1,
-                deliveryAddress: request.deliveryAddressLine1 || "",
-                status: request.status,
-            },
-            requestDate: request.createdAt.toISOString(), // ← 追加
+            request: emailRequestData,
+            requestDate: request.createdAt.toISOString(),
             customerPhone: request.customer.phone || "",
-            quotationTotal: body.quotationTotal,
+            quotationTotal: request.quotation?.total.toNumber() || 0,
         };
 
         const customerProps = {
@@ -35,17 +72,16 @@ export async function POST(req: Request) {
                 firstName: request.customer.firstName,
                 lastName: request.customer.lastName,
                 email: request.customer.email,
+                phone: request.customer.phone || "",
             },
-            request: {
-                requestId: request.id,
-                preferredDatetime: request.preferredDatetime,
-                pickupAddress: request.pickupAddressLine1,
-                deliveryAddress: request.deliveryAddressLine1 || "",
-                status: request.status,
-            },
+            request: emailRequestData,
             requestDate: request.createdAt.toISOString(),
-            quotationTotal: body.quotationTotal,
             cancellationDeadline: request.freeCancellationDeadline.toISOString(),
+            quotation: {
+                subtotal: request.quotation?.subtotal.toNumber() || 0,
+                tax: request.quotation?.tax.toNumber() || 0,
+                total: request.quotation?.total.toNumber() || 0,
+            }
         };
 
         await sendBookingConfirmedAdminEmail(adminProps);
