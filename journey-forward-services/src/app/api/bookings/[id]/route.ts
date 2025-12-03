@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { RequestStatus } from "@prisma/client";
+import type { BookingRequest, BookingResponse } from "@/types/booking";
 
 const ALLOWED_STATUSES: RequestStatus[] = [
   "RECEIVED",
@@ -21,12 +22,15 @@ function parseId(paramId: string) {
   return id;
 }
 
+/**
+ * GET /api/bookings/[id]
+ */
 export async function GET(
   _request: NextRequest,
   { params }: { params: RouteParams }
 ) {
   try {
-    const { id: rawId } = await params; //
+    const { id: rawId } = await params;
     console.log("GET /api/bookings/[id] rawId =", rawId);
 
     const id = parseId(rawId);
@@ -51,7 +55,86 @@ export async function GET(
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ data: booking }, { status: 200 });
+    // Decimal → number / Date → string に整形
+    const quotation = booking.quotation
+      ? {
+          id: booking.quotation.id,
+          subtotal: Number(booking.quotation.subtotal),
+          tax: Number(booking.quotation.tax),
+          total: Number(booking.quotation.total),
+          bookingLink: booking.quotation.bookingLink,
+        }
+      : null;
+
+    const payment = booking.payment
+      ? {
+          id: booking.payment.id,
+          subtotal: Number(booking.payment.subtotal),
+          tax: Number(booking.payment.tax),
+          total: Number(booking.payment.total),
+          currency: booking.payment.currency,
+          status: booking.payment.status,
+        }
+      : null;
+
+    const items = booking.items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      size: item.size,
+      quantity: item.quantity,
+      photoUrl: item.photoUrl,
+    }));
+
+    const data: BookingRequest = {
+      id: booking.id,
+      customerId: booking.customerId,
+      deliveryRequired: booking.deliveryRequired,
+
+      pickupPostalCode: booking.pickupPostalCode,
+      pickupAddressLine1: booking.pickupAddressLine1,
+      pickupAddressLine2: booking.pickupAddressLine2,
+      pickupCity: booking.pickupCity,
+      pickupState: booking.pickupState,
+      pickupFloor: booking.pickupFloor,
+      pickupElevator: booking.pickupElevator,
+
+      deliveryPostalCode: booking.deliveryPostalCode,
+      deliveryAddressLine1: booking.deliveryAddressLine1,
+      deliveryAddressLine2: booking.deliveryAddressLine2,
+      deliveryCity: booking.deliveryCity,
+      deliveryState: booking.deliveryState,
+      deliveryFloor: booking.deliveryFloor,
+      deliveryElevator: booking.deliveryElevator,
+
+      preferredDatetime: booking.preferredDatetime.toISOString(),
+      status: booking.status,
+
+      freeCancellationDeadline: booking.freeCancellationDeadline.toISOString(),
+      cancelledAt: booking.cancelledAt
+        ? booking.cancelledAt.toISOString()
+        : null,
+      cancellationFee: booking.cancellationFee
+        ? Number(booking.cancellationFee)
+        : null,
+
+      createdAt: booking.createdAt.toISOString(),
+      updatedAt: booking.updatedAt.toISOString(),
+
+      customer: {
+        id: booking.customer.id,
+        firstName: booking.customer.firstName,
+        lastName: booking.customer.lastName,
+        email: booking.customer.email,
+        phone: booking.customer.phone ?? null,
+      },
+
+      items,
+      quotation,
+      payment,
+    };
+
+    return NextResponse.json<BookingResponse>({ data }, { status: 200 });
   } catch (err) {
     console.error("GET /api/bookings/[id] error:", err);
     return NextResponse.json(

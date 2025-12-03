@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import {
   Elements,
   PaymentElement,
@@ -9,9 +9,7 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import { stripePromise } from "@/lib/stripeClient";
-
-const MOCK_REQUEST_ID = "4"; // Prisma Studio で実在する id にする
-const MOCK_EMAIL = "johnsmith@gmail.com";
+import type { BookingRequest, BookingResponse } from "@/types/booking";
 
 type PaymentFormProps = {
   requestId: string;
@@ -20,14 +18,12 @@ type PaymentFormProps = {
 function PaymentForm({ requestId }: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
-  const router = useRouter(); // ★ 追加
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     if (!stripe || !elements) return;
 
-    // PaymentElement が本当にマウントされているかチェック
     const paymentElement = elements.getElement(PaymentElement);
     if (!paymentElement) {
       console.error("PaymentElement is not loaded");
@@ -60,8 +56,8 @@ function PaymentForm({ requestId }: PaymentFormProps) {
 
     console.log("Setup succeeded ✅", setupIntent?.id);
 
-    // ★ ここを修正：カード登録後は Booking Detail 画面へ
-    router.push(`/booking-detail/${requestId}`);
+    // カード登録が終わったら、この requestId の Booking Detail へ
+    window.location.href = `/booking-detail/${requestId}`;
   };
 
   return (
@@ -71,8 +67,6 @@ function PaymentForm({ requestId }: PaymentFormProps) {
           onReady={() => {
             console.log("PaymentElement ready");
           }}
-          // loaderror の詳細をログに出す
-          // 型が合わないので any で受けている
           onError={(event: any) => {
             console.error("PaymentElement error", event);
             setMessage(
@@ -84,7 +78,7 @@ function PaymentForm({ requestId }: PaymentFormProps) {
       </div>
 
       {message && (
-        <p className="mb-3 text-sm text-red-600 whitespace-pre-line">
+        <p className="mb-3 whitespace-pre-line text-sm text-red-600">
           {message}
         </p>
       )}
@@ -102,41 +96,83 @@ function PaymentForm({ requestId }: PaymentFormProps) {
 }
 
 export default function BookingConfirmationPage() {
+  const params = useParams<{ id: string }>();
+  const requestId = params?.id;
+
+  const [booking, setBooking] = useState<BookingRequest | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [isLoadingIntent, setIsLoadingIntent] = useState(true);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    const createIntent = async () => {
+    if (!requestId) {
+      setLoadError("Invalid URL. Request ID is missing.");
+      setIsLoading(false);
+      return;
+    }
+
+    const loadBookingAndIntent = async () => {
       try {
-        const res = await fetch("/api/payments/create-intent", {
+        setIsLoading(true);
+        setLoadError(null);
+
+        // 1. Booking 情報を取得
+        const resBooking = await fetch(`/api/bookings/${requestId}`);
+        if (!resBooking.ok) {
+          const text = await resBooking.text();
+          console.error(
+            "Failed to fetch booking for confirmation",
+            resBooking.status,
+            text
+          );
+          setLoadError("Failed to load booking information.");
+          return;
+        }
+
+        const bookingJson = (await resBooking.json()) as BookingResponse;
+        const bookingData = bookingJson.data;
+        setBooking(bookingData);
+
+        // 2. Stripe SetupIntent を作成
+        const resIntent = await fetch("/api/payments/create-intent", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            requestId: MOCK_REQUEST_ID,
-            customerEmail: MOCK_EMAIL,
+            requestId,
+            customerEmail: bookingData.customer.email,
           }),
         });
 
-        if (!res.ok) {
-          const text = await res.text();
-          console.error("Failed to create intent", res.status, text);
+        if (!resIntent.ok) {
+          const text = await resIntent.text();
+          console.error(
+            "Failed to create Stripe intent",
+            resIntent.status,
+            text
+          );
+          setLoadError("Failed to initialize payment.");
           return;
         }
 
-        const data = await res.json();
-        console.log("Stripe clientSecret (from useEffect):", data.clientSecret);
-        setClientSecret(data.clientSecret);
+        const intentJson = await resIntent.json();
+        console.log(
+          "[booking-confirmation] Stripe clientSecret:",
+          intentJson.clientSecret
+        );
+        setClientSecret(intentJson.clientSecret);
       } catch (e) {
-        console.error("Unexpected error while creating intent", e);
+        console.error("Unexpected error in booking confirmation page:", e);
+        setLoadError("Unexpected error occurred.");
       } finally {
-        setIsLoadingIntent(false);
+        setIsLoading(false);
       }
     };
 
-    createIntent();
-  }, []);
+    loadBookingAndIntent();
+  }, [requestId]);
 
   const elementsOptions = clientSecret
     ? {
@@ -147,6 +183,54 @@ export default function BookingConfirmationPage() {
         locale: "en" as const,
       }
     : undefined;
+
+  // ローディング or booking 取得前
+  if (isLoading || !booking) {
+    return (
+      <main className="min-h-screen bg-[#f7f7f7] py-10">
+        <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 md:px-0">
+          <h1 className="text-center text-2xl font-semibold text-[#1f2933]">
+            Booking Confirmation
+          </h1>
+          {loadError ? (
+            <p className="text-sm text-red-600">{loadError}</p>
+          ) : (
+            <p className="text-sm text-gray-700">Loading booking...</p>
+          )}
+        </div>
+      </main>
+    );
+  }
+
+  // ----- booking が取れたので UI に反映 -----
+  const customerName =
+    `${booking.customer.firstName} ${booking.customer.lastName}`.trim();
+
+  const pickupDateTime = booking.preferredDatetime
+    ? new Date(booking.preferredDatetime).toLocaleString()
+    : "-";
+
+  const pickupAddress = `${booking.pickupAddressLine1}${
+    booking.pickupAddressLine2 ? ` ${booking.pickupAddressLine2}` : ""
+  }, ${booking.pickupCity}, ${booking.pickupState} ${
+    booking.pickupPostalCode ?? ""
+  }`;
+
+  const pickupNoteParts: string[] = [];
+  if (booking.pickupFloor != null) {
+    pickupNoteParts.push(`${booking.pickupFloor} floor`);
+  }
+  if (booking.pickupElevator === true) {
+    pickupNoteParts.push("Elevator available");
+  } else if (booking.pickupElevator === false) {
+    pickupNoteParts.push("No elevator");
+  }
+  const pickupNote =
+    pickupNoteParts.length > 0
+      ? pickupNoteParts.join(" / ")
+      : "No additional notes";
+
+  const quotation = booking.quotation;
 
   return (
     <main className="min-h-screen bg-[#f7f7f7] py-10">
@@ -174,35 +258,36 @@ export default function BookingConfirmationPage() {
 
         {/* Main 2-column layout */}
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Left column – Request detail */}
+          {/* Left column – Request detail（実データ） */}
           <section className="rounded-xl bg-white p-8 shadow-sm">
             <h2 className="mb-6 text-xl font-semibold text-[#1a7c4c]">
-              Request Number: {MOCK_REQUEST_ID}
+              Request Number: {booking.id}
             </h2>
 
             <div className="space-y-1 text-sm leading-relaxed text-gray-800">
               <p>
-                <span className="font-semibold">Name: </span>John Smith
+                <span className="font-semibold">Name: </span>
+                {customerName || "-"}
               </p>
               <p>
                 <span className="font-semibold">Email: </span>
-                {MOCK_EMAIL}
+                {booking.customer.email || "-"}
               </p>
               <p>
                 <span className="font-semibold">Phone number: </span>
-                444 (555) 6666
+                {booking.customer.phone || "-"}
               </p>
               <p className="mt-3">
                 <span className="font-semibold">Pickup Date: </span>
-                Aug 14, 2025 – 9:00 AM
+                {pickupDateTime}
               </p>
               <p>
                 <span className="font-semibold">Pickup Address: </span>
-                1384 E 12th Avenue, Vancouver, BC, V6T 2J9
+                {pickupAddress}
               </p>
               <p>
                 <span className="font-semibold">Note: </span>
-                2nd floor / No elevator
+                {pickupNote}
               </p>
             </div>
 
@@ -234,35 +319,60 @@ export default function BookingConfirmationPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white text-gray-800">
-                    <tr>
-                      <td className="border-t px-3 py-2">1</td>
-                      <td className="border-t px-3 py-2">Sofa</td>
-                      <td className="border-t px-3 py-2">1</td>
-                      <td className="border-t px-3 py-2">Large</td>
-                      <td className="border-t px-3 py-2">No</td>
-                      <td className="border-t px-3 py-2">$20</td>
-                    </tr>
+                    {booking.items.length > 0 ? (
+                      booking.items.map((item, index) => (
+                        <tr key={item.id}>
+                          <td className="border-t px-3 py-2">{index + 1}</td>
+                          <td className="border-t px-3 py-2">{item.name}</td>
+                          <td className="border-t px-3 py-2">
+                            {item.quantity}
+                          </td>
+                          <td className="border-t px-3 py-2">{item.size}</td>
+                          <td className="border-t px-3 py-2">
+                            {booking.deliveryRequired ? "Yes" : "No"}
+                          </td>
+                          <td className="border-t px-3 py-2">-</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          className="border-t px-3 py-2 text-center"
+                          colSpan={6}
+                        >
+                          No items registered yet.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
 
               <div className="mt-4 flex flex-col items-end text-sm text-gray-800">
-                <div className="flex w-40 justify-between">
-                  <span>Sub Total:</span>
-                  <span>$70.00</span>
-                </div>
-                <div className="flex w-40 justify-between">
-                  <span>Tax:</span>
-                  <span>$8.40</span>
-                </div>
-                <div className="mt-1 flex w-40 justify-between font-semibold">
-                  <span>Total:</span>
-                  <span>$78.40</span>
-                </div>
+                {quotation ? (
+                  <>
+                    <div className="flex w-40 justify-between">
+                      <span>Sub Total:</span>
+                      <span>${quotation.subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex w-40 justify-between">
+                      <span>Tax:</span>
+                      <span>${quotation.tax.toFixed(2)}</span>
+                    </div>
+                    <div className="mt-1 flex w-40 justify-between font-semibold">
+                      <span>Total:</span>
+                      <span>${quotation.total.toFixed(2)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    Quotation is being prepared.
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Discount code */}
+            {/* Discount code（現状はモックのまま保持でもOK） */}
             <div className="mt-8">
               <p className="mb-2 text-sm font-semibold text-gray-800">
                 Discount Code
@@ -323,18 +433,20 @@ export default function BookingConfirmationPage() {
               <span>UnionPay</span>
             </div>
 
-            {isLoadingIntent && (
-              <p className="text-sm text-gray-500">Loading payment form...</p>
+            {loadError && (
+              <p className="mb-3 text-sm text-red-600">{loadError}</p>
             )}
 
-            {!isLoadingIntent && clientSecret && elementsOptions && (
+            {clientSecret && elementsOptions ? (
               <Elements stripe={stripePromise} options={elementsOptions}>
-                <PaymentForm requestId={MOCK_REQUEST_ID} />
+                <PaymentForm requestId={booking.id.toString()} />
               </Elements>
-            )}
+            ) : !loadError ? (
+              <p className="text-sm text-gray-500">Loading payment form...</p>
+            ) : null}
 
-            {!isLoadingIntent && !clientSecret && (
-              <p className="text-sm text-red-600">
+            {!clientSecret && !loadError && !isLoading && (
+              <p className="mt-2 text-sm text-red-600">
                 Failed to initialize payment. Please try again later.
               </p>
             )}
