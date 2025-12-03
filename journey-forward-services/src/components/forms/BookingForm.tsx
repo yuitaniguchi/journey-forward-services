@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,9 +12,7 @@ import { Button } from "@/components/ui/button";
 import AddressInput from "./AddressInput";
 import DateTimePicker from "./DateTimePicker";
 import ItemList, { Item } from "./ItemList";
-import { ArrowLeft, ArrowRight } from "lucide-react";
 
-// 24時間以上先チェック
 const pickupDateTimeSchema = z
   .string()
   .min(1, "Pickup date & time is required")
@@ -28,7 +27,23 @@ const bookingSchema = z.object({
   postalCode: z.string().min(1, "Postal code is required"),
   pickupDateTime: pickupDateTimeSchema,
   deliveryRequired: z.boolean(),
-  address: z.string().min(1, "Pickup address is required"),
+
+  address: z.object({
+    street: z.string().min(1, "Street address is required"),
+    line2: z.string().optional(),
+    city: z
+      .string()
+      .min(1, "City is required")
+      .refine(
+        (val) =>
+          ["Vancouver", "Burnaby", "Richmond", "Surrey"].some(
+            (c) => c.toLowerCase() === val.toLowerCase()
+          ),
+        "Service is only available in: Vancouver, Burnaby, Richmond, Surrey"
+      ),
+    province: z.string(),
+  }),
+
   floor: z
     .string()
     .optional()
@@ -41,8 +56,6 @@ const bookingSchema = z.object({
   phone: z.string().min(1, "Phone number is required"),
 });
 
-// 対応エリアの郵便番号プレフィッ"V5", "V6", "V7"];クス（例：V5 / V6 / V7）
-// Vancouver
 const VANCOUVER_PREFIXES = [
   "V5K",
   "V5L",
@@ -77,7 +90,6 @@ const VANCOUVER_PREFIXES = [
   "V7Y",
 ];
 
-// Burnaby
 const BURNABY_PREFIXES = [
   "V3J",
   "V3N",
@@ -90,7 +102,6 @@ const BURNABY_PREFIXES = [
   "V5J",
 ];
 
-// Richmond
 const RICHMOND_PREFIXES = [
   "V6V",
   "V6W",
@@ -102,7 +113,6 @@ const RICHMOND_PREFIXES = [
   "V7E",
 ];
 
-// Surrey
 const SURREY_PREFIXES = [
   "V3R",
   "V3S",
@@ -123,10 +133,9 @@ const SUPPORTED_POSTAL_PREFIXES = [
   ...SURREY_PREFIXES,
 ];
 
-// 郵便番号が対応エリアかどうか判定
 function isSupportedPostalCode(postalRaw: string) {
   const code = postalRaw.replace(/\s+/g, "").toUpperCase();
-  const fsa = code.slice(0, 3); // 先頭3文字だけ見る
+  const fsa = code.slice(0, 3);
   return SUPPORTED_POSTAL_PREFIXES.includes(fsa);
 }
 
@@ -144,11 +153,17 @@ const STEPS = [
 export default function BookingForm() {
   const methods = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
+    mode: "onTouched",
     defaultValues: {
       postalCode: "",
       pickupDateTime: "",
       deliveryRequired: false,
-      address: "",
+      address: {
+        street: "",
+        line2: "",
+        city: "",
+        province: "BC",
+      },
       floor: "",
       hasElevator: false,
       firstName: "",
@@ -164,52 +179,52 @@ export default function BookingForm() {
     trigger,
     setValue,
     watch,
+    getValues,
     formState: { errors },
   } = methods;
 
-  const [step, setStep] = useState(0); // 0〜5
+  const [step, setStep] = useState(0);
   const [items, setItems] = useState<Item[]>([]);
   const [itemsError, setItemsError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedRequestNumber, setSubmittedRequestNumber] = useState<
     string | null
   >(null);
-  // ★ Step1 で対象外エリアだったかどうか
   const [outOfArea, setOutOfArea] = useState(false);
+
   const deliveryRequired = watch("deliveryRequired");
   const addressValue = watch("address");
   const pickupDateTime = watch("pickupDateTime");
 
-  // --- ステップ毎にバリデーションするフィールドを指定 ---
-  const stepFields: (keyof BookingFormValues)[][] = [
+  const stepFields: (
+    | keyof BookingFormValues
+    | `address.${keyof BookingFormValues["address"]}`
+  )[][] = [
     ["postalCode"],
     ["pickupDateTime"],
-    ["address", "floor"],
-    [], // items は独自バリデーション
+    ["address.street", "address.city", "address.province", "floor"],
+    [],
     ["firstName", "lastName", "email", "phone"],
-    [], // confirm画面は追加チェックなし
+    [],
   ];
 
   const handleNext = async () => {
-    const fields = stepFields[step];
+    const fields = stepFields[step] as any;
     if (fields.length > 0) {
       const ok = await trigger(fields);
       if (!ok) return;
     }
 
-    // ★ Step1（Postal Code）のときは、対応エリアチェック
     if (step === 0) {
-      const postal = methods.getValues("postalCode")?.trim() ?? "";
+      const postal = getValues("postalCode")?.trim() ?? "";
       if (!isSupportedPostalCode(postal)) {
-        // 対象外 → メッセージ画面を出す
         setOutOfArea(true);
-        return; // 次のステップに進まない
+        return;
       } else {
         setOutOfArea(false);
       }
     }
 
-    // Step4 の items チェック
     if (step === 3) {
       if (items.length === 0) {
         setItemsError("Please add at least one item.");
@@ -222,13 +237,10 @@ export default function BookingForm() {
   };
 
   const handleBack = () => {
-    // ★ Step1 の「We’re sorry…」画面用
     if (step === 0 && outOfArea) {
-      setOutOfArea(false); // 通常の Step1 へ戻す
+      setOutOfArea(false);
       return;
     }
-
-    // それ以外はこれまで通り 1 つ前のステップへ
     setStep((prev) => Math.max(prev - 1, 0));
   };
 
@@ -241,63 +253,52 @@ export default function BookingForm() {
 
     setIsSubmitting(true);
     try {
-      // address は「Street, City」の形式なので分解
-      const [streetPart, cityPartRaw] = (data.address || "")
-        .split(",")
-        .map((s) => s.trim());
-      const cityPart = cityPartRaw || "";
+      const pickupAddressLine1 = data.address.street;
+      const pickupAddressLine2 = data.address.line2 || null;
+      const pickupCity = data.address.city;
+      const pickupState = data.address.province;
 
       const pickupPostalCode = data.postalCode;
-      const pickupAddressLine1 = streetPart || data.address;
-      const pickupCity = cityPart || "Vancouver"; // ここは好みで
 
-      // 日時
       const pickupDate = new Date(data.pickupDateTime);
       const preferredDatetime = pickupDate.toISOString();
       const freeCancellationDeadline = new Date(
         pickupDate.getTime() - 24 * 60 * 60 * 1000
-      ).toISOString(); // 24時間前を締切にしている例
+      ).toISOString();
 
       const body = {
-        // ✅ ここが route.ts 側で扱う customer オブジェクト
         customer: {
           firstName: data.firstName,
           lastName: data.lastName,
           email: data.email,
           phone: data.phone,
         },
-
         deliveryRequired: data.deliveryRequired,
-
         pickupPostalCode,
         pickupAddressLine1,
-        pickupAddressLine2: null,
+        pickupAddressLine2,
         pickupCity,
-        pickupState: "BC",
+        pickupState,
         pickupFloor: data.floor ? Number(data.floor) : null,
         pickupElevator: data.hasElevator,
-
-        // Delivery 情報はまだフォームがないので、
-        // deliveryRequired のときだけ pickup と同じ値を入れておく簡易実装
         ...(data.deliveryRequired
           ? {
               deliveryPostalCode: pickupPostalCode,
               deliveryAddressLine1: pickupAddressLine1,
-              deliveryAddressLine2: null,
+              deliveryAddressLine2: pickupAddressLine2,
               deliveryCity: pickupCity,
-              deliveryState: "BC",
+              deliveryState: pickupState,
             }
           : {}),
-
         preferredDatetime,
         freeCancellationDeadline,
         status: "RECEIVED" as const,
-        // items は今の route.ts では使っていないけど、
-        // 今後の拡張用に送っておくのはアリ
         items: items.map((it) => ({
           name: it.name,
           size: it.size,
           quantity: it.quantity,
+          description: it.description,
+          photoUrl: it.image,
         })),
       };
 
@@ -328,9 +329,7 @@ export default function BookingForm() {
     }
   };
 
-  // ---- レンダリングするステップ内容 ----
   const renderStep = () => {
-    // success screen
     if (step === STEPS.length) {
       return (
         <div className="flex flex-col items-center py-16 text-center">
@@ -362,9 +361,6 @@ export default function BookingForm() {
 
     switch (step) {
       case 0:
-        // Step1 Postal Code
-
-        // ★ 対象外エリアだった場合：メッセージ画面
         if (outOfArea) {
           return (
             <div className="flex justify-center py-8">
@@ -383,7 +379,6 @@ export default function BookingForm() {
           );
         }
 
-        // ★ 通常の Step1 フォーム
         return (
           <div className="space-y-6">
             <p className="font-semibold text-[#22503B]">Step 1</p>
@@ -409,7 +404,6 @@ export default function BookingForm() {
         );
 
       case 1:
-        // Step2 Date / Delivery
         return (
           <div className="space-y-6">
             <p className="font-semibold text-[#22503B]">Step 2</p>
@@ -442,7 +436,6 @@ export default function BookingForm() {
         );
 
       case 2:
-        // Step3 Address
         return (
           <div className="space-y-6">
             <p className="font-semibold text-[#22503B]">Step 3</p>
@@ -450,11 +443,7 @@ export default function BookingForm() {
               Pickup Address
             </h2>
 
-            <AddressInput
-              value={addressValue}
-              onChange={(v) => setValue("address", v)}
-              error={errors.address?.message}
-            />
+            <AddressInput />
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div className="space-y-1">
@@ -501,7 +490,6 @@ export default function BookingForm() {
         );
 
       case 3:
-        // Step4 Items
         return (
           <div className="space-y-6">
             <p className="font-semibold text-[#22503B]">Step 4</p>
@@ -510,14 +498,14 @@ export default function BookingForm() {
             </h2>
 
             <p className="text-xs text-slate-500">
-              Uploading pictures is optional.
+              Uploading Pictures is optional
             </p>
 
             <ItemList
               items={items}
-              onChange={(list) => {
-                setItems(list);
-                if (list.length > 0) setItemsError("");
+              onChange={(updatedItems) => {
+                setItems(updatedItems);
+                if (updatedItems.length > 0) setItemsError("");
               }}
             />
 
@@ -526,7 +514,6 @@ export default function BookingForm() {
         );
 
       case 4:
-        // Step5 Your info
         return (
           <div className="space-y-6">
             <p className="font-semibold text-[#22503B]">Step 5</p>
@@ -585,21 +572,18 @@ export default function BookingForm() {
         );
 
       case 5:
-        // Step6 Confirmation
         return (
           <div className="space-y-8">
-            {/* 大見出し */}
             <h2 className="text-xl font-semibold text-[#22503B]">
               Confirmation
             </h2>
 
-            {/* Pickup Info */}
             <section className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-[#22503B]">Pickup Info</h3>
                 <button
                   type="button"
-                  onClick={() => setStep(1)} // Date ステップへ戻る
+                  onClick={() => setStep(1)}
                   className="rounded border border-[#3F7253] px-3 py-1 text-xs font-medium text-[#3F7253] hover:bg-[#e7f0eb]"
                 >
                   Edit
@@ -616,7 +600,12 @@ export default function BookingForm() {
                   </span>
 
                   <span className="font-medium">Pickup Address</span>
-                  <span>{addressValue || "-"}</span>
+                  <span>
+                    {addressValue.street}
+                    {addressValue.line2 ? `, ${addressValue.line2}` : ""}
+                    <br />
+                    {addressValue.city}, {addressValue.province}
+                  </span>
 
                   <span className="font-medium">Other</span>
                   <span>
@@ -627,13 +616,12 @@ export default function BookingForm() {
               </div>
             </section>
 
-            {/* Item Info */}
             <section className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-[#22503B]">Item Info</h3>
                 <button
                   type="button"
-                  onClick={() => setStep(3)} // Size of Items ステップへ
+                  onClick={() => setStep(3)}
                   className="rounded border border-[#3F7253] px-3 py-1 text-xs font-medium text-[#3F7253] hover:bg-[#e7f0eb]"
                 >
                   Edit
@@ -651,7 +639,12 @@ export default function BookingForm() {
                         {items.map((it) => (
                           <div key={it.id}>
                             {it.name} [{it.size}]
-                            {it.quantity ? ` x${it.quantity}` : ""}
+                            {it.quantity > 1 ? ` x${it.quantity}` : ""}
+                            {it.description && (
+                              <span className="text-slate-500 ml-2 text-xs">
+                                ({it.description})
+                              </span>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -661,13 +654,12 @@ export default function BookingForm() {
               </div>
             </section>
 
-            {/* Your Info */}
             <section className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-[#22503B]">Your Info</h3>
                 <button
                   type="button"
-                  onClick={() => setStep(4)} // Your info ステップへ
+                  onClick={() => setStep(4)}
                   className="rounded border border-[#3F7253] px-3 py-1 text-xs font-medium text-[#3F7253] hover:bg-[#e7f0eb]"
                 >
                   Edit
@@ -688,7 +680,12 @@ export default function BookingForm() {
                   <span>{watch("phone")}</span>
 
                   <span className="font-medium">Address</span>
-                  <span>{addressValue || "-"}</span>
+                  <span>
+                    {addressValue.street}
+                    {addressValue.line2 ? `, ${addressValue.line2}` : ""}
+                    <br />
+                    {addressValue.city}, {addressValue.province}
+                  </span>
                 </div>
               </div>
             </section>
@@ -702,11 +699,8 @@ export default function BookingForm() {
 
   return (
     <FormProvider {...methods}>
-      {/* ✅ 全体ラッパー */}
       <div className="mx-auto max-w-3xl space-y-8">
-        {/* ===== ステップナビ ===== */}
         <div className="mb-10 flex flex-col items-center">
-          {/* --- モバイル用：縦並びステップバー --- */}
           <div className="w-full max-w-xs md:hidden">
             <div className="flex flex-col gap-4">
               {STEPS.slice(0, 5).map((label, index) => {
@@ -715,7 +709,6 @@ export default function BookingForm() {
 
                 return (
                   <div key={label} className="flex">
-                    {/* 丸 + 縦ライン */}
                     <div className="flex flex-col items-center mr-3">
                       <div
                         className={
@@ -723,8 +716,8 @@ export default function BookingForm() {
                           (completed
                             ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
                             : active
-                            ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
-                            : "border-slate-300 text-slate-400 bg-white")
+                              ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
+                              : "border-slate-300 text-slate-400 bg-white")
                         }
                       >
                         {completed ? (
@@ -733,8 +726,6 @@ export default function BookingForm() {
                           index + 1
                         )}
                       </div>
-
-                      {/* 下の縦の点線 / 線 */}
                       {index < 4 && (
                         <div
                           className={
@@ -746,8 +737,6 @@ export default function BookingForm() {
                         />
                       )}
                     </div>
-
-                    {/* ラベル */}
                     <div className="pt-1">
                       <p
                         className={
@@ -766,7 +755,6 @@ export default function BookingForm() {
             </div>
           </div>
 
-          {/* --- PC/タブレット用：横並びステップバー --- */}
           <div className="hidden w-full max-w-3xl items-center justify-between text-xs text-slate-600 md:flex md:text-sm">
             {STEPS.slice(0, 5).map((label, index) => {
               const active = index === step;
@@ -782,8 +770,8 @@ export default function BookingForm() {
                         (completed
                           ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
                           : active
-                          ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
-                          : "border-slate-300 text-slate-400 bg-white")
+                            ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
+                            : "border-slate-300 text-slate-400 bg-white")
                       }
                     >
                       {completed ? (
@@ -820,22 +808,24 @@ export default function BookingForm() {
           </div>
         </div>
 
-        {/* ===== 白いカード（ステップの中身） ===== */}
         <form
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={(e) => {
+            if (step === 5) {
+              handleSubmit(onSubmit)(e);
+            } else {
+              e.preventDefault();
+            }
+          }}
           className="rounded-xl border border-[#e0e7e2] bg-white px-6 py-8 md:px-10 md:py-10 shadow-sm"
         >
           {renderStep()}
 
-          {/* ボタン列 */}
           {step < STEPS.length && (
             <div className="mt-10 flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-center sm:gap-6">
-              {/* Back ボタン */}
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleBack}
-                // ★ Step1 でも outOfArea のときは「戻る」できるようにする
                 disabled={step === 0 && !outOfArea}
                 className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md border-[#3F7253] bg-white text-[#3F7253] hover:bg-[#e7f0eb] hover:text-[#3F7253] disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -843,10 +833,8 @@ export default function BookingForm() {
                 <span>Back</span>
               </Button>
 
-              {/* ★ Step1 の「We’re sorry…」画面では Next / Submit を出さない */}
               {!(step === 0 && outOfArea) && (
                 <>
-                  {/* 0〜4 = Postal〜Your info → Next */}
                   {step <= 4 && (
                     <Button
                       type="button"
@@ -858,7 +846,6 @@ export default function BookingForm() {
                     </Button>
                   )}
 
-                  {/* 5 = Confirmation → Submit */}
                   {step === 5 && (
                     <Button
                       type="submit"

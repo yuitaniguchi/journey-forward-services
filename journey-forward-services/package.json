@@ -21,6 +21,7 @@
     "@stripe/stripe-js": "^8.2.0",
     "bcrypt": "^6.0.0",
     "class-variance-authority": "^0.7.1",
+    "cloudinary": "^2.8.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
@@ -39,6 +40,7 @@
   "devDependencies": {
     "@react-email/preview-server": "^5.0.4",
     "@tailwindcss/postcss": "^4.1.17",
+    "@types/bcrypt": "^6.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

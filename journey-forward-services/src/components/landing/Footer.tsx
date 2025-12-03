@@ -1,68 +1,72 @@
-import Link from 'next/link';
-import { Phone, Mail } from 'lucide-react';
+"use client";
 
-export function Footer() {
+import Link from "next/link";
+import Image from "next/image";
+import { Phone, Mail } from "lucide-react";
+
+export default function Footer() {
   return (
-    <footer className="bg-brand-dark text-white pt-16 pb-8">
-      <div className="container grid grid-cols-1 md:grid-cols-4 gap-12 text-sm">
-        {/* Col 1: Brand & Contact */}
-        <div className="space-y-4 md:col-span-2">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-            <div className="h-8 w-8 bg-white/20 rounded-sm" />{' '}
-            {/* Logo Placeholder */}
-            <span>JOURNEY FORWARD SERVICES</span>
-          </Link>
+    <footer className="bg-linear-to-bl from-[#317255] via-[#295E46] to-[#204A37] text-white pt-16 pb-8">
+      {" "}
+      <div className="section-inner container mx-auto px-6">
+        <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
+          {/* Left Column: Brand & Contact */}
+          <div className="space-y-6">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="relative h-16 w-64">
+                <Image
+                  src="/footer-logo.svg"
+                  alt="Logo"
+                  fill
+                  // 画像が枠内で左寄せになるように object-left を追加すると収まりが良い場合があります
+                  className="object-contain object-left brightness-0 invert"
+                />
+              </div>
+            </Link>
 
-          <div className="space-y-3 pt-2 text-gray-300">
-            <div className="flex items-center gap-3">
-              <Phone className="h-4 w-4 text-brand-light" />
-              <span>+1 603 4784 273 12</span>
+            <div className="space-y-4 text-lg text-gray-100">
+              <div className="flex items-center gap-3">
+                <Phone className="h-5 w-5" />
+                <span>+1 603 4784 273 12</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Mail className="h-5 w-5" />
+                <span>journeyforwardservices@gmail.com</span>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Mail className="h-4 w-4 text-brand-light" />
-              <span>journeyforwardservices@gmail.com</span>
-            </div>
+          </div>
+
+          {/* Center Column: Navigation Links */}
+          <div className="flex flex-col gap-4 text-lg font-medium md:w-fit md:mx-auto md:pt-2">
+            <Link href="/about" className="hover:opacity-80 transition-opacity">
+              About Us
+            </Link>
+            <Link
+              href="/contact"
+              className="hover:opacity-80 transition-opacity"
+            >
+              Contact
+            </Link>
+            <Link href="/faq" className="hover:opacity-80 transition-opacity">
+              FAQs
+            </Link>
+          </div>
+
+          {/* Right Column: CTA */}
+          <div className="flex flex-col md:items-end md:pt-2">
+            <Link
+              href="/booking"
+              className="text-lg font-medium underline underline-offset-4 hover:text-gray-200 transition-colors"
+            >
+              Get an Estimate
+            </Link>
           </div>
         </div>
 
-        {/* Col 2: Navigation Links */}
-        <div>
-          <h3 className="font-bold mb-4 uppercase tracking-wider text-gray-400">
-            Menu
-          </h3>
-          <ul className="space-y-3 text-gray-300">
-            <li>
-              <Link href="#" className="hover:text-white transition-colors">
-                About Us
-              </Link>
-            </li>
-            <li>
-              <Link href="#" className="hover:text-white transition-colors">
-                Contact
-              </Link>
-            </li>
-            <li>
-              <Link href="#" className="hover:text-white transition-colors">
-                FAQs
-              </Link>
-            </li>
-          </ul>
+        {/* Bottom Bar */}
+        <div className="mt-16 border-t border-white/20 pt-8 text-center text-xs text-gray-300">
+          Copyright 2025 • Journey Forward Services, All Rights Reserved
         </div>
-
-        {/* Col 3: CTA */}
-        <div className="md:text-right">
-          <Link
-            href="#"
-            className="text-brand-light font-medium underline hover:text-white transition-colors"
-          >
-            Get an Estimate
-          </Link>
-        </div>
-      </div>
-
-      {/* Bottom Bar */}
-      <div className="container mt-12 pt-8 border-t border-white/10 text-center text-xs text-gray-400">
-        Copyright 2025 - Journey Forward Services, All Rights Reserved
       </div>
     </footer>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Trash2, Image as ImageIcon, Loader2, X } from "lucide-react";
+import { Plus, X, CloudUpload, Pencil, Loader2 } from "lucide-react";
 import ItemPickerModal from "./ItemPickerModal";
 
 export type ItemSize = "small" | "medium" | "large";
@@ -12,8 +12,9 @@ export interface Item {
   name: string;
   size: ItemSize | string;
   quantity: number;
-  image?: string;      
-  public_id?: string; 
+  image?: string;
+  public_id?: string;
+  description?: string;
 }
 
 interface ItemListProps {
@@ -23,32 +24,38 @@ interface ItemListProps {
 
 export default function ItemList({ items, onChange }: ItemListProps) {
   const [open, setOpen] = useState(false);
-  const [loadingIds, setLoadingIds] = useState<string[]>([]); 
+  const [loadingIds, setLoadingIds] = useState<string[]>([]);
 
   const handleRemoveItem = (id: string) => {
     onChange(items.filter((item) => item.id !== id));
   };
 
+  const handleUpdateDescription = (id: string, description: string) => {
+    onChange(
+      items.map((item) => (item.id === id ? { ...item, description } : item))
+    );
+  };
+
   const handleImageUpload = async (id: string, file: File | null) => {
     if (!file) return;
-    
+
     setLoadingIds((prev) => [...prev, id]);
-    
+
     const formData = new FormData();
     formData.append("file", file);
-    
+
     try {
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
-      
+
       const data = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(`Upload failed: ${data.error || "Unknown error"}`);
       }
-      
+
       onChange(
         items.map((item) =>
           item.id === id
@@ -90,103 +97,134 @@ export default function ItemList({ items, onChange }: ItemListProps) {
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex h-56 w-64 items-center justify-center rounded-xl border border-slate-300 bg-[#fbfdfc] text-[#22503B] shadow-sm transition hover:border-[#2f7d4a] hover:bg-[#f2faf5]"
-      >
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#2f7d4a]">
-            <Plus className="h-4 w-4 text-[#2f7d4a]" />
-          </div>
-          <span className="text-sm font-semibold">Add New Item</span>
-        </div>
-      </button>
-
-      {items.length > 0 && (
-        <div className="grid gap-3 md:grid-cols-2">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 text-sm shadow-sm"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-medium text-slate-900">
-                    {item.name} <span className="text-slate-500">({item.size})</span>
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {item.category} ・ Qty {item.quantity}
-                  </p>
+    <>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            {/* 写真アップロードエリア */}
+            <div className="mb-4">
+              {item.image ? (
+                <div className="relative h-32 w-full">
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="h-full w-full rounded-md object-cover border border-slate-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteImage(item)}
+                    className="absolute -right-2 -top-2 rounded-full bg-white p-1 text-slate-500 shadow hover:text-red-600 border border-slate-200"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
+              ) : (
+                <div className="relative h-32 w-full">
+                  <label className="flex h-full w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors">
+                    {loadingIds.includes(item.id) ? (
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    ) : (
+                      <CloudUpload className="mb-1 h-6 w-6" />
+                    )}
+                    <span className="text-xs font-medium">
+                      {loadingIds.includes(item.id)
+                        ? "Uploading..."
+                        : "Add photo"}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={loadingIds.includes(item.id)}
+                      onChange={(e) =>
+                        handleImageUpload(item.id, e.target.files?.[0] || null)
+                      }
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* アイテム情報 */}
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="font-bold text-slate-900">{item.name}</span>
+                  {item.quantity > 1 && (
+                    <span className="text-xs font-semibold text-slate-500">
+                      x{item.quantity}
+                    </span>
+                  )}
+                </div>
+                <span className="inline-block rounded-full border border-brand/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-brand-dark">
+                  {item.size}
+                </span>
+              </div>
+              <div className="flex gap-3 text-xs text-slate-400">
+                <button
+                  type="button"
+                  className="underline decoration-slate-300 underline-offset-2 hover:text-brand"
+                >
+                  Edit
+                </button>
                 <button
                   type="button"
                   onClick={() => handleRemoveItem(item.id)}
-                  className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-red-500 transition"
+                  className="underline decoration-slate-300 underline-offset-2 hover:text-red-500"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  Remove
                 </button>
               </div>
-
-              <div className="mt-2 border-t border-slate-100 pt-3">
-                {item.image ? (
-                  <div className="relative inline-block">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="h-24 w-24 rounded-md object-cover border border-slate-200"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteImage(item)}
-                      className="absolute -right-2 -top-2 rounded-full bg-white p-1 text-slate-500 shadow hover:text-red-600 border border-slate-200"
-                      title="Delete Image"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-3 py-2 text-slate-600 hover:bg-slate-50 transition">
-                      {loadingIds.includes(item.id) ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <ImageIcon className="h-4 w-4" />
-                      )}
-                      <span className="text-xs">Add Photo</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        disabled={loadingIds.includes(item.id)}
-                        onChange={(e) =>
-                          handleImageUpload(item.id, e.target.files?.[0] || null)
-                        }
-                      />
-                    </label>
-                  </div>
-                )}
-              </div>
             </div>
-          ))}
-        </div>
-      )}
+
+            {/* 説明文入力 */}
+            <div className="mt-4 flex items-center gap-2 border-b border-slate-200 pb-1">
+              <Pencil className="h-3 w-3 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Add a description"
+                value={item.description || ""}
+                onChange={(e) =>
+                  handleUpdateDescription(item.id, e.target.value)
+                }
+                className="w-full text-xs text-slate-700 placeholder:text-slate-400 outline-none"
+              />
+            </div>
+          </div>
+        ))}
+
+        {/* 追加ボタン */}
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex min-h-[220px] flex-col items-center justify-center rounded-lg border border-slate-200 bg-white transition-colors hover:bg-slate-50"
+        >
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-brand text-brand">
+            <Plus className="h-5 w-5" />
+          </div>
+          <span className="font-medium text-slate-700">Add New Item</span>
+        </button>
+      </div>
 
       <ItemPickerModal
         open={open}
         onClose={() => setOpen(false)}
         onAdd={(newItems) => {
           if (newItems.length === 0) return;
-          const itemsWithImageField = newItems.map(item => ({
+          // ItemPickerModalからのデータには image/description がないので初期化して追加
+          const formattedItems = newItems.map((item) => ({
             ...item,
             image: undefined,
-            public_id: undefined
+            public_id: undefined,
+            description: "",
           }));
-          onChange([...items, ...itemsWithImageField]);
+          onChange([...items, ...formattedItems]);
           setOpen(false);
         }}
       />
-    </div>
+    </>
   );
 }
