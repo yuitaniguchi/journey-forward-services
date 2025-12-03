@@ -4,7 +4,7 @@ import type { RequestStatus } from "@prisma/client";
 import sgMail from "@sendgrid/mail";
 import { render } from "@react-email/render";
 import AutoConfirmationCustomer from "@/emails/AutoConfirmationCustomer";
-import AutoConfirmationAdmin from "@/emails/AutoConfirmationAdmin"; // ★ 追加
+import AutoConfirmationAdmin from "@/emails/AutoConfirmationAdmin";
 
 const ALLOWED_STATUSES: RequestStatus[] = [
   "RECEIVED",
@@ -70,22 +70,40 @@ export async function POST(request: NextRequest) {
 
     // ---- バリデーション ----
     if (!pickupPostalCode || typeof pickupPostalCode !== "string") {
-      return NextResponse.json({ error: "pickupPostalCode is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "pickupPostalCode is required" },
+        { status: 400 }
+      );
     }
     if (!pickupAddressLine1 || typeof pickupAddressLine1 !== "string") {
-      return NextResponse.json({ error: "pickupAddressLine1 is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "pickupAddressLine1 is required" },
+        { status: 400 }
+      );
     }
     if (!pickupCity || typeof pickupCity !== "string") {
-      return NextResponse.json({ error: "pickupCity is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "pickupCity is required" },
+        { status: 400 }
+      );
     }
     if (!preferredDatetime || typeof preferredDatetime !== "string") {
-      return NextResponse.json({ error: "preferredDatetime is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "preferredDatetime is required" },
+        { status: 400 }
+      );
     }
     if (!firstName || typeof firstName !== "string") {
-      return NextResponse.json({ error: "firstName is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "firstName is required" },
+        { status: 400 }
+      );
     }
     if (!lastName || typeof lastName !== "string") {
-      return NextResponse.json({ error: "lastName is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "lastName is required" },
+        { status: 400 }
+      );
     }
     if (!email || typeof email !== "string") {
       return NextResponse.json({ error: "email is required" }, { status: 400 });
@@ -144,21 +162,22 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // ---- ★ SendGrid メール送信処理 (React Email対応版) ----
+    // ---- SendGrid メール送信処理 (React Email対応版) ----
     const apiKey = process.env.SENDGRID_API_KEY;
     const fromEmail = process.env.SENDGRID_FROM_EMAIL;
     const adminEmail = process.env.ADMIN_EMAIL;
 
     console.log("📧 Debug Email Settings:", {
       from: fromEmail,
-      to_admin: adminEmail
+      to_admin: adminEmail,
     });
 
     if (apiKey && fromEmail && adminEmail) {
       sgMail.setApiKey(apiKey);
 
+      // ★ requestDataの定義を修正 (必須プロパティを追加)
       const requestData = {
-        requestId: requestRecord.id.toString(),
+        requestId: requestRecord.id,
         pickupAddress: `${pickupAddressLine1} ${pickupAddressLine2 || ""} ${pickupCity}, ${pickupPostalCode}`,
         deliveryAddress: deliveryRequired ? "Delivery Requested" : null,
         pickupFloor: pickupFloorNum || 0,
@@ -168,6 +187,8 @@ export async function POST(request: NextRequest) {
           size: item.size,
           quantity: item.quantity,
         })),
+        preferredDatetime: preferredDt, // 追加
+        status: status as any, // 追加
       };
 
       const customerData = {
@@ -184,22 +205,26 @@ export async function POST(request: NextRequest) {
         day: "numeric",
       });
 
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const dashboardLink = `${baseUrl}/admin/requests/${requestRecord.id}`;
+
       // 1. カスタマー用メール HTML生成
       const customerHtml = await render(
         <AutoConfirmationCustomer
-          customer={ customerData }
-          request = { requestData }
-          requestDate = { dateStr }
+          customer={customerData}
+          request={requestData} // 修正済みのオブジェクトを渡す
+          requestDate={dateStr}
         />
       );
 
-      // 2. 管理者用メール HTML生成 (★ここを追加)
-      // AutoConfirmationAdminも同様のPropsを受け取ると仮定しています
+      // 2. 管理者用メール HTML生成
       const adminHtml = await render(
         <AutoConfirmationAdmin
-          customer={ customerData }
-          request = { requestData }
-          requestDate = { dateStr }
+          customer={customerData}
+          request={requestData} // 修正済みのオブジェクトを渡す
+          requestDate={dateStr}
+          dashboardLink={dashboardLink}
         />
       );
 
@@ -214,7 +239,7 @@ export async function POST(request: NextRequest) {
         to: adminEmail,
         from: fromEmail,
         subject: `[New Request] #${requestRecord.id} from ${firstName} ${lastName}`,
-        html: adminHtml, // ★ ここを生成したHTMLに差し替え
+        html: adminHtml,
       };
 
       // 送信実行
