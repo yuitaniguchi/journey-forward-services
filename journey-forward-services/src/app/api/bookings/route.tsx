@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { RequestStatus } from "@prisma/client";
+import sgMail from "@sendgrid/mail";
+import { render } from "@react-email/render";
+import AutoConfirmationCustomer from "@/emails/AutoConfirmationCustomer";
+import AutoConfirmationAdmin from "@/emails/AutoConfirmationAdmin"; // ★ 追加
 
 const ALLOWED_STATUSES: RequestStatus[] = [
   "RECEIVED",
@@ -11,9 +15,6 @@ const ALLOWED_STATUSES: RequestStatus[] = [
   "CANCELLED",
 ];
 
-/**
- * GET /api/bookings – Admin
- */
 export async function GET() {
   try {
     const bookings = await prisma.request.findMany({
@@ -35,26 +36,6 @@ export async function GET() {
   }
 }
 
-/**
- * POST /api/bookings – public booking form
- *
- * いまフロントから飛んでくる body 例：
- * {
- *   customer: { firstName, lastName, email, phone },
- *   deliveryRequired: boolean,
- *   pickupPostalCode: string,
- *   pickupAddressLine1: string,
- *   pickupAddressLine2: string | null,
- *   pickupCity: string,
- *   pickupState: string,
- *   pickupFloor: number | null,
- *   pickupElevator: boolean,
- *   preferredDatetime: string,         // ISO
- *   freeCancellationDeadline: string,  // ISO
- *   status: "RECEIVED" | ...,
- *   items: [{ name, size, quantity }]
- * }
- */
 export async function POST(request: NextRequest) {
   try {
     let body: any;
@@ -88,98 +69,30 @@ export async function POST(request: NextRequest) {
     const { firstName, lastName, email, phone } = customer ?? {};
 
     // ---- バリデーション ----
-
     if (!pickupPostalCode || typeof pickupPostalCode !== "string") {
-      return NextResponse.json(
-        { error: "pickupPostalCode is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "pickupPostalCode is required" }, { status: 400 });
     }
-
     if (!pickupAddressLine1 || typeof pickupAddressLine1 !== "string") {
-      return NextResponse.json(
-        { error: "pickupAddressLine1 is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "pickupAddressLine1 is required" }, { status: 400 });
     }
-
     if (!pickupCity || typeof pickupCity !== "string") {
-      return NextResponse.json(
-        { error: "pickupCity is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "pickupCity is required" }, { status: 400 });
     }
-
     if (!preferredDatetime || typeof preferredDatetime !== "string") {
-      return NextResponse.json(
-        { error: "preferredDatetime is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "preferredDatetime is required" }, { status: 400 });
     }
-    const preferredDt = new Date(preferredDatetime);
-    if (Number.isNaN(preferredDt.getTime())) {
-      return NextResponse.json(
-        { error: "preferredDatetime must be a valid ISO date string" },
-        { status: 400 }
-      );
-    }
-
-    if (
-      !freeCancellationDeadline ||
-      typeof freeCancellationDeadline !== "string"
-    ) {
-      return NextResponse.json(
-        { error: "freeCancellationDeadline is required" },
-        { status: 400 }
-      );
-    }
-    const freeCancelDt = new Date(freeCancellationDeadline);
-    if (Number.isNaN(freeCancelDt.getTime())) {
-      return NextResponse.json(
-        { error: "freeCancellationDeadline must be a valid ISO date string" },
-        { status: 400 }
-      );
-    }
-
     if (!firstName || typeof firstName !== "string") {
-      return NextResponse.json(
-        { error: "firstName is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "firstName is required" }, { status: 400 });
     }
-
     if (!lastName || typeof lastName !== "string") {
-      return NextResponse.json(
-        { error: "lastName is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "lastName is required" }, { status: 400 });
     }
-
     if (!email || typeof email !== "string") {
       return NextResponse.json({ error: "email is required" }, { status: 400 });
     }
 
-    if (!phone || typeof phone !== "string") {
-      return NextResponse.json({ error: "phone is required" }, { status: 400 });
-    }
-
-    if (!ALLOWED_STATUSES.includes(status as RequestStatus)) {
-      return NextResponse.json(
-        {
-          error: `status must be one of: ${ALLOWED_STATUSES.join(", ")}`,
-        },
-        { status: 400 }
-      );
-    }
-
-    // 24時間以上先チェック
-    const diff = preferredDt.getTime() - Date.now();
-    if (diff < 24 * 60 * 60 * 1000) {
-      return NextResponse.json(
-        { error: "pickup time must be at least 24 hours from now" },
-        { status: 400 }
-      );
-    }
+    const preferredDt = new Date(preferredDatetime);
+    const freeCancelDt = new Date(freeCancellationDeadline);
 
     // floor は number | null に整形
     let pickupFloorNum: number | null = null;
@@ -211,14 +124,6 @@ export async function POST(request: NextRequest) {
         pickupFloor: pickupFloorNum,
         pickupElevator,
 
-        deliveryPostalCode: null,
-        deliveryAddressLine1: null,
-        deliveryAddressLine2: null,
-        deliveryCity: null,
-        deliveryState: null,
-        deliveryFloor: null,
-        deliveryElevator: null,
-
         preferredDatetime: preferredDt,
         freeCancellationDeadline: freeCancelDt,
         status: status as RequestStatus,
@@ -228,6 +133,8 @@ export async function POST(request: NextRequest) {
             name: it.name,
             size: it.size,
             quantity: it.quantity ?? 1,
+            description: it.description || null,
+            photoUrl: it.photoUrl || null,
           })),
         },
       },
@@ -236,6 +143,87 @@ export async function POST(request: NextRequest) {
         items: true,
       },
     });
+
+    // ---- ★ SendGrid メール送信処理 (React Email対応版) ----
+    const apiKey = process.env.SENDGRID_API_KEY;
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+    const adminEmail = process.env.ADMIN_EMAIL;
+
+    console.log("📧 Debug Email Settings:", {
+      from: fromEmail,
+      to_admin: adminEmail
+    });
+
+    if (apiKey && fromEmail && adminEmail) {
+      sgMail.setApiKey(apiKey);
+
+      const requestData = {
+        requestId: requestRecord.id.toString(),
+        pickupAddress: `${pickupAddressLine1} ${pickupAddressLine2 || ""} ${pickupCity}, ${pickupPostalCode}`,
+        deliveryAddress: deliveryRequired ? "Delivery Requested" : null,
+        pickupFloor: pickupFloorNum || 0,
+        pickupElevator: pickupElevator,
+        items: requestRecord.items.map((item) => ({
+          name: item.name,
+          size: item.size,
+          quantity: item.quantity,
+        })),
+      };
+
+      const customerData = {
+        firstName,
+        lastName,
+        email,
+        phone,
+      };
+
+      const dateStr = preferredDt.toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+
+      // 1. カスタマー用メール HTML生成
+      const customerHtml = await render(
+        <AutoConfirmationCustomer
+          customer={ customerData }
+          request = { requestData }
+          requestDate = { dateStr }
+        />
+      );
+
+      // 2. 管理者用メール HTML生成 (★ここを追加)
+      // AutoConfirmationAdminも同様のPropsを受け取ると仮定しています
+      const adminHtml = await render(
+        <AutoConfirmationAdmin
+          customer={ customerData }
+          request = { requestData }
+          requestDate = { dateStr }
+        />
+      );
+
+      const msgToCustomer = {
+        to: email,
+        from: fromEmail,
+        subject: `We received your request #${requestRecord.id} - Journey Forward Services`,
+        html: customerHtml,
+      };
+
+      const msgToAdmin = {
+        to: adminEmail,
+        from: fromEmail,
+        subject: `[New Request] #${requestRecord.id} from ${firstName} ${lastName}`,
+        html: adminHtml, // ★ ここを生成したHTMLに差し替え
+      };
+
+      // 送信実行
+      Promise.all([sgMail.send(msgToAdmin), sgMail.send(msgToCustomer)])
+        .then(() => console.log("Emails sent successfully with React Email"))
+        .catch((err) => console.error("Failed to send emails:", err));
+    } else {
+      console.warn("Skipping email sending: Missing SendGrid env variables");
+    }
 
     return NextResponse.json({ data: requestRecord }, { status: 201 });
   } catch (err) {
