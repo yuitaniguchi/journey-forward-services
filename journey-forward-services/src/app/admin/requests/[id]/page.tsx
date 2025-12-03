@@ -77,6 +77,14 @@ export default function RequestDetailPage({ params }: PageProps) {
   const [showQuotationModal, setShowQuotationModal] = useState(false);
   const [showFinalAmountModal, setShowFinalAmountModal] = useState(false);
 
+  // ★ 追加: ステータス変更用モーダルの state
+  const [pendingStatus, setPendingStatus] = useState<RequestStatus | null>(
+    null
+  );
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [confirmingStatus, setConfirmingStatus] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+
   //detail infomation
   useEffect(() => {
     async function load() {
@@ -114,10 +122,14 @@ export default function RequestDetailPage({ params }: PageProps) {
     });
   }
 
-  // update status
-  async function handleStatusChange(next: RequestStatus) {
-    if (!request) return;
-    if (next === request.status) return;
+  function formatStatusLabel(s: RequestStatus) {
+    return s.charAt(0) + s.slice(1).toLowerCase();
+  }
+
+  // update status（成否を boolean で返す）
+  async function handleStatusChange(next: RequestStatus): Promise<boolean> {
+    if (!request) return false;
+    if (next === request.status) return true;
 
     try {
       setUpdatingStatus(true);
@@ -128,19 +140,41 @@ export default function RequestDetailPage({ params }: PageProps) {
       });
       const json = await res.json();
       if (!res.ok) {
-        alert(json.error || "Failed to update status");
-        return;
+        console.error("Failed to update status:", json);
+        return false;
       }
 
       // update local state
       setRequest((prev) =>
         prev ? { ...prev, status: json.data.status as RequestStatus } : prev
       );
-    } catch {
-      alert("Network error");
+      return true;
+    } catch (e) {
+      console.error("Network error while updating status:", e);
+      return false;
     } finally {
       setUpdatingStatus(false);
     }
+  }
+
+  // モーダルで「Yes, change status」が押されたとき
+  async function handleConfirmStatusChange() {
+    if (!pendingStatus) return;
+
+    setConfirmingStatus(true);
+    setConfirmError(null);
+
+    const ok = await handleStatusChange(pendingStatus);
+
+    if (!ok) {
+      setConfirmError("Failed to update status. Please try again.");
+      setConfirmingStatus(false);
+      return;
+    }
+
+    setConfirmingStatus(false);
+    setIsConfirmModalOpen(false);
+    setPendingStatus(null);
   }
 
   if (loading) {
@@ -213,14 +247,19 @@ export default function RequestDetailPage({ params }: PageProps) {
           <div className="flex flex-wrap gap-3 mb-4">
             {STATUS_FLOW.map((s) => {
               const active = request.status === s;
-              const label = s.charAt(0) + s.slice(1).toLowerCase();
+              const label = formatStatusLabel(s);
 
               return (
                 <button
                   key={s}
                   type="button"
-                  disabled={updatingStatus}
-                  onClick={() => handleStatusChange(s)}
+                  disabled={updatingStatus || s === request.status}
+                  onClick={() => {
+                    if (s === request.status) return;
+                    setPendingStatus(s);
+                    setConfirmError(null);
+                    setIsConfirmModalOpen(true);
+                  }}
                   className={
                     "rounded-full px-6 py-2 text-sm font-semibold border transition " +
                     (active
@@ -237,7 +276,7 @@ export default function RequestDetailPage({ params }: PageProps) {
           <p className="mt-6 text-base md:text-lg text-slate-900">
             <span className="font-semibold mr-2">Current Status:</span>
             <span className="inline-block px-3 py-1 font-extrabold">
-              {request.status.charAt(0) + request.status.slice(1).toLowerCase()}
+              {formatStatusLabel(request.status)}
             </span>
           </p>
         </section>
@@ -367,6 +406,78 @@ export default function RequestDetailPage({ params }: PageProps) {
       </div>
       {/* ★ ここまで ★ */}
 
+      {/* Status Change Confirm Modal */}
+      {isConfirmModalOpen && pendingStatus && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white px-8 py-8 shadow-xl">
+            <div className="mb-4 flex items-start justify-between">
+              <h2 className="text-xl font-bold text-slate-900">
+                Change status?
+              </h2>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirmingStatus) return;
+                  setIsConfirmModalOpen(false);
+                  setPendingStatus(null);
+                  setConfirmError(null);
+                }}
+                className="text-2xl leading-none text-slate-500 hover:text-slate-900"
+              >
+                ×
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm text-slate-700">
+              Are you sure you want to change the status for this request?
+            </p>
+
+            <div className="mb-4 space-y-1 text-sm text-slate-900">
+              <p>
+                <span className="font-semibold">Current status: </span>
+                {formatStatusLabel(request.status)}
+              </p>
+              <p>
+                <span className="font-semibold">New status: </span>
+                {formatStatusLabel(pendingStatus)}
+              </p>
+            </div>
+
+            <p className="mb-6 text-xs text-slate-500">
+              This change may trigger follow-up actions such as emails or
+              payment flows.
+            </p>
+
+            {confirmError && (
+              <p className="mb-4 text-sm text-red-600">{confirmError}</p>
+            )}
+
+            <div className="flex flex-col gap-3 md:flex-row">
+              <button
+                type="button"
+                onClick={handleConfirmStatusChange}
+                disabled={confirmingStatus}
+                className="flex-1 rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-950 transition disabled:opacity-60"
+              >
+                {confirmingStatus ? "Updating..." : "Yes, change status"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirmingStatus) return;
+                  setIsConfirmModalOpen(false);
+                  setPendingStatus(null);
+                  setConfirmError(null);
+                }}
+                className="flex-1 rounded-xl border border-slate-300 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-100 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Quotation Modal */}
       <QuotationModal
         open={showQuotationModal}
@@ -431,30 +542,23 @@ export default function RequestDetailPage({ params }: PageProps) {
         initialBreakdown=""
         onClose={() => setShowFinalAmountModal(false)}
         onSend={async ({ amount, breakdown }) => {
-          // 1. 文字列の amount を number に変換してチェック
           const total = Number(amount);
           if (Number.isNaN(total) || total < 0) {
             alert("Final amount must be a non-negative number.");
-            // エラー扱いにしたいので throw → モーダル側で catch される
             throw new Error("Invalid final amount");
           }
 
           try {
-            // 2. さっき作った Admin API を叩く
             const res = await fetch(
               `/api/admin/payments/${request.id}/finalize`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  // 👇 今は簡易的に subtotal = total, tax = 0 として送っておく
-                  //    後で UI に subtotal / tax 入力欄を足したらここも分ければOK
                   subtotal: total,
                   tax: 0,
                   total,
                   currency: "CAD",
-                  // breakdown は現時点では API では使ってないけど、
-                  // 将来の「メール本文」などで使えるように保持しておくイメージ
                 }),
               }
             );
@@ -464,31 +568,26 @@ export default function RequestDetailPage({ params }: PageProps) {
             if (!res.ok) {
               console.error("Failed to finalize payment:", json);
               alert(json.error || "Failed to finalize payment amount.");
-              // 失敗としてモーダルに伝える（→ モーダル側で "Failed to send final amount"）
               throw new Error(json.error || "Finalize API error");
             }
 
             const payment = json.payment;
 
-            // 3. 返ってきた payment を使って画面の state を更新
             setRequest((prev) =>
               prev
                 ? {
                     ...prev,
                     payment: {
                       id: payment.id,
-                      total: payment.total, // API は string で返しているのでそのまま
+                      total: payment.total,
                       status: payment.status,
                     },
-                    status: "INVOICED", // 画面上の Status 表示も INVOICED に
+                    status: "INVOICED",
                   }
                 : prev
             );
-
-            // ここで throw しない → モーダル側の handleSend が onClose() を実行して閉じる
           } catch (e) {
             console.error("Network or finalize error:", e);
-            // もう一度 throw → モーダル側 catch に飛ぶ → アラート & モーダルは閉じない
             throw e;
           }
         }}
