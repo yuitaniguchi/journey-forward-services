@@ -1,8 +1,9 @@
 // src/app/(user)/booking-detail/[id]/BookingDetailClient.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { BookingRequest } from "@/types/booking";
 
 type RequestStatus =
   | "RECEIVED"
@@ -12,74 +13,34 @@ type RequestStatus =
   | "PAID"
   | "CANCELLED";
 
-type BookingApiResponse = {
-  data: {
-    id: number;
-    status: RequestStatus;
-    preferredDatetime: string;
-    freeCancellationDeadline: string | null;
-  };
-};
-
 type BookingDetailClientProps = {
   requestId: string;
+  initialBooking: BookingRequest;
 };
 
 export default function BookingDetailClient({
   requestId,
+  initialBooking,
 }: BookingDetailClientProps) {
   const router = useRouter();
-
-  const MOCK_EMAIL = "johnsmith@gmail.com";
+  const booking = initialBooking;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
-  const [isLoadingBooking, setIsLoadingBooking] = useState(true);
-  const [bookingStatus, setBookingStatus] = useState<RequestStatus | null>(
-    null
-  );
-  const [pickupTime, setPickupTime] = useState<Date | null>(null);
-
-  // ----- 予約情報を取得して、ボタンの有効/無効を決める -----
-  useEffect(() => {
-    const fetchBooking = async () => {
-      try {
-        setIsLoadingBooking(true);
-
-        const res = await fetch(`/api/bookings/${requestId}`);
-        if (!res.ok) {
-          console.error(
-            "Failed to fetch booking detail",
-            res.status,
-            await res.text()
-          );
-          return;
-        }
-
-        const json = (await res.json()) as BookingApiResponse;
-        const booking = json.data;
-
-        setBookingStatus(booking.status);
-        setPickupTime(new Date(booking.preferredDatetime));
-      } catch (err) {
-        console.error("Unexpected error while fetching booking:", err);
-      } finally {
-        setIsLoadingBooking(false);
-      }
-    };
-
-    fetchBooking();
-  }, [requestId]);
+  // 予約情報はサーバーから渡されたものをそのまま利用
+  const pickupTime = booking.preferredDatetime
+    ? new Date(booking.preferredDatetime)
+    : null;
+  const bookingStatus: RequestStatus = booking.status as RequestStatus;
 
   const now = new Date();
   const isPickupPassed = pickupTime ? now > pickupTime : false;
   const isAlreadyCancelled = bookingStatus === "CANCELLED";
 
   // Cancel ボタンの disable 条件
-  const isCancelDisabled =
-    isLoadingBooking || isCancelling || isPickupPassed || isAlreadyCancelled;
+  const isCancelDisabled = isCancelling || isPickupPassed || isAlreadyCancelled;
 
   let disabledReason: string | null = null;
   if (isAlreadyCancelled) {
@@ -125,6 +86,30 @@ export default function BookingDetailClient({
       setIsModalOpen(false);
     }
   };
+
+  const customerName =
+    `${booking.customer.firstName} ${booking.customer.lastName}`.trim();
+  const pickupDateTime = pickupTime ? pickupTime.toLocaleString() : "-";
+
+  const pickupNoteParts: string[] = [];
+  if (booking.pickupFloor != null) {
+    pickupNoteParts.push(`${booking.pickupFloor} floor`);
+  }
+  if (booking.pickupElevator === true) {
+    pickupNoteParts.push("Elevator available");
+  } else if (booking.pickupElevator === false) {
+    pickupNoteParts.push("No elevator");
+  }
+  const pickupNote =
+    pickupNoteParts.length > 0
+      ? pickupNoteParts.join(" / ")
+      : "No additional notes";
+
+  const freeCancellationDeadline = booking.freeCancellationDeadline
+    ? new Date(booking.freeCancellationDeadline).toLocaleString()
+    : null;
+
+  const quotation = booking.quotation;
 
   return (
     <main className="min-h-screen bg-[#f7f7f7] py-10">
@@ -182,7 +167,7 @@ export default function BookingDetailClient({
             </div>
           </section>
 
-          {/* Right: Request summary（今はモック表示） */}
+          {/* Right: Request summary（実データ表示） */}
           <section className="rounded-xl bg-white p-8 shadow-sm">
             <h2 className="mb-6 text-xl font-semibold text-[#1a7c4c]">
               Request Number: {requestId}
@@ -190,27 +175,33 @@ export default function BookingDetailClient({
 
             <div className="space-y-1 text-sm leading-relaxed text-gray-800">
               <p>
-                <span className="font-semibold">Name: </span>John Smith
+                <span className="font-semibold">Name: </span>
+                {customerName || "-"}
               </p>
               <p>
                 <span className="font-semibold">Email: </span>
-                {MOCK_EMAIL}
+                {booking.customer.email || "-"}
               </p>
               <p>
                 <span className="font-semibold">Phone number: </span>
-                444 (555) 6666
+                {booking.customer.phone || "-"}
               </p>
               <p className="mt-3">
                 <span className="font-semibold">Pickup Date: </span>
-                Aug 14, 2025 – 9:00 AM
+                {pickupDateTime}
               </p>
               <p>
                 <span className="font-semibold">Pickup Address: </span>
-                1384 E 12th Avenue, Vancouver, BC, V6T 2J9
+                {booking.pickupAddressLine1}
+                {booking.pickupAddressLine2
+                  ? ` ${booking.pickupAddressLine2}`
+                  : ""}{" "}
+                {booking.pickupCity}, {booking.pickupState}{" "}
+                {booking.pickupPostalCode}
               </p>
               <p>
                 <span className="font-semibold">Note: </span>
-                2nd floor / No elevator
+                {pickupNote}
               </p>
             </div>
 
@@ -242,31 +233,56 @@ export default function BookingDetailClient({
                     </tr>
                   </thead>
                   <tbody className="bg-white text-gray-800">
-                    <tr>
-                      <td className="border-t px-3 py-2">1</td>
-                      <td className="border-t px-3 py-2">Sofa</td>
-                      <td className="border-t px-3 py-2">1</td>
-                      <td className="border-t px-3 py-2">Large</td>
-                      <td className="border-t px-3 py-2">No</td>
-                      <td className="border-t px-3 py-2">$20</td>
-                    </tr>
+                    {booking.items.length > 0 ? (
+                      booking.items.map((item, index) => (
+                        <tr key={item.id}>
+                          <td className="border-t px-3 py-2">{index + 1}</td>
+                          <td className="border-t px-3 py-2">{item.name}</td>
+                          <td className="border-t px-3 py-2">
+                            {item.quantity}
+                          </td>
+                          <td className="border-t px-3 py-2">{item.size}</td>
+                          <td className="border-t px-3 py-2">
+                            {booking.deliveryRequired ? "Yes" : "No"}
+                          </td>
+                          <td className="border-t px-3 py-2">-</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          className="border-t px-3 py-2 text-center"
+                          colSpan={6}
+                        >
+                          No items registered yet.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
 
               <div className="mt-4 flex flex-col items-end text-sm text-gray-800">
-                <div className="flex w-40 justify-between">
-                  <span>Sub Total:</span>
-                  <span>$70.00</span>
-                </div>
-                <div className="flex w-40 justify-between">
-                  <span>Tax:</span>
-                  <span>$8.40</span>
-                </div>
-                <div className="mt-1 flex w-40 justify-between font-semibold">
-                  <span>Total:</span>
-                  <span>$78.40</span>
-                </div>
+                {quotation ? (
+                  <>
+                    <div className="flex w-40 justify-between">
+                      <span>Sub Total:</span>
+                      <span>${quotation.subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex w-40 justify-between">
+                      <span>Tax:</span>
+                      <span>${quotation.tax.toFixed(2)}</span>
+                    </div>
+                    <div className="mt-1 flex w-40 justify-between font-semibold">
+                      <span>Total:</span>
+                      <span>${quotation.total.toFixed(2)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    Quotation is being prepared.
+                  </p>
+                )}
               </div>
             </div>
           </section>
@@ -274,7 +290,9 @@ export default function BookingDetailClient({
 
         {/* Free cancellation banner */}
         <div className="mt-10 text-center text-sm font-semibold text-[#d34130]">
-          Free cancelation up to 8:59 AM, Aug 13, 2025
+          {freeCancellationDeadline
+            ? `Free cancelation up to ${freeCancellationDeadline}`
+            : "Free cancelation deadline information is not available."}
         </div>
 
         {/* Cancel button + 補足メッセージ */}
