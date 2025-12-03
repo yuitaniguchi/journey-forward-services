@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const search = useSearchParams();
-  const next = search.get("next") || "/admin";
+  const next = search.get('next') || '/admin';
 
-  const [username, setU] = useState("");
-  const [password, setP] = useState("");
+  const [username, setU] = useState('');
+  const [password, setP] = useState('');
   const [loading, setL] = useState(false);
   const [error, setE] = useState<string | null>(null);
 
@@ -18,20 +18,20 @@ export default function AdminLoginPage() {
     setE(null);
     setL(true);
     try {
-      const res = await fetch("/api/admin/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setE(data?.error || "Login failed");
+        setE(data?.error || 'Login failed');
         setL(false);
         return;
       }
       router.replace(next);
     } catch {
-      setE("Network error");
+      setE('Network error');
       setL(false);
     }
   };
@@ -79,11 +79,11 @@ export default function AdminLoginPage() {
                 disabled={loading}
                 className="w-full rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-medium py-3 disabled:opacity-50"
               >
-                {loading ? "Signing in..." : "Sign In"}
+                {loading ? 'Signing in...' : 'Sign In'}
               </button>
 
               <p className="text-center text-slate-400 text-sm">
-                Demo credentials: <strong>admin</strong> /{" "}
+                Demo credentials: <strong>admin</strong> /{' '}
                 <strong>admin</strong>
               </p>
             </form>
