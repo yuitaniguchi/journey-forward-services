@@ -9,7 +9,7 @@ export default function NavBar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-20 shadow-sm bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+    <header className="sticky top-0 z-20 shadow-sm bg-white/95 backdrop-blur supports-backdrop-filter:bg-white/60">
       <div className="section-inner container mx-auto flex h-20 items-center justify-between px-6">
         {/* Logo Area */}
         <Link
@@ -26,7 +26,7 @@ export default function NavBar() {
         </Link>
 
         {/* Desktop Nav links */}
-        <nav className="hidden items-center gap-8 text-sm font-medium text-slate-700 md:flex">
+        <nav className="hidden items-center gap-8 text-md font-medium text-slate-700 md:flex">
           <Link href="/" className="transition-colors hover:text-brand">
             Home
           </Link>
@@ -44,7 +44,7 @@ export default function NavBar() {
         {/* Desktop CTA Button */}
         <div className="hidden md:block">
           <Link href="/booking">
-            <Button className="rounded-md bg-brand px-6 py-5 text-sm font-semibold text-white shadow-sm hover:bg-brand-dark">
+            <Button className="rounded-md bg-brand px-6 py-5 text-md font-semibold text-white shadow-sm hover:bg-brand-dark">
               Get an Estimate
             </Button>
           </Link>
