@@ -2,33 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-
-type Booking = {
-  id: number;
-  customer: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string | null;
-  };
-  quotation: {
-    subtotal: string;
-    tax: string;
-    total: string;
-  } | null;
-  payment: {
-    status: string;
-    total: string;
-    currency: string;
-  } | null;
-};
+import type { BookingRequest, BookingResponse } from "@/types/booking";
 
 export default function FinalPaymentPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const requestId = params?.id;
 
-  const [booking, setBooking] = useState<Booking | null>(null);
+  const [booking, setBooking] = useState<BookingRequest | null>(null);
   const [isLoadingBooking, setIsLoadingBooking] = useState(true);
 
   const [isCreatingPi, setIsCreatingPi] = useState(false);
@@ -44,7 +25,7 @@ export default function FinalPaymentPage() {
         setIsLoadingBooking(true);
         setErrorMessage(null);
 
-        // 1. Booking 情報を取得
+        // 1. Booking 情報を取得（/api/bookings/:id）
         const resBooking = await fetch(`/api/bookings/${requestId}`);
         if (!resBooking.ok) {
           const text = await resBooking.text();
@@ -52,7 +33,7 @@ export default function FinalPaymentPage() {
           setErrorMessage("Failed to load booking information.");
           return;
         }
-        const json = await resBooking.json();
+        const json = (await resBooking.json()) as BookingResponse;
         setBooking(json.data);
 
         // 2. PaymentIntent を作成（または再利用）
@@ -119,7 +100,6 @@ export default function FinalPaymentPage() {
         data.status
       );
 
-      // 一旦ここでは成功メッセージを表示＋完了ページへ遷移
       setSuccessMessage("Payment has been processed successfully.");
       router.push(`/payment-confirmation/${requestId}`);
     } catch (err) {
@@ -152,17 +132,58 @@ export default function FinalPaymentPage() {
     );
   }
 
+  // ------- ここから UI 用の値を整形 --------
   const fullName = `${booking.customer.firstName} ${booking.customer.lastName}`;
   const email = booking.customer.email;
-  const subtotal = booking.quotation?.subtotal ?? "0.00";
-  const tax = booking.quotation?.tax ?? "0.00";
-  const total = booking.quotation?.total ?? booking.payment?.total ?? "0.00"; // 一旦 quotation 優先で表示
+  const phone = booking.customer.phone ?? "-";
+
+  const pickupAddress = `${booking.pickupAddressLine1}${
+    booking.pickupAddressLine2 ? ` ${booking.pickupAddressLine2}` : ""
+  }, ${booking.pickupCity}, ${booking.pickupState} ${
+    booking.pickupPostalCode ?? ""
+  }`;
+
+  const deliveryAddress =
+    booking.deliveryAddressLine1 &&
+    booking.deliveryCity &&
+    booking.deliveryState
+      ? `${booking.deliveryAddressLine1}${
+          booking.deliveryAddressLine2 ? ` ${booking.deliveryAddressLine2}` : ""
+        }, ${booking.deliveryCity}, ${booking.deliveryState} ${
+          booking.deliveryPostalCode ?? ""
+        }`
+      : null;
+
+  const preferredDatetime = booking.preferredDatetime
+    ? new Date(booking.preferredDatetime).toLocaleString()
+    : "-";
+
+  const quotation = booking.quotation;
+  const payment = booking.payment;
+
+  const finalAmount = payment?.total ?? quotation?.total ?? null; // Payment.total 優先
+  const currency = payment?.currency ?? "CAD";
+
+  const canConfirmPayment =
+    finalAmount != null && !isCreatingPi && !isConfirming;
+
+  const formatMoney = (value: number | null | undefined) =>
+    value != null ? value.toFixed(2) : "0.00";
+
+  const subtotalDisplay = quotation ? formatMoney(quotation.subtotal) : "0.00";
+  const taxDisplay = quotation ? formatMoney(quotation.tax) : "0.00";
+  const totalDisplay =
+    quotation || payment
+      ? formatMoney(
+          payment?.total ?? quotation?.total ?? 0 // 表示用、上の finalAmount と同じロジック
+        )
+      : "0.00";
 
   return (
     <main className="min-h-screen bg-[#f7f7f7] py-12">
       <div className="mx-auto max-w-5xl px-4 md:px-0">
         <h1 className="mb-10 text-center text-2xl font-semibold text-[#1f2933] md:text-3xl">
-          Booking Detail
+          Final Payment
         </h1>
 
         {/* メッセージ表示 */}
@@ -179,7 +200,7 @@ export default function FinalPaymentPage() {
 
         {/* 2カラム */}
         <div className="grid gap-6 md:grid-cols-2">
-          {/* 左カラム：Thank you ＋ ポリシー */}
+          {/* 左カラム：案内テキスト */}
           <section className="rounded-xl bg-white p-8 shadow-sm">
             <h2 className="mb-4 text-2xl font-semibold text-[#1a7c4c]">
               Thank you for Booking!
@@ -187,7 +208,8 @@ export default function FinalPaymentPage() {
 
             <p className="mb-4 text-sm leading-relaxed text-gray-700">
               Please review your booking details and confirm the final payment.
-              Your card will be charged only after you approve this amount.
+              Your card will be charged for the amount shown on the right once
+              you confirm.
             </p>
 
             <div className="mb-5 space-y-2 text-sm leading-relaxed text-gray-700">
@@ -234,6 +256,7 @@ export default function FinalPaymentPage() {
               Request Number: {booking.id}
             </h3>
 
+            {/* Customer & Address */}
             <div className="space-y-1 text-sm leading-relaxed text-gray-800">
               <p>
                 <span className="font-semibold">Name: </span>
@@ -243,15 +266,66 @@ export default function FinalPaymentPage() {
                 <span className="font-semibold">Email: </span>
                 {email}
               </p>
-              {booking.customer.phone && (
+              <p>
+                <span className="font-semibold">Phone: </span>
+                {phone}
+              </p>
+              <p className="mt-3">
+                <span className="font-semibold">Pickup Date: </span>
+                {preferredDatetime}
+              </p>
+              <p>
+                <span className="font-semibold">Pickup Address: </span>
+                {pickupAddress}
+              </p>
+              {deliveryAddress && (
                 <p>
-                  <span className="font-semibold">Phone: </span>
-                  {booking.customer.phone}
+                  <span className="font-semibold">Delivery Address: </span>
+                  {deliveryAddress}
                 </p>
               )}
             </div>
 
-            {/* Estimate（ここはあとで Items / Quotation に差し替え） */}
+            {/* Items */}
+            <div className="mt-6">
+              <h4 className="text-sm font-semibold text-gray-800">Items</h4>
+              {booking.items.length > 0 ? (
+                <div className="mt-2 overflow-hidden rounded-md border border-gray-200 text-xs">
+                  <table className="min-w-full border-collapse">
+                    <thead className="bg-gray-100 text-gray-800">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold">
+                          Item
+                        </th>
+                        <th className="px-3 py-2 text-left font-semibold">
+                          Size
+                        </th>
+                        <th className="px-3 py-2 text-right font-semibold">
+                          Qty
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {booking.items.map((item) => (
+                        <tr key={item.id} className="border-t">
+                          <td className="px-3 py-2">{item.name}</td>
+                          <td className="px-3 py-2">{item.size}</td>
+                          <td className="px-3 py-2 text-right">
+                            {item.quantity}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="mt-1 text-xs text-gray-500">
+                  No items registered yet.
+                </p>
+              )}
+            </div>
+
+            {/* Estimate / Final amount */}
             <div className="mt-8">
               <h4 className="text-sm font-semibold text-gray-800">Estimate</h4>
               <p className="mt-1 text-xs text-gray-500">
@@ -274,31 +348,44 @@ export default function FinalPaymentPage() {
                     <tr>
                       <td className="border-t px-3 py-2">Subtotal</td>
                       <td className="border-t px-3 py-2 text-right">
-                        ${subtotal}
+                        ${subtotalDisplay}
                       </td>
                     </tr>
                     <tr>
                       <td className="border-t px-3 py-2">Tax</td>
-                      <td className="border-t px-3 py-2 text-right">${tax}</td>
+                      <td className="border-t px-3 py-2 text-right">
+                        ${taxDisplay}
+                      </td>
                     </tr>
                     <tr>
                       <td className="border-t px-3 py-2 font-semibold">
                         Total
                       </td>
                       <td className="border-t px-3 py-2 text-right font-semibold">
-                        ${total}
+                        ${totalDisplay}
                       </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
-              {/* Confirm Payment ボタン */}
+              {/* Final amount 情報 & Confirm ボタン */}
+              {finalAmount != null ? (
+                <p className="mt-4 text-sm font-semibold text-gray-800">
+                  You will be charged {finalAmount.toFixed(2)} {currency}.
+                </p>
+              ) : (
+                <p className="mt-4 text-sm text-red-600">
+                  Final amount has not been confirmed yet. Please contact
+                  support.
+                </p>
+              )}
+
               <button
                 type="button"
                 onClick={handleConfirmPayment}
-                disabled={isCreatingPi || isConfirming}
-                className="mt-6 flex w-full items-center justify-center rounded-full bg-[#1a7c4c] px-6 py-3 text-sm font-semibold text-white hover:bg-[#15603a] disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={!canConfirmPayment}
+                className="mt-4 flex w-full items-center justify-center rounded-full bg-[#1a7c4c] px-6 py-3 text-sm font-semibold text-white hover:bg-[#15603a] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isConfirming ? "Processing payment..." : "Confirm Payment"}
               </button>
