@@ -264,8 +264,8 @@ export default function RequestDetailPage({ params }: PageProps) {
             {request.pickupElevator === null
               ? "-"
               : request.pickupElevator
-              ? "Yes"
-              : "No"}
+                ? "Yes"
+                : "No"}
             {"  /  "}
             <span className="font-semibold">Floor: </span>
             {request.pickupFloor ?? "-"}
@@ -287,8 +287,8 @@ export default function RequestDetailPage({ params }: PageProps) {
                 {request.deliveryElevator === null
                   ? "-"
                   : request.deliveryElevator
-                  ? "Yes"
-                  : "No"}
+                    ? "Yes"
+                    : "No"}
                 {"  /  "}
                 <span className="font-semibold">Floor: </span>
                 {request.deliveryFloor ?? "-"}
@@ -393,21 +393,67 @@ export default function RequestDetailPage({ params }: PageProps) {
         initialAmount={request.payment?.total ?? ""}
         initialBreakdown=""
         onClose={() => setShowFinalAmountModal(false)}
-        onSend={async ({ amount }) => {
-          // update local state only (API integration is out of scope for this task)
-          setRequest((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  payment: {
-                    id: prev.payment?.id ?? 0,
-                    total: amount,
-                    status: "INVOICED",
-                  },
-                  status: "INVOICED",
-                }
-              : prev
-          );
+        onSend={async ({ amount, breakdown }) => {
+          // 1. 文字列の amount を number に変換してチェック
+          const total = Number(amount);
+          if (Number.isNaN(total) || total < 0) {
+            alert("Final amount must be a non-negative number.");
+            // エラー扱いにしたいので throw → モーダル側で catch される
+            throw new Error("Invalid final amount");
+          }
+
+          try {
+            // 2. さっき作った Admin API を叩く
+            const res = await fetch(
+              `/api/admin/payments/${request.id}/finalize`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  // 👇 今は簡易的に subtotal = total, tax = 0 として送っておく
+                  //    後で UI に subtotal / tax 入力欄を足したらここも分ければOK
+                  subtotal: total,
+                  tax: 0,
+                  total,
+                  currency: "CAD",
+                  // breakdown は現時点では API では使ってないけど、
+                  // 将来の「メール本文」などで使えるように保持しておくイメージ
+                }),
+              }
+            );
+
+            const json = await res.json();
+
+            if (!res.ok) {
+              console.error("Failed to finalize payment:", json);
+              alert(json.error || "Failed to finalize payment amount.");
+              // 失敗としてモーダルに伝える（→ モーダル側で "Failed to send final amount"）
+              throw new Error(json.error || "Finalize API error");
+            }
+
+            const payment = json.payment;
+
+            // 3. 返ってきた payment を使って画面の state を更新
+            setRequest((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    payment: {
+                      id: payment.id,
+                      total: payment.total, // API は string で返しているのでそのまま
+                      status: payment.status,
+                    },
+                    status: "INVOICED", // 画面上の Status 表示も INVOICED に
+                  }
+                : prev
+            );
+
+            // ここで throw しない → モーダル側の handleSend が onClose() を実行して閉じる
+          } catch (e) {
+            console.error("Network or finalize error:", e);
+            // もう一度 throw → モーダル側 catch に飛ぶ → アラート & モーダルは閉じない
+            throw e;
+          }
         }}
       />
     </main>
