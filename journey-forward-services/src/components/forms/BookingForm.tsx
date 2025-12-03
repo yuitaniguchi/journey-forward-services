@@ -153,6 +153,7 @@ const STEPS = [
 export default function BookingForm() {
   const methods = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
+    mode: "onTouched",
     defaultValues: {
       postalCode: "",
       pickupDateTime: "",
@@ -808,7 +809,13 @@ export default function BookingForm() {
         </div>
 
         <form
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={(e) => {
+            if (step === 5) {
+              handleSubmit(onSubmit)(e);
+            } else {
+              e.preventDefault();
+            }
+          }}
           className="rounded-xl border border-[#e0e7e2] bg-white px-6 py-8 md:px-10 md:py-10 shadow-sm"
         >
           {renderStep()}
