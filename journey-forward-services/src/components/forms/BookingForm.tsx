@@ -27,7 +27,23 @@ const bookingSchema = z.object({
   postalCode: z.string().min(1, "Postal code is required"),
   pickupDateTime: pickupDateTimeSchema,
   deliveryRequired: z.boolean(),
-  address: z.string().min(1, "Pickup address is required"),
+
+  address: z.object({
+    street: z.string().min(1, "Street address is required"),
+    line2: z.string().optional(),
+    city: z
+      .string()
+      .min(1, "City is required")
+      .refine(
+        (val) =>
+          ["Vancouver", "Burnaby", "Richmond", "Surrey"].some(
+            (c) => c.toLowerCase() === val.toLowerCase()
+          ),
+        "Service is only available in: Vancouver, Burnaby, Richmond, Surrey"
+      ),
+    province: z.string(),
+  }),
+
   floor: z
     .string()
     .optional()
@@ -141,7 +157,12 @@ export default function BookingForm() {
       postalCode: "",
       pickupDateTime: "",
       deliveryRequired: false,
-      address: "",
+      address: {
+        street: "",
+        line2: "",
+        city: "",
+        province: "BC",
+      },
       floor: "",
       hasElevator: false,
       firstName: "",
@@ -174,17 +195,20 @@ export default function BookingForm() {
   const addressValue = watch("address");
   const pickupDateTime = watch("pickupDateTime");
 
-  const stepFields: (keyof BookingFormValues)[][] = [
+  const stepFields: (
+    | keyof BookingFormValues
+    | `address.${keyof BookingFormValues["address"]}`
+  )[][] = [
     ["postalCode"],
     ["pickupDateTime"],
-    ["address", "floor"],
+    ["address.street", "address.city", "address.province", "floor"],
     [],
     ["firstName", "lastName", "email", "phone"],
     [],
   ];
 
   const handleNext = async () => {
-    const fields = stepFields[step];
+    const fields = stepFields[step] as any;
     if (fields.length > 0) {
       const ok = await trigger(fields);
       if (!ok) return;
@@ -228,14 +252,12 @@ export default function BookingForm() {
 
     setIsSubmitting(true);
     try {
-      const [streetPart, cityPartRaw] = (data.address || "")
-        .split(",")
-        .map((s) => s.trim());
-      const cityPart = cityPartRaw || "";
+      const pickupAddressLine1 = data.address.street;
+      const pickupAddressLine2 = data.address.line2 || null;
+      const pickupCity = data.address.city;
+      const pickupState = data.address.province;
 
       const pickupPostalCode = data.postalCode;
-      const pickupAddressLine1 = streetPart || data.address;
-      const pickupCity = cityPart || "Vancouver";
 
       const pickupDate = new Date(data.pickupDateTime);
       const preferredDatetime = pickupDate.toISOString();
@@ -253,18 +275,18 @@ export default function BookingForm() {
         deliveryRequired: data.deliveryRequired,
         pickupPostalCode,
         pickupAddressLine1,
-        pickupAddressLine2: null,
+        pickupAddressLine2,
         pickupCity,
-        pickupState: "BC",
+        pickupState,
         pickupFloor: data.floor ? Number(data.floor) : null,
         pickupElevator: data.hasElevator,
         ...(data.deliveryRequired
           ? {
               deliveryPostalCode: pickupPostalCode,
               deliveryAddressLine1: pickupAddressLine1,
-              deliveryAddressLine2: null,
+              deliveryAddressLine2: pickupAddressLine2,
               deliveryCity: pickupCity,
-              deliveryState: "BC",
+              deliveryState: pickupState,
             }
           : {}),
         preferredDatetime,
@@ -420,11 +442,7 @@ export default function BookingForm() {
               Pickup Address
             </h2>
 
-            <AddressInput
-              value={addressValue}
-              onChange={(v) => setValue("address", v)}
-              error={errors.address?.message}
-            />
+            <AddressInput />
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div className="space-y-1">
@@ -581,7 +599,12 @@ export default function BookingForm() {
                   </span>
 
                   <span className="font-medium">Pickup Address</span>
-                  <span>{addressValue || "-"}</span>
+                  <span>
+                    {addressValue.street}
+                    {addressValue.line2 ? `, ${addressValue.line2}` : ""}
+                    <br />
+                    {addressValue.city}, {addressValue.province}
+                  </span>
 
                   <span className="font-medium">Other</span>
                   <span>
@@ -656,7 +679,12 @@ export default function BookingForm() {
                   <span>{watch("phone")}</span>
 
                   <span className="font-medium">Address</span>
-                  <span>{addressValue || "-"}</span>
+                  <span>
+                    {addressValue.street}
+                    {addressValue.line2 ? `, ${addressValue.line2}` : ""}
+                    <br />
+                    {addressValue.city}, {addressValue.province}
+                  </span>
                 </div>
               </div>
             </section>
