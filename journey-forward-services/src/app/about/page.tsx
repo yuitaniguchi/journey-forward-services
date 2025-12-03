@@ -1,5 +1,5 @@
 import NavBar from '@/components/landing/NavBar';
-import { Footer } from '@/components/landing/Footer';
+import Footer from '@/components/landing/Footer';
 
 import AboutHero from '@/components/about/AboutHero';
 import AboutIntro from '@/components/about/AboutIntro';
@@ -23,8 +23,6 @@ export default function AboutPage() {
       <WhatWeOffer />
       <Partners />
       <AboutCTA />
-
-      <Footer />
     </main>
   );
 }
