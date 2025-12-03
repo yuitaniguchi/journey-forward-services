@@ -13,8 +13,6 @@ import AboutCTA from '@/components/about/AboutCTA';
 export default function AboutPage() {
   return (
     <main className="flex min-h-screen flex-col antialiased bg-neutralBg">
-      <NavBar />
-
       <AboutHero />
       <AboutIntro />
       <AboutStory />

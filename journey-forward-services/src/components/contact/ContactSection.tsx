@@ -7,37 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import { Phone, Mail, Clock } from 'lucide-react';
-
-// Data for the components
-const faqItems = [
-  {
-    question: 'What types of items do you remove?',
-    answer:
-      'We take almost everything, including furniture, appliances, electronics, and yard waste. We do not take hazardous materials.',
-  },
-  {
-    question: 'Do you accept items for donation?',
-    answer:
-      'Yes! If items are in good condition, we prioritize donating them to our local charity partners.',
-  },
-  {
-    question: 'How do I book a junk removal pick-up?',
-    answer:
-      "You can book by clicking 'Get an Estimate', filling out the form, and we will text or email you to confirm your booking.",
-  },
-  {
-    question: 'How much does it cost?',
-    answer:
-      "We price based on the volume your items take up in our truck. Our 'Minimum truckload' is our starting price point.",
-  },
-];
 
 const contactInfo = [
   {
@@ -53,11 +23,17 @@ const contactInfo = [
   {
     icon: Clock,
     title: 'Hours',
-    text: 'Mon-Friday 10:00AM - 7:00PM',
+    text: 'Mon–Friday 10:00AM – 7:00PM',
   },
 ];
 
-export function FAQContact() {
+type ContactSectionProps = {
+  showPageHeading?: boolean;
+};
+
+export default function ContactSection({
+  showPageHeading = false,
+}: ContactSectionProps) {
   const router = useRouter();
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
 
@@ -78,7 +54,9 @@ export function FAQContact() {
       });
 
       if (res.ok) {
+        // optional: clear the form
         form.reset();
+        // go to the success page we created
         router.push('/contact/success');
       } else {
         setStatus('error');
@@ -91,61 +69,26 @@ export function FAQContact() {
   }
 
   return (
-    <section id="faqs" className="bg-white py-24">
+    <section className="bg-white py-24">
       <div className="mx-auto w-full max-w-6xl px-4">
-        {/* FAQ Section */}
-        <div className="grid gap-12 lg:grid-cols-2">
-          <div className="space-y-4">
-            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-gray-400">
-              Q &amp; A
+        {/* Page heading */}
+        {showPageHeading && (
+          <div className="mb-12 text-center space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gray-400">
+              Contact
             </p>
-            <h2 className="text-3xl font-bold text-brand-dark leading-snug">
-              Frequently Asked
-              <br />
-              questions
-            </h2>
-            <p className="text-sm text-gray-500 max-w-sm">
-              You have questions? we&apos;ve got you.
-            </p>
-            <Button
-              variant="outline"
-              className="mt-4 rounded-full border-brand-dark px-6 py-2 text-sm font-medium text-brand-dark hover:bg-brand/5"
-            >
-              Learn More
-            </Button>
+            <h1 className="text-2xl md:text-3xl font-semibold text-slate-900">
+              Let&apos;s talk with us
+            </h1>
           </div>
+        )}
 
-          <div>
-            <Accordion type="single" collapsible className="w-full space-y-3">
-              {faqItems.map((item) => (
-                <AccordionItem
-                  key={item.question}
-                  value={item.question}
-                  className="border-none"
-                >
-                  <AccordionTrigger className="group card-elevated flex w-full items-center justify-between rounded-2xl px-5 py-3 text-left text-sm font-medium text-gray-800 shadow-sm hover:no-underline">
-                    <span className="flex items-center gap-3">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-yellow text-xs font-bold text-brand-dark">
-                        !
-                      </span>
-                      {item.question}
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-5 pb-4 pt-2 text-sm text-gray-500">
-                    {item.answer}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </div>
-        </div>
-
-        {/* Contact Section */}
-        <div className="mt-24 grid gap-16 border-t pt-16 lg:grid-cols-2">
-          {/* Left Side: Info */}
+        {/* Two-column layout */}
+        <div className="grid gap-16 lg:grid-cols-2">
+          {/* LEFT: info cards */}
           <div className="space-y-6">
             <div>
-              <h2 className="text-3xl font-bold text-brand-dark mb-2">
+              <h2 className="text-2xl md:text-3xl font-semibold text-brand-dark mb-2">
                 Get in touch
               </h2>
               <p className="text-sm text-gray-600">
@@ -157,7 +100,7 @@ export function FAQContact() {
               {contactInfo.map((item) => (
                 <div
                   key={item.title}
-                  className="card-elevated flex items-center gap-4 rounded-2xl bg-gray-50 p-4"
+                  className="flex items-center gap-4 rounded-2xl bg-gray-50 p-5 shadow-sm"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-white">
                     <item.icon size={20} />
@@ -172,21 +115,22 @@ export function FAQContact() {
               ))}
             </div>
 
-            <Button className="mt-4 inline-flex rounded-full bg-brand px-6 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
+            <Button className="mt-2 inline-flex rounded-full bg-brand px-6 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
               Get an Estimate
             </Button>
           </div>
 
-          {/* Right Side: Form */}
+          {/* RIGHT: form */}
           <div>
-            <h2 className="text-3xl font-bold text-brand-dark mb-2">
+            <h2 className="text-2xl md:text-3xl font-semibold text-brand-dark mb-2">
               Talk to us
             </h2>
-            <p className="mb-4 text-sm text-gray-500">
+            <p className="mb-4 text-sm text-gray-500 max-w-md">
               We prioritize responding to your inquiries promptly to ensure you
               receive the assistance you need in a timely manner.
             </p>
 
+            {/* error message */}
             {status === 'error' && (
               <p className="mb-4 text-xs text-red-500">
                 Something went wrong sending your message. Please try again or
@@ -196,42 +140,45 @@ export function FAQContact() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1 text-sm">
-                <Label htmlFor="home-name">
+                <Label htmlFor="name">
                   Name <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  id="home-name"
+                  id="name"
                   name="name"
-                  placeholder="Name"
+                  placeholder="John"
                   required
                   className="rounded-lg border-gray-200 bg-white"
                 />
               </div>
+
               <div className="space-y-1 text-sm">
-                <Label htmlFor="home-email">
+                <Label htmlFor="email">
                   Email <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  id="home-email"
+                  id="email"
                   name="email"
                   type="email"
-                  placeholder="Email"
+                  placeholder="john@gmail.com"
                   required
                   className="rounded-lg border-gray-200 bg-white"
                 />
               </div>
+
               <div className="space-y-1 text-sm">
-                <Label htmlFor="home-message">
+                <Label htmlFor="message">
                   Message <span className="text-red-500">*</span>
                 </Label>
                 <Textarea
-                  id="home-message"
+                  id="message"
                   name="message"
                   placeholder="Message"
                   required
                   className="min-h-[120px] rounded-lg border-gray-200 bg-white"
                 />
               </div>
+
               <Button
                 type="submit"
                 disabled={status === 'submitting'}
