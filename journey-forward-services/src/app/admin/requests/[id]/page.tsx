@@ -372,18 +372,55 @@ export default function RequestDetailPage({ params }: PageProps) {
         open={showQuotationModal}
         initialTotal={request.quotation?.total ?? ""}
         onClose={() => setShowQuotationModal(false)}
-        onSave={async ({ estimatedPrice }) => {
-          setRequest((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  quotation: {
-                    id: prev.quotation?.id ?? 0,
-                    total: estimatedPrice,
-                  },
-                }
-              : prev
-          );
+        onSave={async ({ estimatedPrice, note, sendEmail }) => {
+          const amount = Number(estimatedPrice);
+          if (Number.isNaN(amount) || amount < 0) {
+            alert("Estimated price must be a non-negative number.");
+            throw new Error("Invalid estimated price");
+          }
+
+          try {
+            const res = await fetch(`/api/admin/quotations/${request.id}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                subtotal: amount,
+                tax: 0,
+                total: amount,
+                sendEmail,
+                // note は今は API 側で使ってないけど、将来用にここで渡せる
+              }),
+            });
+
+            const json = await res.json();
+
+            if (!res.ok) {
+              console.error("Failed to save quotation:", json);
+              alert(json.error || "Failed to save quotation.");
+              throw new Error(json.error || "Quotation API error");
+            }
+
+            const quotation = json.quotation;
+
+            setRequest((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    quotation: {
+                      id: quotation.id,
+                      total: quotation.total,
+                    },
+                    status:
+                      prev.status === "RECEIVED" || prev.status === "QUOTED"
+                        ? "QUOTED"
+                        : prev.status,
+                  }
+                : prev
+            );
+          } catch (e) {
+            console.error("Network or quotation error:", e);
+            throw e;
+          }
         }}
       />
 
