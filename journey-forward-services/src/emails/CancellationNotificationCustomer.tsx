@@ -1,7 +1,10 @@
-import { Text, Heading, Section } from "@react-email/components";
+import { Text, Heading, Section, Img } from "@react-email/components";
 import * as React from "react";
 import { Layout } from "./components/Layout";
 import { BookingReceivedProps } from "../types/email";
+
+const CANCEL_IMAGE_URL =
+  "https://res.cloudinary.com/doh9afvyd/image/upload/v1764822002/email-cancel_fvkpvn.jpg";
 
 interface CancellationCustomerProps extends BookingReceivedProps {
   cancellationFee: number;
@@ -29,7 +32,11 @@ export const CancellationNotificationCustomer: React.FC<
 
   return (
     <Layout previewText={previewText}>
-      <Heading className="text-2xl font-bold text-gray-800 my-6">
+      <Section className="text-center">
+        <Img src={CANCEL_IMAGE_URL} width="70%" alt="Booking Cancelled" />
+      </Section>
+
+      <Heading className="text-2xl font-bold text-[#367D5E] my-4">
         {title}
       </Heading>
 

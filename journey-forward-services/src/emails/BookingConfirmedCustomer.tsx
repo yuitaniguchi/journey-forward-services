@@ -80,15 +80,10 @@ export const BookingConfirmedCustomer: React.FC<
   return (
     <Layout previewText={previewText}>
       <Section className="text-center">
-        <Img
-          src={CONFIRM_IMAGE_URL}
-          width="70%"
-          alt="Booking Confirmed"
-          className="mx-auto"
-        />
+        <Img src={CONFIRM_IMAGE_URL} width="70%" alt="Booking Confirmed" />
       </Section>
 
-      <Heading className="text-2xl font-bold text-[#367D5E] my-4 text-left">
+      <Heading className="text-2xl font-bold text-[#367D5E] my-6">
         Thank You for Booking with JFS!
       </Heading>
 
