@@ -1,6 +1,3 @@
-import NavBar from '@/components/landing/NavBar';
-import Footer from '@/components/landing/Footer';
-
 import AboutHero from '@/components/about/AboutHero';
 import AboutIntro from '@/components/about/AboutIntro';
 import AboutStory from '@/components/about/AboutStory';
