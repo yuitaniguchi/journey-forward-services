@@ -1,5 +1,3 @@
-// types/email.ts
-
 export interface ItemData {
     name: string;
     size: string;
@@ -24,7 +22,6 @@ export interface RequestData {
     pickupElevator?: boolean;
     status: string;
     items?: ItemData[];
-    // ⬇️ 追加: これがないとエラーになる可能性あり
     deliveryRequired?: boolean;
 }
 
@@ -39,15 +36,12 @@ export interface QuotationSentProps extends BookingReceivedProps {
     bookingLink: string;
     subTotal: number;
     tax: number;
-    minimumFee: number;
     pdfLink: string;
     items: (ItemData & { price: number; delivery: boolean })[];
 }
 
-// ⬇️ ここを大幅修正！コンポーネントの要求に合わせます
 export interface BookingConfirmedProps extends BookingReceivedProps {
     cancellationDeadline: string;
-    // quotationTotal (number) ではなく、詳細オブジェクトにする
     quotation: {
         subtotal: number;
         tax: number;

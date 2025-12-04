@@ -16,7 +16,6 @@ const QUOTE_IMAGE_URL =
 interface ExtendedQuotationSentProps extends QuotationSentProps {
   subTotal: number;
   tax: number;
-  minimumFee: number;
   pdfLink: string;
   items: (ItemData & { price: number; delivery: boolean })[];
 }
@@ -29,7 +28,6 @@ export const QuotationSentCustomer: React.FC<ExtendedQuotationSentProps> = ({
   requestDate,
   subTotal,
   tax,
-  minimumFee,
   pdfLink,
   items,
 }) => {
@@ -117,9 +115,6 @@ export const QuotationSentCustomer: React.FC<ExtendedQuotationSentProps> = ({
         <Heading as="h3" className="text-lg font-bold text-[#367D5E] mb-2">
           Estimate
         </Heading>
-        <Text className="text-base text-gray-700 mb-4">
-          Minimum location fee: {formatCAD(minimumFee)}
-        </Text>
 
         <table className="w-full border-collapse text-sm">
           <thead>
@@ -199,8 +194,8 @@ export const QuotationSentCustomer: React.FC<ExtendedQuotationSentProps> = ({
           <br />
           If you need to <strong>make changes</strong> to this estimate or any
           detail, please call us{" "}
-          <Link href={`tel:${customer?.phone}`} className="underline">
-            {customer?.phone}
+          <Link href={`tel: 111 (222) 3333`} className="underline">
+            111 (222) 3333
           </Link>{" "}
           or send us an email.
         </Text>
