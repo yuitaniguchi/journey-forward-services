@@ -45,7 +45,9 @@ type RequestDetail = {
 
   quotation: {
     id: number;
-    total: string;
+    subtotal: number;
+    tax: number;
+    total: number;
   } | null;
 
   payment: {
@@ -212,12 +214,17 @@ export default function RequestDetailPage({ params }: PageProps) {
       ? `$${request.payment.total}`
       : "-";
 
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat("en-CA", {
+      style: "currency",
+      currency: "CAD",
+    }).format(val);
+
   return (
     <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
       <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-8">
         Request Details
       </h1>
-      {/* ★ ここからレイアウト部分を丸ごと差し替え ★ */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* 1. Customer */}
         <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
@@ -341,16 +348,36 @@ export default function RequestDetailPage({ params }: PageProps) {
           <h2 className="text-2xl font-semibold text-slate-900 mb-4">
             Quotation
           </h2>
-          <p className="mb-4">
-            <span className="font-semibold">Estimated Price: </span>
-            {estimate}
-          </p>
+
+          {request.quotation ? (
+            <div className="mb-6 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-600">Subtotal:</span>
+                <span className="font-medium">
+                  {formatCurrency(request.quotation.subtotal)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Tax (12%):</span>
+                <span className="font-medium">
+                  {formatCurrency(request.quotation.tax)}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-bold text-slate-900">
+                <span>Total:</span>
+                <span>{formatCurrency(request.quotation.total)}</span>
+              </div>
+            </div>
+          ) : (
+            <p className="mb-4 text-slate-500">No quotation created yet.</p>
+          )}
+
           <button
             type="button"
             onClick={() => setShowQuotationModal(true)}
             className="w-full rounded-xl border border-slate-900 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-900 hover:text-white transition"
           >
-            Edit
+            {request.quotation ? "Edit Quotation" : "Create Quotation"}
           </button>
         </section>
 
@@ -404,7 +431,6 @@ export default function RequestDetailPage({ params }: PageProps) {
           </button>
         </section>
       </div>
-      {/* ★ ここまで ★ */}
 
       {/* Status Change Confirm Modal */}
       {isConfirmModalOpen && pendingStatus && (
@@ -481,45 +507,35 @@ export default function RequestDetailPage({ params }: PageProps) {
       {/* Quotation Modal */}
       <QuotationModal
         open={showQuotationModal}
-        initialTotal={request.quotation?.total ?? ""}
+        initialSubtotal={request.quotation?.subtotal ?? 0}
         onClose={() => setShowQuotationModal(false)}
-        onSave={async ({ estimatedPrice, note, sendEmail }) => {
-          const amount = Number(estimatedPrice);
-          if (Number.isNaN(amount) || amount < 0) {
-            alert("Estimated price must be a non-negative number.");
-            throw new Error("Invalid estimated price");
-          }
-
+        onSave={async ({ subtotal, sendEmail }) => {
           try {
             const res = await fetch(`/api/admin/quotations/${request.id}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                subtotal: amount,
-                tax: 0,
-                total: amount,
+                subtotal,
                 sendEmail,
-                // note は今は API 側で使ってないけど、将来用にここで渡せる
               }),
             });
 
             const json = await res.json();
 
             if (!res.ok) {
-              console.error("Failed to save quotation:", json);
               alert(json.error || "Failed to save quotation.");
-              throw new Error(json.error || "Quotation API error");
+              throw new Error(json.error);
             }
-
-            const quotation = json.quotation;
 
             setRequest((prev) =>
               prev
                 ? {
                     ...prev,
                     quotation: {
-                      id: quotation.id,
-                      total: quotation.total,
+                      id: json.quotation.id,
+                      subtotal: Number(json.quotation.subtotal),
+                      tax: Number(json.quotation.tax),
+                      total: Number(json.quotation.total),
                     },
                     status:
                       prev.status === "RECEIVED" || prev.status === "QUOTED"
@@ -529,7 +545,7 @@ export default function RequestDetailPage({ params }: PageProps) {
                 : prev
             );
           } catch (e) {
-            console.error("Network or quotation error:", e);
+            console.error(e);
             throw e;
           }
         }}
