@@ -1,14 +1,22 @@
-import { Text, Heading, Section, Hr, Link } from "@react-email/components";
+import { Text, Heading, Section, Hr, Button } from "@react-email/components";
 import * as React from "react";
 import { LayoutAdmin } from "./components/LayoutAdmin";
 import { AdminBookingConfirmedProps } from "../types/email";
 
-export const BookingConfirmedAdmin: React.FC<AdminBookingConfirmedProps> = ({
+interface ExtendedAdminBookingConfirmedProps
+  extends AdminBookingConfirmedProps {
+  dashboardLink: string;
+}
+
+export const BookingConfirmedAdmin: React.FC<
+  ExtendedAdminBookingConfirmedProps
+> = ({
   customer,
   request,
   requestDate,
   quotationTotal,
   customerPhone,
+  dashboardLink,
 }) => {
   const previewText = `Booking Confirmed – Request #${request.requestId} from ${customer.lastName}`;
   const formattedTotal = new Intl.NumberFormat("en-CA", {
@@ -54,12 +62,12 @@ export const BookingConfirmedAdmin: React.FC<AdminBookingConfirmedProps> = ({
       </Section>
 
       <Section className="text-center mt-6">
-        <Link
-          href={`/admin/requests/${request.requestId}`}
-          className="inline-block bg-blue-600 text-white font-semibold text-base py-2 px-4 rounded transition-colors"
+        <Button
+          href={dashboardLink}
+          className="bg-blue-600 text-white font-bold py-3 px-6 rounded-md text-sm"
         >
           View Booking in Admin Dashboard
-        </Link>
+        </Button>
       </Section>
     </LayoutAdmin>
   );

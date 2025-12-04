@@ -1,6 +1,7 @@
-// src/app/(user)/booking-detail/[id]/page.tsx
+import React from "react";
+import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import BookingDetailClient from "./BookingDetailClient";
-import { getBooking } from "@/lib/getBooking";
 import type { BookingRequest } from "@/types/booking";
 
 type PageParams = Promise<{ id: string }>;
@@ -12,25 +13,72 @@ type BookingDetailPageProps = {
 export default async function BookingDetailPage({
   params,
 }: BookingDetailPageProps) {
-  // サーバー側で Promise を unwrap
-  const { id } = await params;
+  const { id: token } = await params;
 
-  const booking: BookingRequest | null = await getBooking(id);
+  const quotation = await prisma.quotation.findFirst({
+    where: {
+      bookingLink: {
+        endsWith: token,
+      },
+    },
+    include: {
+      request: {
+        include: {
+          customer: true,
+          items: true,
+          quotation: true,
+          payment: true,
+        },
+      },
+    },
+  });
 
-  if (!booking) {
-    return (
-      <main className="min-h-screen bg-[#f7f7f7] py-10">
-        <div className="mx-auto max-w-5xl px-4 md:px-0">
-          <h1 className="mb-8 text-center text-3xl font-semibold text-[#1f2933]">
-            Booking Detail
-          </h1>
-          <p className="text-center text-red-600">
-            Booking not found or failed to load booking details.
-          </p>
-        </div>
-      </main>
-    );
+  if (!quotation || !quotation.request) {
+    return notFound();
   }
 
-  return <BookingDetailClient requestId={id} initialBooking={booking} />;
+  const booking = quotation.request;
+
+  const formattedBooking: BookingRequest = {
+    ...booking,
+    preferredDatetime: booking.preferredDatetime.toISOString(),
+    freeCancellationDeadline: booking.freeCancellationDeadline.toISOString(),
+    createdAt: booking.createdAt.toISOString(),
+    updatedAt: booking.updatedAt.toISOString(),
+    cancelledAt: booking.cancelledAt?.toISOString() || null,
+
+    cancellationFee: booking.cancellationFee
+      ? Number(booking.cancellationFee)
+      : null,
+
+    customer: {
+      ...booking.customer,
+      phone: booking.customer.phone || null,
+    },
+    items: booking.items.map((item) => ({
+      ...item,
+      photoUrl: item.photoUrl || undefined,
+    })),
+    quotation: {
+      ...booking.quotation!,
+      subtotal: Number(booking.quotation!.subtotal),
+      tax: Number(booking.quotation!.tax),
+      total: Number(booking.quotation!.total),
+    },
+    payment: booking.payment
+      ? {
+          ...booking.payment,
+          subtotal: Number(booking.payment.subtotal),
+          tax: Number(booking.payment.tax),
+          total: Number(booking.payment.total),
+        }
+      : null,
+  };
+
+  return (
+    <BookingDetailClient
+      requestId={booking.id.toString()}
+      initialBooking={formattedBooking}
+    />
+  );
 }

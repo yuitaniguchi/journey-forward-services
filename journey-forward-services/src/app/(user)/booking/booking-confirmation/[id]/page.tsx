@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation"; // ★ useRouterを追加
 import {
   Elements,
   PaymentElement,
@@ -9,13 +9,14 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import { stripePromise } from "@/lib/stripeClient";
-import type { BookingRequest, BookingResponse } from "@/types/booking";
+import type { BookingRequest } from "@/types/booking";
 
 type PaymentFormProps = {
-  redirectLink: string;
+  onSuccess: () => void;
+  requestId: number;
 };
 
-function PaymentForm({ redirectLink }: PaymentFormProps) {
+function PaymentForm({ onSuccess, requestId }: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -39,17 +40,27 @@ function PaymentForm({ redirectLink }: PaymentFormProps) {
       redirect: "if_required",
     });
 
-    setIsProcessing(false);
-
     if (error) {
       console.error("confirmSetup error:", error);
       setMessage(error.message ?? "Something went wrong.");
+      setIsProcessing(false);
       return;
     }
 
     console.log("Setup succeeded ✅", setupIntent?.id);
 
-    window.location.href = redirectLink;
+    try {
+      await fetch("/api/bookings/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId }),
+      });
+    } catch (e) {
+      console.error("Failed to confirm booking or send email", e);
+    } finally {
+      setIsProcessing(false);
+      onSuccess();
+    }
   };
 
   return (
@@ -79,6 +90,7 @@ function PaymentForm({ redirectLink }: PaymentFormProps) {
 export default function BookingConfirmationPage() {
   const params = useParams<{ id: string }>();
   const token = params?.id;
+  const router = useRouter();
 
   const [booking, setBooking] = useState<BookingRequest | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -99,9 +111,7 @@ export default function BookingConfirmationPage() {
         setLoadError(null);
 
         const resBooking = await fetch(`/api/bookings/token/${token}`);
-
         if (!resBooking.ok) {
-          console.error("Failed to fetch booking by token");
           setLoadError("Invalid or expired link.");
           return;
         }
@@ -110,6 +120,16 @@ export default function BookingConfirmationPage() {
           data: BookingRequest;
         };
         const bookingData = bookingJson.data;
+
+        if (
+          bookingData.status === "CONFIRMED" ||
+          bookingData.status === "INVOICED" ||
+          bookingData.status === "PAID"
+        ) {
+          router.replace(`/booking-detail/${token}`);
+          return;
+        }
+
         setBooking(bookingData);
 
         const resIntent = await fetch("/api/payments/create-intent", {
@@ -122,7 +142,6 @@ export default function BookingConfirmationPage() {
         });
 
         if (!resIntent.ok) {
-          console.error("Failed to create Stripe intent");
           setLoadError("Failed to initialize payment.");
           return;
         }
@@ -130,7 +149,7 @@ export default function BookingConfirmationPage() {
         const intentJson = await resIntent.json();
         setClientSecret(intentJson.clientSecret);
       } catch (e) {
-        console.error("Error in confirmation page:", e);
+        console.error(e);
         setLoadError("Unexpected error occurred.");
       } finally {
         setIsLoading(false);
@@ -138,7 +157,7 @@ export default function BookingConfirmationPage() {
     };
 
     loadBookingAndIntent();
-  }, [token]);
+  }, [token, router]);
 
   const elementsOptions = clientSecret
     ? {
@@ -148,12 +167,12 @@ export default function BookingConfirmationPage() {
       }
     : undefined;
 
+  const nextLink = `/booking-detail/${token}`;
+
   if (isLoading || !booking) {
     return (
-      <main className="min-h-screen bg-[#f7f7f7] py-10">
-        <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 text-center">
-          <p className="text-gray-600">Loading booking information...</p>
-        </div>
+      <main className="min-h-screen bg-[#f7f7f7] py-10 flex items-center justify-center">
+        <p className="text-gray-600">Loading...</p>
       </main>
     );
   }
@@ -163,14 +182,28 @@ export default function BookingConfirmationPage() {
   const pickupAddress = `${booking.pickupAddressLine1}, ${booking.pickupCity}`;
   const quotation = booking.quotation;
 
-  const nextLink = "/";
-
   return (
     <main className="min-h-screen bg-[#f7f7f7] py-10">
       <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 md:px-0">
         <div className="flex flex-col items-center gap-2">
-          <div className="text-sm font-bold text-gray-500">
-            Booking Confirmation
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#1a7c4c] bg-[#1a7c4c] text-sm font-semibold text-white">
+                ✓
+              </div>
+              <span className="text-xs text-[#1a7c4c] font-medium">
+                Detail info
+              </span>
+            </div>
+            <div className="h-px w-16 bg-[#1a7c4c]" />
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#1a7c4c] bg-white text-sm font-semibold text-[#1a7c4c]">
+                2
+              </div>
+              <span className="text-xs text-[#1a7c4c] font-medium">
+                Payment info
+              </span>
+            </div>
           </div>
         </div>
 
@@ -180,25 +213,43 @@ export default function BookingConfirmationPage() {
             <h2 className="mb-6 text-xl font-semibold text-[#1a7c4c]">
               Request Number: {booking.id}
             </h2>
-            <div className="space-y-2 text-sm text-gray-800">
-              <p>
-                <span className="font-bold">Name:</span> {customerName}
-              </p>
-              <p>
-                <span className="font-bold">Date:</span> {pickupDateTime}
-              </p>
-              <p>
-                <span className="font-bold">Address:</span> {pickupAddress}
-              </p>
+            <div className="space-y-3 text-sm text-gray-800">
+              <div>
+                <span className="font-bold block text-gray-500 text-xs">
+                  Name
+                </span>{" "}
+                {customerName}
+              </div>
+              <div>
+                <span className="font-bold block text-gray-500 text-xs">
+                  Date
+                </span>{" "}
+                {pickupDateTime}
+              </div>
+              <div>
+                <span className="font-bold block text-gray-500 text-xs">
+                  Address
+                </span>{" "}
+                {pickupAddress}
+              </div>
             </div>
 
-            {/* Estimate Table */}
             {quotation && (
               <div className="mt-8 border-t pt-4">
-                <h3 className="font-bold mb-2">Quotation</h3>
-                <div className="flex justify-between text-sm">
-                  <span>Total Estimate:</span>
-                  <span className="font-bold text-lg">
+                <h3 className="font-bold mb-3 text-gray-700">
+                  Estimate Summary
+                </h3>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Subtotal</span>
+                  <span>${Number(quotation.subtotal).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm mb-3">
+                  <span>Tax</span>
+                  <span>${Number(quotation.tax).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between border-t border-dashed pt-2">
+                  <span className="font-bold text-lg">Total</span>
+                  <span className="font-bold text-lg text-[#1a7c4c]">
                     ${Number(quotation.total).toFixed(2)}
                   </span>
                 </div>
@@ -214,7 +265,12 @@ export default function BookingConfirmationPage() {
 
             {clientSecret && elementsOptions ? (
               <Elements stripe={stripePromise} options={elementsOptions}>
-                <PaymentForm redirectLink={nextLink} />
+                <PaymentForm
+                  requestId={booking.id}
+                  onSuccess={() => {
+                    window.location.href = nextLink;
+                  }}
+                />
               </Elements>
             ) : (
               <p className="text-red-500">
