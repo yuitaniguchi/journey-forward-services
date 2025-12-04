@@ -75,7 +75,6 @@ export async function POST(req: Request) {
             bookingLink: quotation.bookingLink,
             subTotal: quotation.subtotal.toNumber(),
             tax: quotation.tax.toNumber(),
-            minimumFee: 50,
             pdfLink: "#",
             items: mappedItems,
         };

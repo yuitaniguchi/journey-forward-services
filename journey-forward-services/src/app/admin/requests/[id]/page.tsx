@@ -45,7 +45,9 @@ type RequestDetail = {
 
   quotation: {
     id: number;
-    total: string;
+    subtotal: number;
+    tax: number;
+    total: number;
   } | null;
 
   payment: {
@@ -178,12 +180,17 @@ export default function RequestDetailPage({ params }: PageProps) {
       ? `$${request.payment.total}`
       : "-";
 
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat("en-CA", {
+      style: "currency",
+      currency: "CAD",
+    }).format(val);
+
   return (
     <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
       <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-8">
         Request Details
       </h1>
-      {/* ★ ここからレイアウト部分を丸ごと差し替え ★ */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* 1. Customer */}
         <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
@@ -302,16 +309,36 @@ export default function RequestDetailPage({ params }: PageProps) {
           <h2 className="text-2xl font-semibold text-slate-900 mb-4">
             Quotation
           </h2>
-          <p className="mb-4">
-            <span className="font-semibold">Estimated Price: </span>
-            {estimate}
-          </p>
+
+          {request.quotation ? (
+            <div className="mb-6 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-600">Subtotal:</span>
+                <span className="font-medium">
+                  {formatCurrency(request.quotation.subtotal)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Tax (12%):</span>
+                <span className="font-medium">
+                  {formatCurrency(request.quotation.tax)}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-bold text-slate-900">
+                <span>Total:</span>
+                <span>{formatCurrency(request.quotation.total)}</span>
+              </div>
+            </div>
+          ) : (
+            <p className="mb-4 text-slate-500">No quotation created yet.</p>
+          )}
+
           <button
             type="button"
             onClick={() => setShowQuotationModal(true)}
             className="w-full rounded-xl border border-slate-900 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-900 hover:text-white transition"
           >
-            Edit
+            {request.quotation ? "Edit Quotation" : "Create Quotation"}
           </button>
         </section>
 
@@ -365,50 +392,39 @@ export default function RequestDetailPage({ params }: PageProps) {
           </button>
         </section>
       </div>
-      {/* ★ ここまで ★ */}
 
       {/* Quotation Modal */}
       <QuotationModal
         open={showQuotationModal}
-        initialTotal={request.quotation?.total ?? ""}
+        initialSubtotal={request.quotation?.subtotal ?? 0}
         onClose={() => setShowQuotationModal(false)}
-        onSave={async ({ estimatedPrice, note, sendEmail }) => {
-          const amount = Number(estimatedPrice);
-          if (Number.isNaN(amount) || amount < 0) {
-            alert("Estimated price must be a non-negative number.");
-            throw new Error("Invalid estimated price");
-          }
-
+        onSave={async ({ subtotal, sendEmail }) => {
           try {
             const res = await fetch(`/api/admin/quotations/${request.id}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                subtotal: amount,
-                tax: 0,
-                total: amount,
+                subtotal,
                 sendEmail,
-                // note は今は API 側で使ってないけど、将来用にここで渡せる
               }),
             });
 
             const json = await res.json();
 
             if (!res.ok) {
-              console.error("Failed to save quotation:", json);
               alert(json.error || "Failed to save quotation.");
-              throw new Error(json.error || "Quotation API error");
+              throw new Error(json.error);
             }
-
-            const quotation = json.quotation;
 
             setRequest((prev) =>
               prev
                 ? {
                     ...prev,
                     quotation: {
-                      id: quotation.id,
-                      total: quotation.total,
+                      id: json.quotation.id,
+                      subtotal: Number(json.quotation.subtotal),
+                      tax: Number(json.quotation.tax),
+                      total: Number(json.quotation.total),
                     },
                     status:
                       prev.status === "RECEIVED" || prev.status === "QUOTED"
@@ -418,7 +434,7 @@ export default function RequestDetailPage({ params }: PageProps) {
                 : prev
             );
           } catch (e) {
-            console.error("Network or quotation error:", e);
+            console.error(e);
             throw e;
           }
         }}
@@ -431,30 +447,23 @@ export default function RequestDetailPage({ params }: PageProps) {
         initialBreakdown=""
         onClose={() => setShowFinalAmountModal(false)}
         onSend={async ({ amount, breakdown }) => {
-          // 1. 文字列の amount を number に変換してチェック
           const total = Number(amount);
           if (Number.isNaN(total) || total < 0) {
             alert("Final amount must be a non-negative number.");
-            // エラー扱いにしたいので throw → モーダル側で catch される
             throw new Error("Invalid final amount");
           }
 
           try {
-            // 2. さっき作った Admin API を叩く
             const res = await fetch(
               `/api/admin/payments/${request.id}/finalize`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  // 👇 今は簡易的に subtotal = total, tax = 0 として送っておく
-                  //    後で UI に subtotal / tax 入力欄を足したらここも分ければOK
                   subtotal: total,
                   tax: 0,
                   total,
                   currency: "CAD",
-                  // breakdown は現時点では API では使ってないけど、
-                  // 将来の「メール本文」などで使えるように保持しておくイメージ
                 }),
               }
             );
@@ -464,31 +473,26 @@ export default function RequestDetailPage({ params }: PageProps) {
             if (!res.ok) {
               console.error("Failed to finalize payment:", json);
               alert(json.error || "Failed to finalize payment amount.");
-              // 失敗としてモーダルに伝える（→ モーダル側で "Failed to send final amount"）
               throw new Error(json.error || "Finalize API error");
             }
 
             const payment = json.payment;
 
-            // 3. 返ってきた payment を使って画面の state を更新
             setRequest((prev) =>
               prev
                 ? {
                     ...prev,
                     payment: {
                       id: payment.id,
-                      total: payment.total, // API は string で返しているのでそのまま
+                      total: payment.total,
                       status: payment.status,
                     },
-                    status: "INVOICED", // 画面上の Status 表示も INVOICED に
+                    status: "INVOICED",
                   }
                 : prev
             );
-
-            // ここで throw しない → モーダル側の handleSend が onClose() を実行して閉じる
           } catch (e) {
             console.error("Network or finalize error:", e);
-            // もう一度 throw → モーダル側 catch に飛ぶ → アラート & モーダルは閉じない
             throw e;
           }
         }}
