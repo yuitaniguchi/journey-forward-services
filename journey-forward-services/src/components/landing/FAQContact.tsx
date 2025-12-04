@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import Link from "next/link";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -70,12 +71,14 @@ export function FAQContact() {
             <p className="text-sm text-gray-500 max-w-sm">
               You have questions? we&apos;ve got you.
             </p>
-            <Button
-              variant="outline"
-              className="mt-4 rounded-full border-brand-dark px-6 py-2 text-sm font-medium text-brand-dark hover:bg-brand/5"
-            >
-              Learn More
-            </Button>
+            <Link href="/faq">
+              <Button
+                variant="outline"
+                className="mt-4 rounded-full border-brand-dark px-6 py-2 text-sm font-medium text-brand-dark hover:bg-brand/5"
+              >
+                Learn More
+              </Button>
+            </Link>
           </div>
 
           <div>
