@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation"; // ★ useRouterを追加
 import {
   Elements,
   PaymentElement,
@@ -90,6 +90,7 @@ function PaymentForm({ onSuccess, requestId }: PaymentFormProps) {
 export default function BookingConfirmationPage() {
   const params = useParams<{ id: string }>();
   const token = params?.id;
+  const router = useRouter();
 
   const [booking, setBooking] = useState<BookingRequest | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -119,6 +120,16 @@ export default function BookingConfirmationPage() {
           data: BookingRequest;
         };
         const bookingData = bookingJson.data;
+
+        if (
+          bookingData.status === "CONFIRMED" ||
+          bookingData.status === "INVOICED" ||
+          bookingData.status === "PAID"
+        ) {
+          router.replace(`/booking-detail/${token}`);
+          return;
+        }
+
         setBooking(bookingData);
 
         const resIntent = await fetch("/api/payments/create-intent", {
@@ -146,7 +157,7 @@ export default function BookingConfirmationPage() {
     };
 
     loadBookingAndIntent();
-  }, [token]);
+  }, [token, router]);
 
   const elementsOptions = clientSecret
     ? {

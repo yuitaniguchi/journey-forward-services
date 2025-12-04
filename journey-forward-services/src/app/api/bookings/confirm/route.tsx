@@ -61,6 +61,15 @@ export async function POST(req: Request) {
         }
       );
 
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL!;
+
+      const pdfLink = `${baseUrl}/api/pdf/quotations/${requestId}`;
+
+      const token = booking.quotation?.bookingLink?.split("/").pop();
+      const manageLink = token ? `${baseUrl}/booking-detail/${token}` : baseUrl;
+
+      const dashboardLink = `${baseUrl}/admin/requests/${requestId}`;
+
       const commonProps = {
         customer: {
           firstName: booking.customer.firstName,
@@ -89,6 +98,7 @@ export async function POST(req: Request) {
         requestDate: dateStr,
       };
 
+      // Customer Email
       const customerHtml = await render(
         <BookingConfirmedCustomer
           {...commonProps}
@@ -98,14 +108,18 @@ export async function POST(req: Request) {
             total: Number(booking.quotation?.total || 0),
           }}
           cancellationDeadline={deadlineStr}
+          pdfLink={pdfLink}
+          manageLink={manageLink}
         />
       );
 
+      // Admin Email
       const adminHtml = await render(
         <BookingConfirmedAdmin
           {...commonProps}
           quotationTotal={Number(booking.quotation?.total || 0)}
           customerPhone={booking.customer.phone || "N/A"}
+          dashboardLink={dashboardLink}
         />
       );
 

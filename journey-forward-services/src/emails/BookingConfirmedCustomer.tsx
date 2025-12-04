@@ -14,12 +14,21 @@ import { BookingConfirmedProps } from "../types/email";
 const CONFIRM_IMAGE_URL =
   "https://res.cloudinary.com/doh9afvyd/image/upload/v1764549569/booking-confirmed_hopufe.png";
 
-export const BookingConfirmedCustomer: React.FC<BookingConfirmedProps> = ({
+interface ExtendedBookingConfirmedProps extends BookingConfirmedProps {
+  pdfLink: string;
+  manageLink: string;
+}
+
+export const BookingConfirmedCustomer: React.FC<
+  ExtendedBookingConfirmedProps
+> = ({
   customer,
   request,
   requestDate,
   quotation,
   cancellationDeadline,
+  pdfLink,
+  manageLink,
 }) => {
   const previewText =
     "Thank you for your booking with Journey Forward Services!";
@@ -117,10 +126,6 @@ export const BookingConfirmedCustomer: React.FC<BookingConfirmedProps> = ({
           Estimate
         </Heading>
 
-        <Text className="text-[16px] text-gray-800 mb-4">
-          Minimum location fee: $50
-        </Text>
-
         <Section className="w-full">
           <table className="w-full border-collapse">
             <thead>
@@ -187,10 +192,10 @@ export const BookingConfirmedCustomer: React.FC<BookingConfirmedProps> = ({
           You can download the full PDF estimate here:
         </Text>
         <Link
-          href="#"
+          href={pdfLink}
           className="text-[16px] text-blue-600 underline font-bold flex items-center mt-[5px]"
         >
-          ⬇ [Download Estimate PDF Button or Link]
+          ⬇ [Download Estimate PDF]
         </Link>
       </Section>
 
@@ -234,7 +239,7 @@ export const BookingConfirmedCustomer: React.FC<BookingConfirmedProps> = ({
 
       <Section className="mt-6 text-left">
         <Link
-          href={`/booking-management/${request.requestId}`}
+          href={manageLink}
           className="bg-[#367D5E] text-white px-4 py-4 rounded-md text-base font-semibold inline-block"
           style={{ textDecoration: "none" }}
         >
