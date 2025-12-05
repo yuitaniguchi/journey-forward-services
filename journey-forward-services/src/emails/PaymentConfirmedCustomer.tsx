@@ -1,7 +1,10 @@
-import { Text, Heading, Section } from "@react-email/components";
+import { Text, Heading, Section, Img } from "@react-email/components";
 import * as React from "react";
 import { Layout } from "./components/Layout";
 import { BookingReceivedProps } from "../types/email";
+
+const HERO_IMAGE_URL =
+  "https://res.cloudinary.com/doh9afvyd/image/upload/v1764872936/email-payment_npifgo.jpg";
 
 interface PaymentConfirmedCustomerProps extends BookingReceivedProps {
   finalTotal: number;
@@ -19,6 +22,10 @@ export const PaymentConfirmedCustomer: React.FC<
 
   return (
     <Layout previewText={previewText}>
+      <Section className="text-center">
+        <Img src={HERO_IMAGE_URL} width="70%" alt="Your Estimate is coming!" />
+      </Section>
+
       <Heading className="text-2xl font-bold text-[#367D5E] my-6">
         Payment Confirmed! Thank You!
       </Heading>

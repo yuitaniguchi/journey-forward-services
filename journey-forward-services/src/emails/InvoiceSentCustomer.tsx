@@ -1,7 +1,17 @@
-import { Text, Heading, Section, Button, Hr } from "@react-email/components";
+import {
+  Text,
+  Heading,
+  Section,
+  Button,
+  Hr,
+  Img,
+} from "@react-email/components";
 import * as React from "react";
 import { Layout } from "./components/Layout";
 import { QuotationSentProps } from "../types/email";
+
+const HERO_IMAGE_URL =
+  "https://res.cloudinary.com/doh9afvyd/image/upload/v1764872923/email-invoice_hqzyvr.jpg";
 
 interface InvoiceProps extends QuotationSentProps {
   finalTotal: number;
@@ -24,6 +34,10 @@ export const InvoiceSentCustomer: React.FC<InvoiceProps> = ({
 
   return (
     <Layout previewText={previewText}>
+      <Section className="text-center">
+        <Img src={HERO_IMAGE_URL} width="70%" alt="Your Estimate is coming!" />
+      </Section>
+
       <Heading className="text-2xl font-bold text-[#367D5E] my-6">
         Your Final Invoice Is Ready
       </Heading>

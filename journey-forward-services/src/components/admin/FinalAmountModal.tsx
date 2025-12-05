@@ -4,44 +4,47 @@ import { useEffect, useState } from "react";
 
 type Props = {
   open: boolean;
-  initialAmount?: string;
-  initialBreakdown?: string;
+  initialSubtotal?: number;
   onClose: () => void;
-  onSend: (payload: {
-    amount: string;
-    breakdown: string;
-  }) => Promise<void> | void;
+  onSend: (payload: { subtotal: number }) => Promise<void> | void;
 };
 
 export default function FinalAmountModal({
   open,
-  initialAmount = "",
-  initialBreakdown = "",
+  initialSubtotal = 0,
   onClose,
   onSend,
 }: Props) {
-  const [amount, setAmount] = useState(initialAmount);
-  const [breakdown, setBreakdown] = useState(initialBreakdown);
+  const [subtotalStr, setSubtotalStr] = useState("");
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setAmount(initialAmount);
-      setBreakdown(initialBreakdown);
+      setSubtotalStr(initialSubtotal ? initialSubtotal.toString() : "");
     }
-  }, [open, initialAmount, initialBreakdown]);
+  }, [open, initialSubtotal]);
+
+  const subtotal = parseFloat(subtotalStr) || 0;
+  const tax = subtotal * 0.12; // BC Tax 12%
+  const total = subtotal + tax;
+
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat("en-CA", {
+      style: "currency",
+      currency: "CAD",
+    }).format(val);
 
   if (!open) return null;
 
   async function handleSend() {
-    if (!amount.trim()) {
-      alert("Please enter final amount");
+    if (!subtotal || subtotal < 0) {
+      alert("Please enter a valid subtotal");
       return;
     }
 
     try {
       setSending(true);
-      await onSend({ amount, breakdown });
+      await onSend({ subtotal });
       onClose();
     } catch {
       alert("Failed to send final amount");
@@ -52,7 +55,7 @@ export default function FinalAmountModal({
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white px-8 py-8 shadow-xl">
+      <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white px-8 py-8 shadow-xl">
         <div className="flex items-start justify-between mb-6">
           <h2 className="text-3xl font-bold text-slate-900">
             Send Final Amount
@@ -66,35 +69,42 @@ export default function FinalAmountModal({
           </button>
         </div>
 
-        {/* Final Amount */}
+        {/* Subtotal Input */}
         <div className="mb-6">
           <label className="block text-sm font-semibold text-slate-900 mb-2">
-            Final Amount
+            Subtotal ($)
           </label>
           <input
-            type="text"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-900"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+            value={subtotalStr}
+            onChange={(e) => setSubtotalStr(e.target.value)}
+            className="w-full rounded-xl border border-slate-300 px-4 py-3 text-lg font-medium focus:outline-none focus:ring-2 focus:ring-slate-900"
           />
         </div>
 
-        {/* Breakdown */}
-        <div className="mb-6">
-          <label className="block text-sm font-semibold text-slate-900 mb-2">
-            Breakdown
-          </label>
-          <textarea
-            value={breakdown}
-            onChange={(e) => setBreakdown(e.target.value)}
-            rows={4}
-            className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-900"
-            placeholder="Service 650, Tax 30..."
-          />
+        {/* Calculation Preview */}
+        <div className="mb-8 rounded-xl bg-slate-50 p-4 text-sm text-slate-700 space-y-2">
+          <div className="flex justify-between">
+            <span>Subtotal:</span>
+            <span>{formatCurrency(subtotal)}</span>
+          </div>
+          <div className="flex justify-between text-slate-500">
+            <span>Tax (12%):</span>
+            <span>{formatCurrency(tax)}</span>
+          </div>
+          <div className="flex justify-between border-t border-slate-200 pt-2 font-bold text-slate-900 text-base">
+            <span>Total Amount to Charge:</span>
+            <span>{formatCurrency(total)}</span>
+          </div>
         </div>
 
         <p className="mb-6 text-sm text-slate-700">
-          Customer will receive a payment link (status → Invoiced).
+          Customer will receive an invoice email with a payment link.
+          <br />
+          (Status will update to <strong>Invoiced</strong>)
         </p>
 
         <div className="flex flex-col md:flex-row gap-3">
@@ -111,7 +121,7 @@ export default function FinalAmountModal({
             onClick={onClose}
             className="flex-1 rounded-xl border border-slate-300 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-100 transition"
           >
-            Close
+            Cancel
           </button>
         </div>
       </div>

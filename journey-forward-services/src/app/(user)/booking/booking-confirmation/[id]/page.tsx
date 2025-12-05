@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation"; // ★ useRouterを追加
+import { useParams, useRouter } from "next/navigation";
 import {
   Elements,
   PaymentElement,
@@ -49,11 +49,19 @@ function PaymentForm({ onSuccess, requestId }: PaymentFormProps) {
 
     console.log("Setup succeeded ✅", setupIntent?.id);
 
+    const paymentMethodId =
+      typeof setupIntent.payment_method === "string"
+        ? setupIntent.payment_method
+        : setupIntent.payment_method?.id;
+
     try {
       await fetch("/api/bookings/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestId }),
+        body: JSON.stringify({
+          requestId,
+          paymentMethodId,
+        }),
       });
     } catch (e) {
       console.error("Failed to confirm booking or send email", e);
@@ -234,6 +242,7 @@ export default function BookingConfirmationPage() {
               </div>
             </div>
 
+            {/* Estimate Table */}
             {quotation && (
               <div className="mt-8 border-t pt-4">
                 <h3 className="font-bold mb-3 text-gray-700">

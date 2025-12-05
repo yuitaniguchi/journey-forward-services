@@ -1,11 +1,11 @@
 import { stripe } from "@/lib/stripe";
+import { prisma } from "@/lib/prisma"; // ★ 追加
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
     const { requestId, bookingId, customerEmail } = await req.json();
 
-    // requestId を優先、なければ後方互換で bookingId を使う
     const effectiveRequestId = requestId ?? bookingId;
 
     if (!effectiveRequestId) {
@@ -15,13 +15,28 @@ export async function POST(req: Request) {
       );
     }
 
+    const requestIdNum = Number(effectiveRequestId);
     const requestIdStr = String(effectiveRequestId);
 
-    // Stripe の Customer 作成（必要であれば既存 Customer 再利用にあとで変えてOK）
     const customer = await stripe.customers.create({
       email: customerEmail,
       metadata: {
         requestId: requestIdStr,
+      },
+    });
+
+    await prisma.payment.upsert({
+      where: { requestId: requestIdNum },
+      update: {
+        stripeCustomerId: customer.id,
+      },
+      create: {
+        requestId: requestIdNum,
+        stripeCustomerId: customer.id,
+        status: "PENDING",
+        subtotal: 0,
+        tax: 0,
+        total: 0,
       },
     });
 
@@ -30,7 +45,7 @@ export async function POST(req: Request) {
       usage: "off_session",
       payment_method_types: ["card"],
       metadata: {
-        requestId: requestIdStr, // ← webhook 側もこれを見る
+        requestId: requestIdStr,
       },
     });
 
