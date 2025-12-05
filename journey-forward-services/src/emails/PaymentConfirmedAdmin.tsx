@@ -78,7 +78,7 @@ export const PaymentConfirmedAdmin: React.FC<PaymentConfirmedAdminProps> = ({
       <Section className="text-center mt-8 mb-4">
         <Button
           href={dashboardLink}
-          className="bg-gray-800 text-white font-bold py-3 px-6 rounded-md text-sm"
+          className="bg-blue-600 text-white font-bold py-3 px-6 rounded-md text-sm"
         >
           View Request in Dashboard
         </Button>
