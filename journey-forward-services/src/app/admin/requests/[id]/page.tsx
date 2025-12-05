@@ -79,7 +79,6 @@ export default function RequestDetailPage({ params }: PageProps) {
   const [showQuotationModal, setShowQuotationModal] = useState(false);
   const [showFinalAmountModal, setShowFinalAmountModal] = useState(false);
 
-  // ★ 追加: ステータス変更用モーダルの state
   const [pendingStatus, setPendingStatus] = useState<RequestStatus | null>(
     null
   );
@@ -87,7 +86,6 @@ export default function RequestDetailPage({ params }: PageProps) {
   const [confirmingStatus, setConfirmingStatus] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
-  //detail infomation
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -110,7 +108,6 @@ export default function RequestDetailPage({ params }: PageProps) {
     load();
   }, [requestId]);
 
-  // data formatting
   function formatDate(iso: string) {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return "-";
@@ -128,7 +125,6 @@ export default function RequestDetailPage({ params }: PageProps) {
     return s.charAt(0) + s.slice(1).toLowerCase();
   }
 
-  // update status（成否を boolean で返す）
   async function handleStatusChange(next: RequestStatus): Promise<boolean> {
     if (!request) return false;
     if (next === request.status) return true;
@@ -146,7 +142,6 @@ export default function RequestDetailPage({ params }: PageProps) {
         return false;
       }
 
-      // update local state
       setRequest((prev) =>
         prev ? { ...prev, status: json.data.status as RequestStatus } : prev
       );
@@ -159,7 +154,6 @@ export default function RequestDetailPage({ params }: PageProps) {
     }
   }
 
-  // モーダルで「Yes, change status」が押されたとき
   async function handleConfirmStatusChange() {
     if (!pendingStatus) return;
 
@@ -205,10 +199,6 @@ export default function RequestDetailPage({ params }: PageProps) {
 
   const customerName = `${request.customer.firstName} ${request.customer.lastName}`;
   const pickupDate = formatDate(request.preferredDatetime);
-  const estimate =
-    request.quotation && request.quotation.total
-      ? `$${request.quotation.total}`
-      : "-";
   const finalAmount =
     request.payment && request.payment.total
       ? `$${request.payment.total}`
@@ -554,12 +544,10 @@ export default function RequestDetailPage({ params }: PageProps) {
       {/* Final Amount Modal */}
       <FinalAmountModal
         open={showFinalAmountModal}
-        initialAmount={request.payment?.total ?? ""}
-        initialBreakdown=""
+        initialSubtotal={request.quotation?.subtotal ?? 0}
         onClose={() => setShowFinalAmountModal(false)}
-        onSend={async ({ amount, breakdown }) => {
-          const total = Number(amount);
-          if (Number.isNaN(total) || total < 0) {
+        onSend={async ({ subtotal }) => {
+          if (subtotal < 0) {
             alert("Final amount must be a non-negative number.");
             throw new Error("Invalid final amount");
           }
@@ -571,10 +559,7 @@ export default function RequestDetailPage({ params }: PageProps) {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  subtotal: total,
-                  tax: 0,
-                  total,
-                  currency: "CAD",
+                  subtotal,
                 }),
               }
             );

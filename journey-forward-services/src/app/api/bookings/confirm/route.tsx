@@ -9,12 +9,28 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const requestId = Number(body.requestId);
+    const paymentMethodId = body.paymentMethodId;
 
     if (Number.isNaN(requestId)) {
       return NextResponse.json(
         { error: "Invalid Request ID" },
         { status: 400 }
       );
+    }
+
+    if (paymentMethodId) {
+      await prisma.payment.upsert({
+        where: { requestId },
+        update: { paymentMethod: paymentMethodId },
+        create: {
+          requestId,
+          paymentMethod: paymentMethodId,
+          status: "PENDING",
+          subtotal: 0,
+          tax: 0,
+          total: 0,
+        },
+      });
     }
 
     const booking = await prisma.request.findUnique({
@@ -62,12 +78,9 @@ export async function POST(req: Request) {
       );
 
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL!;
-
       const pdfLink = `${baseUrl}/api/pdf/quotations/${requestId}`;
-
       const token = booking.quotation?.bookingLink?.split("/").pop();
       const manageLink = token ? `${baseUrl}/booking-detail/${token}` : baseUrl;
-
       const dashboardLink = `${baseUrl}/admin/requests/${requestId}`;
 
       const commonProps = {
@@ -98,7 +111,6 @@ export async function POST(req: Request) {
         requestDate: dateStr,
       };
 
-      // Customer Email
       const customerHtml = await render(
         <BookingConfirmedCustomer
           {...commonProps}
@@ -113,7 +125,6 @@ export async function POST(req: Request) {
         />
       );
 
-      // Admin Email
       const adminHtml = await render(
         <BookingConfirmedAdmin
           {...commonProps}
