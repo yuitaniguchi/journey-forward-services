@@ -74,6 +74,7 @@ type PageProps = {
 export default function RequestDetailPage({ params }: PageProps) {
   const { id: requestId } = usePromise(params);
   const router = useRouter();
+
   const [request, setRequest] = useState<RequestDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +82,7 @@ export default function RequestDetailPage({ params }: PageProps) {
 
   const [showQuotationModal, setShowQuotationModal] = useState(false);
   const [showFinalAmountModal, setShowFinalAmountModal] = useState(false);
+  const [showAllItems, setShowAllItems] = useState(false);
 
   const [pendingStatus, setPendingStatus] = useState<RequestStatus | null>(
     null
@@ -89,6 +91,12 @@ export default function RequestDetailPage({ params }: PageProps) {
   const [confirmingStatus, setConfirmingStatus] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
+  // 🔍 ライトボックス用 state
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
+  const [photoItems, setPhotoItems] = useState<RequestDetail["items"]>([]);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+
+  // ---- データ読み込み ----
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -111,6 +119,7 @@ export default function RequestDetailPage({ params }: PageProps) {
     load();
   }, [requestId]);
 
+  // ---- フォーマット系 ----
   function formatDate(iso: string) {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return "-";
@@ -128,6 +137,13 @@ export default function RequestDetailPage({ params }: PageProps) {
     return s.charAt(0) + s.slice(1).toLowerCase();
   }
 
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat("en-CA", {
+      style: "currency",
+      currency: "CAD",
+    }).format(val);
+
+  // ---- ステータス更新 ----
   async function handleStatusChange(next: RequestStatus): Promise<boolean> {
     if (!request) return false;
     if (next === request.status) return true;
@@ -176,10 +192,39 @@ export default function RequestDetailPage({ params }: PageProps) {
     setPendingStatus(null);
   }
 
+  // 🔁 ライトボックスの前後ナビゲーション
+  function goPrevPhoto() {
+    setCurrentPhotoIndex((i) =>
+      photoItems.length === 0
+        ? 0
+        : (i - 1 + photoItems.length) % photoItems.length
+    );
+  }
+
+  function goNextPhoto() {
+    setCurrentPhotoIndex((i) =>
+      photoItems.length === 0 ? 0 : (i + 1) % photoItems.length
+    );
+  }
+
+  // 🔍 サムネイルクリック時のハンドラ
+  function handlePhotoClick(itemId: number) {
+    const itemsWithPhotos = request?.items.filter((i) => i.photoUrl) ?? [];
+    if (itemsWithPhotos.length === 0) return;
+
+    const index = itemsWithPhotos.findIndex((i) => i.id === itemId);
+    if (index === -1) return;
+
+    setPhotoItems(itemsWithPhotos);
+    setCurrentPhotoIndex(index);
+    setPhotoViewerOpen(true);
+  }
+
+  // ---- ローディング / エラー ----
   if (loading) {
     return (
       <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-8">
+        <h1 className="mb-8 text-4xl font-extrabold text-slate-900 md:text-5xl">
           Request Details
         </h1>
         <p className="text-slate-500">Loading request...</p>
@@ -190,16 +235,17 @@ export default function RequestDetailPage({ params }: PageProps) {
   if (error || !request) {
     return (
       <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-8">
+        <h1 className="mb-8 text-4xl font-extrabold text-slate-900 md:text-5xl">
           Request Details
         </h1>
-        <p className="text-red-600 font-semibold">
+        <p className="font-semibold text-red-600">
           {error || "Request not found"}
         </p>
       </main>
     );
   }
 
+  // ---- 派生値 ----
   const customerName = `${request.customer.firstName} ${request.customer.lastName}`;
   const pickupDate = formatDate(request.preferredDatetime);
   const finalAmount =
@@ -207,17 +253,22 @@ export default function RequestDetailPage({ params }: PageProps) {
       ? `$${request.payment.total}`
       : "-";
 
-  const formatCurrency = (val: number) =>
-    new Intl.NumberFormat("en-CA", {
-      style: "currency",
-      currency: "CAD",
-    }).format(val);
+  // ボタン制御ロジック
+  const canEditQuotation =
+    request.status === "RECEIVED" || request.status === "QUOTED";
+
+  const canSendFinalAmount =
+    request.status !== "PAID" && request.status !== "CANCELLED";
+
+  // Items & Photos 表示件数制御
+  const itemsToShow = showAllItems ? request.items : request.items.slice(0, 3);
+  const hasMoreItems = request.items.length > 3;
 
   return (
     <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
       {/* タイトル＋一覧に戻るボタン */}
       <div className="mb-8 flex items-center justify-between gap-4">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900">
+        <h1 className="text-4xl font-extrabold text-slate-900 md:text-5xl">
           Request Details
         </h1>
 
@@ -229,10 +280,11 @@ export default function RequestDetailPage({ params }: PageProps) {
           Back to list
         </button>
       </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* 1. Customer */}
-        <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-4">
+        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Customer
           </h2>
           <p className="mb-2">
@@ -250,12 +302,12 @@ export default function RequestDetailPage({ params }: PageProps) {
         </section>
 
         {/* 2. Status Management */}
-        <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-4">
+        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Status Management
           </h2>
 
-          <div className="flex flex-wrap gap-3 mb-4">
+          <div className="mb-4 flex flex-wrap gap-3">
             {STATUS_FLOW.map((s) => {
               const active = request.status === s;
               const label = formatStatusLabel(s);
@@ -272,9 +324,9 @@ export default function RequestDetailPage({ params }: PageProps) {
                     setIsConfirmModalOpen(true);
                   }}
                   className={
-                    "rounded-full px-6 py-2 text-sm font-semibold border transition " +
+                    "rounded-full border px-6 py-2 text-sm font-semibold transition " +
                     (active
-                      ? " bg-emerald-900 text-white border-emerald-900"
+                      ? "bg-emerald-900 text-white border-emerald-900"
                       : "bg-white text-slate-900 border-slate-300 hover:bg-emerald-900 hover:text-white")
                   }
                 >
@@ -284,8 +336,8 @@ export default function RequestDetailPage({ params }: PageProps) {
             })}
           </div>
 
-          <p className="mt-6 text-base md:text-lg text-slate-900">
-            <span className="font-semibold mr-2">Current Status:</span>
+          <p className="mt-6 text-base text-slate-900 md:text-lg">
+            <span className="mr-2 font-semibold">Current Status:</span>
             <span className="inline-block px-3 py-1 font-extrabold">
               {formatStatusLabel(request.status)}
             </span>
@@ -293,8 +345,8 @@ export default function RequestDetailPage({ params }: PageProps) {
         </section>
 
         {/* 3. Booking */}
-        <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-4">
+        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Booking
           </h2>
           <p className="mb-2">
@@ -323,7 +375,7 @@ export default function RequestDetailPage({ params }: PageProps) {
 
           {request.deliveryRequired && (
             <div className="mt-4">
-              <h3 className="font-semibold mb-1">Delivery</h3>
+              <h3 className="mb-1 font-semibold">Delivery</h3>
               <p className="mb-1">
                 <span className="font-semibold">Address: </span>
                 {request.deliveryAddressLine1}
@@ -348,8 +400,8 @@ export default function RequestDetailPage({ params }: PageProps) {
         </section>
 
         {/* 4. Quotation */}
-        <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-4">
+        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Quotation
           </h2>
 
@@ -373,53 +425,89 @@ export default function RequestDetailPage({ params }: PageProps) {
               </div>
             </div>
           ) : (
-            <p className="mb-4 text-slate-500">No quotation created yet.</p>
+            <p className="mb-4 text-sm text-slate-500">
+              No quotation created yet.
+            </p>
           )}
 
           <button
             type="button"
-            onClick={() => setShowQuotationModal(true)}
-            className="w-full rounded-xl bg-emerald-900 py-2 text-sm font-semibold text-white hover:bg-emerald-950 transition"
+            disabled={!canEditQuotation}
+            onClick={() => {
+              if (!canEditQuotation) return;
+              setShowQuotationModal(true);
+            }}
+            className={
+              "w-full rounded-xl py-2 text-sm font-semibold transition " +
+              (canEditQuotation
+                ? "bg-emerald-900 text-white hover:bg-emerald-950"
+                : "cursor-not-allowed bg-slate-100 text-slate-400")
+            }
           >
             {request.quotation ? "Edit Quotation" : "Create Quotation"}
           </button>
         </section>
 
         {/* 5. Items & Photos */}
-        <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-4">
+        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Items &amp; Photos
           </h2>
+
           {request.items.length === 0 && (
             <p className="text-slate-500">No items registered.</p>
           )}
 
-          <ul className="space-y-4">
-            {request.items.map((item) => (
-              <li key={item.id} className="flex gap-4 items-start">
-                {item.photoUrl && (
-                  <img
-                    src={item.photoUrl}
-                    alt={item.name}
-                    className="w-20 h-20 rounded-lg object-cover border border-slate-200"
-                  />
-                )}
-                <div>
-                  <p className="font-semibold">
-                    {item.name} - {item.size} (x{item.quantity})
-                  </p>
-                  {item.description && (
-                    <p className="text-sm text-slate-600">{item.description}</p>
-                  )}
+          {request.items.length > 0 && (
+            <>
+              <ul className="space-y-4">
+                {itemsToShow.map((item) => (
+                  <li key={item.id} className="flex items-start gap-4">
+                    {item.photoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => handlePhotoClick(item.id)}
+                        className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-200"
+                      >
+                        <img
+                          src={item.photoUrl}
+                          alt={item.name}
+                          className="h-full w-full object-cover"
+                        />
+                      </button>
+                    )}
+                    <div>
+                      <p className="font-semibold">
+                        {item.name} - {item.size} (x{item.quantity})
+                      </p>
+                      {item.description && (
+                        <p className="text-sm text-slate-600">
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              {hasMoreItems && (
+                <div className="mt-4 text-right">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllItems((prev) => !prev)}
+                    className="text-sm font-semibold text-emerald-900 hover:underline"
+                  >
+                    {showAllItems ? "Show less" : "Show all"}
+                  </button>
                 </div>
-              </li>
-            ))}
-          </ul>
+              )}
+            </>
+          )}
         </section>
 
         {/* 6. Final Billing */}
-        <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-4">
+        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Final Billing
           </h2>
           <p className="mb-4">
@@ -428,8 +516,17 @@ export default function RequestDetailPage({ params }: PageProps) {
           </p>
           <button
             type="button"
-            onClick={() => setShowFinalAmountModal(true)}
-            className="w-full rounded-xl bg-emerald-900 py-2 text-sm font-semibold text-white hover:bg-emerald-950 transition"
+            disabled={!canSendFinalAmount}
+            onClick={() => {
+              if (!canSendFinalAmount) return;
+              setShowFinalAmountModal(true);
+            }}
+            className={
+              "w-full rounded-xl py-2 text-sm font-semibold transition " +
+              (canSendFinalAmount
+                ? "bg-emerald-900 text-white hover:bg-emerald-950"
+                : "cursor-not-allowed bg-slate-100 text-slate-400")
+            }
           >
             Send Final Amount
           </button>
@@ -487,7 +584,7 @@ export default function RequestDetailPage({ params }: PageProps) {
                 type="button"
                 onClick={handleConfirmStatusChange}
                 disabled={confirmingStatus}
-                className="flex-1 rounded-xl bg-emerald-900 py-3 text-sm font-semibold text-white hover:bg-emerald-950 transition disabled:opacity-60"
+                className="flex-1 rounded-xl bg-emerald-900 py-3 text-sm font-semibold text-white transition hover:bg-emerald-950 disabled:opacity-60"
               >
                 {confirmingStatus ? "Updating..." : "Yes, change status"}
               </button>
@@ -499,11 +596,63 @@ export default function RequestDetailPage({ params }: PageProps) {
                   setPendingStatus(null);
                   setConfirmError(null);
                 }}
-                className="flex-1 rounded-xl border border-slate-300 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-100 transition"
+                className="flex-1 rounded-xl border border-slate-300 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
               >
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🔍 Photo Lightbox */}
+      {photoViewerOpen && photoItems.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          onClick={() => setPhotoViewerOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-3xl max-h-[80vh] rounded-2xl bg-black"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setPhotoViewerOpen(false)}
+              className="absolute right-4 top-4 text-2xl text-white hover:text-slate-200"
+              aria-label="Close"
+            >
+              ×
+            </button>
+
+            {/* Image */}
+            <img
+              src={photoItems[currentPhotoIndex].photoUrl ?? ""}
+              alt={photoItems[currentPhotoIndex].name ?? "Item photo"}
+              className="h-[80vh] w-full object-contain"
+            />
+
+            {/* Navigation */}
+            {photoItems.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={goPrevPhoto}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/50 px-3 py-2 text-lg text-white hover:bg-black/70"
+                  aria-label="Previous photo"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={goNextPhoto}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/50 px-3 py-2 text-lg text-white hover:bg-black/70"
+                  aria-label="Next photo"
+                >
+                  ›
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
