@@ -2,144 +2,22 @@
 
 import React, { useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Item } from "./ItemList";
+import { isSupportedPostalCode } from "@/lib/postalCodes";
 
-import AddressInput from "./AddressInput";
-import DateTimePicker from "./DateTimePicker";
-import ItemList, { Item } from "./ItemList";
+import { bookingSchema, BookingFormValues } from "@/lib/schemas/booking";
 
-const pickupDateTimeSchema = z
-  .string()
-  .min(1, "Pickup date & time is required")
-  .refine((value) => {
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return false;
-    const diff = d.getTime() - Date.now();
-    return diff >= 24 * 60 * 60 * 1000;
-  }, "Pickup time must be at least 24 hours from now");
-
-const bookingSchema = z.object({
-  postalCode: z.string().min(1, "Postal code is required"),
-  pickupDateTime: pickupDateTimeSchema,
-  deliveryRequired: z.boolean(),
-
-  address: z.object({
-    street: z.string().min(1, "Street address is required"),
-    line2: z.string().optional(),
-    city: z
-      .string()
-      .min(1, "City is required")
-      .refine(
-        (val) =>
-          ["Vancouver", "Burnaby", "Richmond", "Surrey"].some(
-            (c) => c.toLowerCase() === val.toLowerCase()
-          ),
-        "Service is only available in: Vancouver, Burnaby, Richmond, Surrey"
-      ),
-    province: z.string(),
-  }),
-
-  floor: z
-    .string()
-    .optional()
-    .refine((val) => !val || /^[0-9]+$/.test(val), "Floor must be a number"),
-  hasElevator: z.boolean(),
-
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().min(1, "Phone number is required"),
-});
-
-const VANCOUVER_PREFIXES = [
-  "V5K",
-  "V5L",
-  "V5M",
-  "V5N",
-  "V5P",
-  "V5R",
-  "V5S",
-  "V5T",
-  "V5V",
-  "V5W",
-  "V5X",
-  "V5Y",
-  "V5Z",
-  "V6A",
-  "V6B",
-  "V6C",
-  "V6E",
-  "V6G",
-  "V6H",
-  "V6J",
-  "V6K",
-  "V6L",
-  "V6M",
-  "V6N",
-  "V6P",
-  "V6R",
-  "V6S",
-  "V6T",
-  "V6Z",
-  "V7X",
-  "V7Y",
-];
-
-const BURNABY_PREFIXES = [
-  "V3J",
-  "V3N",
-  "V5A",
-  "V5B",
-  "V5C",
-  "V5E",
-  "V5G",
-  "V5H",
-  "V5J",
-];
-
-const RICHMOND_PREFIXES = [
-  "V6V",
-  "V6W",
-  "V6X",
-  "V6Y",
-  "V7A",
-  "V7B",
-  "V7C",
-  "V7E",
-];
-
-const SURREY_PREFIXES = [
-  "V3R",
-  "V3S",
-  "V3T",
-  "V3V",
-  "V3W",
-  "V3X",
-  "V3Z",
-  "V4A",
-  "V4N",
-  "V4P",
-];
-
-const SUPPORTED_POSTAL_PREFIXES = [
-  ...VANCOUVER_PREFIXES,
-  ...BURNABY_PREFIXES,
-  ...RICHMOND_PREFIXES,
-  ...SURREY_PREFIXES,
-];
-
-function isSupportedPostalCode(postalRaw: string) {
-  const code = postalRaw.replace(/\s+/g, "").toUpperCase();
-  const fsa = code.slice(0, 3);
-  return SUPPORTED_POSTAL_PREFIXES.includes(fsa);
-}
-
-export type BookingFormValues = z.infer<typeof bookingSchema>;
+import StepIndicator from "./StepIndicator";
+import StepPostalCode from "./steps/StepPostalCode";
+import StepDateTime from "./steps/StepDateTime";
+import StepAddress from "./steps/StepAddress";
+import StepItems from "./steps/StepItems";
+import StepUserInfo from "./steps/StepUserInfo";
+import StepConfirmation from "./steps/StepConfirmation";
 
 const STEPS = [
   "Postal Code",
@@ -166,6 +44,14 @@ export default function BookingForm() {
       },
       floor: "",
       hasElevator: false,
+      deliveryAddress: {
+        street: "",
+        line2: "",
+        city: "",
+        province: "BC",
+      },
+      deliveryFloor: "",
+      deliveryElevator: false,
       firstName: "",
       lastName: "",
       email: "",
@@ -174,12 +60,10 @@ export default function BookingForm() {
   });
 
   const {
-    register,
     handleSubmit,
     trigger,
-    setValue,
-    watch,
     getValues,
+    watch,
     formState: { errors },
   } = methods;
 
@@ -193,25 +77,29 @@ export default function BookingForm() {
   const [outOfArea, setOutOfArea] = useState(false);
 
   const deliveryRequired = watch("deliveryRequired");
-  const addressValue = watch("address");
-  const pickupDateTime = watch("pickupDateTime");
 
-  const stepFields: (
-    | keyof BookingFormValues
-    | `address.${keyof BookingFormValues["address"]}`
-  )[][] = [
+  const stepFields: any[][] = [
     ["postalCode"],
     ["pickupDateTime"],
-    ["address.street", "address.city", "address.province", "floor"],
+    deliveryRequired
+      ? [
+          "address.street",
+          "address.city",
+          "floor",
+          "deliveryAddress.street",
+          "deliveryAddress.city",
+          "deliveryFloor",
+        ]
+      : ["address.street", "address.city", "floor"],
     [],
     ["firstName", "lastName", "email", "phone"],
     [],
   ];
 
   const handleNext = async () => {
-    const fields = stepFields[step] as any;
+    const fields = stepFields[step];
     if (fields.length > 0) {
-      const ok = await trigger(fields);
+      const ok = await trigger(fields as any);
       if (!ok) return;
     }
 
@@ -234,6 +122,7 @@ export default function BookingForm() {
     }
 
     setStep((prev) => Math.min(prev + 1, STEPS.length - 1));
+    window.scrollTo(0, 0);
   };
 
   const handleBack = () => {
@@ -242,6 +131,7 @@ export default function BookingForm() {
       return;
     }
     setStep((prev) => Math.max(prev - 1, 0));
+    window.scrollTo(0, 0);
   };
 
   const onSubmit = async (data: BookingFormValues) => {
@@ -253,18 +143,14 @@ export default function BookingForm() {
 
     setIsSubmitting(true);
     try {
-      const pickupAddressLine1 = data.address.street;
-      const pickupAddressLine2 = data.address.line2 || null;
-      const pickupCity = data.address.city;
-      const pickupState = data.address.province;
-
-      const pickupPostalCode = data.postalCode;
-
       const pickupDate = new Date(data.pickupDateTime);
       const preferredDatetime = pickupDate.toISOString();
       const freeCancellationDeadline = new Date(
         pickupDate.getTime() - 24 * 60 * 60 * 1000
       ).toISOString();
+
+      const pickupFloorStr = data.floor || null;
+      const deliveryFloorStr = data.deliveryFloor || null;
 
       const body = {
         customer: {
@@ -274,22 +160,27 @@ export default function BookingForm() {
           phone: data.phone,
         },
         deliveryRequired: data.deliveryRequired,
-        pickupPostalCode,
-        pickupAddressLine1,
-        pickupAddressLine2,
-        pickupCity,
-        pickupState,
-        pickupFloor: data.floor ? Number(data.floor) : null,
+
+        pickupPostalCode: data.postalCode,
+        pickupAddressLine1: data.address.street,
+        pickupAddressLine2: data.address.line2 || null,
+        pickupCity: data.address.city,
+        pickupState: data.address.province,
+        pickupFloor: pickupFloorStr,
         pickupElevator: data.hasElevator,
-        ...(data.deliveryRequired
+
+        ...(data.deliveryRequired && data.deliveryAddress
           ? {
-              deliveryPostalCode: pickupPostalCode,
-              deliveryAddressLine1: pickupAddressLine1,
-              deliveryAddressLine2: pickupAddressLine2,
-              deliveryCity: pickupCity,
-              deliveryState: pickupState,
+              deliveryPostalCode: data.postalCode,
+              deliveryAddressLine1: data.deliveryAddress.street,
+              deliveryAddressLine2: data.deliveryAddress.line2 || null,
+              deliveryCity: data.deliveryAddress.city,
+              deliveryState: data.deliveryAddress.province,
+              deliveryFloor: deliveryFloorStr,
+              deliveryElevator: data.deliveryElevator,
             }
           : {}),
+
         preferredDatetime,
         freeCancellationDeadline,
         status: "RECEIVED" as const,
@@ -315,12 +206,11 @@ export default function BookingForm() {
       }
 
       const json = await res.json().catch(() => ({}));
-      const requestNumber =
-        json?.data?.id?.toString() ||
-        Math.floor(Math.random() * 1_000_000).toString();
+      const requestNumber = json?.data?.id?.toString() || "Error";
 
       setSubmittedRequestNumber(requestNumber);
       setStep(STEPS.length);
+      window.scrollTo(0, 0);
     } catch (e) {
       console.error(e);
       alert("Network error");
@@ -340,7 +230,7 @@ export default function BookingForm() {
             Your Estimate is coming!
           </h2>
           <p className="mb-2 text-lg font-semibold text-[#22503B]">
-            Request Number: {submittedRequestNumber}
+            Request Number: #{submittedRequestNumber}
           </p>
           <p className="mb-8 max-w-xl text-sm text-slate-600">
             Thanks for submitting the form! Our team will review your info and
@@ -361,337 +251,24 @@ export default function BookingForm() {
 
     switch (step) {
       case 0:
-        if (outOfArea) {
-          return (
-            <div className="flex justify-center py-8">
-              <div className="max-w-xl space-y-4 text-left">
-                <p className="text-lg font-semibold text-[#22503B]">
-                  We&apos;re sorry...
-                </p>
-                <p className="text-sm leading-relaxed text-slate-700">
-                  It looks like we haven&apos;t reached your area yet.
-                  <br />
-                  We&apos;re working hard to expand our service and hope to help
-                  you say goodbye to your junk soon!
-                </p>
-              </div>
-            </div>
-          );
-        }
-
-        return (
-          <div className="space-y-6">
-            <p className="font-semibold text-[#22503B]">Step 1</p>
-            <h2 className="text-xl font-semibold text-[#22503B]">
-              Where are we Picking up?
-            </h2>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-800">
-                Postal Code <span className="text-red-500">*</span>
-              </label>
-              <Input placeholder="V6T 2J9" {...register("postalCode")} />
-              {errors.postalCode && (
-                <p className="text-sm text-red-600">
-                  {errors.postalCode.message}
-                </p>
-              )}
-              <p className="text-xs text-slate-500">
-                Let&apos;s make sure you&apos;re in our pickup zone.
-              </p>
-            </div>
-          </div>
-        );
-
+        return <StepPostalCode outOfArea={outOfArea} />;
       case 1:
-        return (
-          <div className="space-y-6">
-            <p className="font-semibold text-[#22503B]">Step 2</p>
-            <h2 className="text-xl font-semibold text-[#22503B]">
-              When are we Picking up?
-            </h2>
-
-            <DateTimePicker
-              value={watch("pickupDateTime") ?? ""}
-              onChange={(v) =>
-                setValue("pickupDateTime", v, { shouldValidate: true })
-              }
-              error={errors.pickupDateTime?.message}
-            />
-
-            <div className="mt-4 flex items-center gap-3 text-sm text-[#22503B]">
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  className="accent-[#2f7d4a]"
-                  checked={deliveryRequired}
-                  onChange={(e) =>
-                    setValue("deliveryRequired", e.target.checked)
-                  }
-                />
-                Need Delivery?
-              </label>
-            </div>
-          </div>
-        );
-
+        return <StepDateTime />;
       case 2:
-        return (
-          <div className="space-y-6">
-            <p className="font-semibold text-[#22503B]">Step 3</p>
-            <h2 className="text-xl font-semibold text-[#22503B]">
-              Pickup Address
-            </h2>
-
-            <AddressInput />
-
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-800">
-                  Which floor is it? <span className="text-red-500">*</span>
-                </label>
-                <Input placeholder="Floor" {...register("floor")} />
-                {errors.floor && (
-                  <p className="text-sm text-red-600">
-                    {errors.floor.message as string}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-800">
-                  Is there an elevator? <span className="text-red-500">*</span>
-                </label>
-                <div className="flex items-center gap-4 text-sm text-[#22503B]">
-                  <label className="inline-flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="hasElevator"
-                      className="accent-[#2f7d4a]"
-                      checked={watch("hasElevator") === true}
-                      onChange={() => setValue("hasElevator", true)}
-                    />
-                    Yes
-                  </label>
-                  <label className="inline-flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="hasElevator"
-                      className="accent-[#2f7d4a]"
-                      checked={watch("hasElevator") === false}
-                      onChange={() => setValue("hasElevator", false)}
-                    />
-                    No
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
+        return <StepAddress />;
       case 3:
         return (
-          <div className="space-y-6">
-            <p className="font-semibold text-[#22503B]">Step 4</p>
-            <h2 className="text-xl font-semibold text-[#22503B]">
-              Size of Items
-            </h2>
-
-            <p className="text-xs text-slate-500">
-              Uploading Pictures is optional
-            </p>
-
-            <ItemList
-              items={items}
-              onChange={(updatedItems) => {
-                setItems(updatedItems);
-                if (updatedItems.length > 0) setItemsError("");
-              }}
-            />
-
-            {itemsError && <p className="text-sm text-red-600">{itemsError}</p>}
-          </div>
+          <StepItems
+            items={items}
+            setItems={setItems}
+            itemsError={itemsError}
+            setItemsError={setItemsError}
+          />
         );
-
       case 4:
-        return (
-          <div className="space-y-6">
-            <p className="font-semibold text-[#22503B]">Step 5</p>
-            <h2 className="text-xl font-semibold text-[#22503B]">
-              Your Details
-            </h2>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-800">
-                  First Name <span className="text-red-500">*</span>
-                </label>
-                <Input placeholder="First Name" {...register("firstName")} />
-                {errors.firstName && (
-                  <p className="text-sm text-red-600">
-                    {errors.firstName.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-800">
-                  Last Name <span className="text-red-500">*</span>
-                </label>
-                <Input placeholder="Last Name" {...register("lastName")} />
-                {errors.lastName && (
-                  <p className="text-sm text-red-600">
-                    {errors.lastName.message}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-800">
-                  Email <span className="text-red-500">*</span>
-                </label>
-                <Input placeholder="Email" {...register("email")} />
-                {errors.email && (
-                  <p className="text-sm text-red-600">{errors.email.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-800">
-                  Phone Number <span className="text-red-500">*</span>
-                </label>
-                <Input placeholder="Phone Number" {...register("phone")} />
-                {errors.phone && (
-                  <p className="text-sm text-red-600">{errors.phone.message}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-
+        return <StepUserInfo />;
       case 5:
-        return (
-          <div className="space-y-8">
-            <h2 className="text-xl font-semibold text-[#22503B]">
-              Confirmation
-            </h2>
-
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-[#22503B]">Pickup Info</h3>
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="rounded border border-[#3F7253] px-3 py-1 text-xs font-medium text-[#3F7253] hover:bg-[#e7f0eb]"
-                >
-                  Edit
-                </button>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-[#f9fafb] px-6 py-4 text-sm text-slate-700">
-                <div className="grid gap-y-2 gap-x-8 md:grid-cols-[120px,1fr]">
-                  <span className="font-medium">Pickup Date</span>
-                  <span>
-                    {pickupDateTime
-                      ? new Date(pickupDateTime).toLocaleString()
-                      : "-"}
-                  </span>
-
-                  <span className="font-medium">Pickup Address</span>
-                  <span>
-                    {addressValue.street}
-                    {addressValue.line2 ? `, ${addressValue.line2}` : ""}
-                    <br />
-                    {addressValue.city}, {addressValue.province}
-                  </span>
-
-                  <span className="font-medium">Other</span>
-                  <span>
-                    {watch("floor") || "-"} floor /{" "}
-                    {watch("hasElevator") ? "Elevator" : "No elevator"}
-                  </span>
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-[#22503B]">Item Info</h3>
-                <button
-                  type="button"
-                  onClick={() => setStep(3)}
-                  className="rounded border border-[#3F7253] px-3 py-1 text-xs font-medium text-[#3F7253] hover:bg-[#e7f0eb]"
-                >
-                  Edit
-                </button>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-[#f9fafb] px-6 py-4 text-sm text-slate-700">
-                <div className="grid gap-y-2 gap-x-8 md:grid-cols-[120px,1fr]">
-                  <span className="font-medium">Item Info</span>
-                  <span>
-                    {items.length === 0 ? (
-                      "-"
-                    ) : (
-                      <div className="space-y-1">
-                        {items.map((it) => (
-                          <div key={it.id}>
-                            {it.name} [{it.size}]
-                            {it.quantity > 1 ? ` x${it.quantity}` : ""}
-                            {it.description && (
-                              <span className="text-slate-500 ml-2 text-xs">
-                                ({it.description})
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </span>
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-[#22503B]">Your Info</h3>
-                <button
-                  type="button"
-                  onClick={() => setStep(4)}
-                  className="rounded border border-[#3F7253] px-3 py-1 text-xs font-medium text-[#3F7253] hover:bg-[#e7f0eb]"
-                >
-                  Edit
-                </button>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-[#f9fafb] px-6 py-4 text-sm text-slate-700">
-                <div className="grid gap-y-2 gap-x-8 md:grid-cols-[120px,1fr]">
-                  <span className="font-medium">Name</span>
-                  <span>
-                    {watch("firstName")} {watch("lastName")}
-                  </span>
-
-                  <span className="font-medium">Email</span>
-                  <span>{watch("email")}</span>
-
-                  <span className="font-medium">Phone Number</span>
-                  <span>{watch("phone")}</span>
-
-                  <span className="font-medium">Address</span>
-                  <span>
-                    {addressValue.street}
-                    {addressValue.line2 ? `, ${addressValue.line2}` : ""}
-                    <br />
-                    {addressValue.city}, {addressValue.province}
-                  </span>
-                </div>
-              </div>
-            </section>
-          </div>
-        );
-
+        return <StepConfirmation items={items} setStep={setStep} />;
       default:
         return null;
     }
@@ -700,113 +277,7 @@ export default function BookingForm() {
   return (
     <FormProvider {...methods}>
       <div className="mx-auto max-w-3xl space-y-8">
-        <div className="mb-10 flex flex-col items-center">
-          <div className="w-full max-w-xs md:hidden">
-            <div className="flex flex-col gap-4">
-              {STEPS.slice(0, 5).map((label, index) => {
-                const active = index === step;
-                const completed = index < step;
-
-                return (
-                  <div key={label} className="flex">
-                    <div className="flex flex-col items-center mr-3">
-                      <div
-                        className={
-                          "flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-semibold " +
-                          (completed
-                            ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
-                            : active
-                              ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
-                              : "border-slate-300 text-slate-400 bg-white")
-                        }
-                      >
-                        {completed ? (
-                          <span className="text-lg leading-none">✓</span>
-                        ) : (
-                          index + 1
-                        )}
-                      </div>
-                      {index < 4 && (
-                        <div
-                          className={
-                            "mt-1 h-8 border-l-2 " +
-                            (index < step
-                              ? "border-[#2f7d4a]"
-                              : "border-dashed border-slate-300")
-                          }
-                        />
-                      )}
-                    </div>
-                    <div className="pt-1">
-                      <p
-                        className={
-                          "text-sm " +
-                          (active
-                            ? "font-semibold text-slate-900"
-                            : "text-slate-600")
-                        }
-                      >
-                        {label}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="hidden w-full max-w-3xl items-center justify-between text-xs text-slate-600 md:flex md:text-sm">
-            {STEPS.slice(0, 5).map((label, index) => {
-              const active = index === step;
-              const completed = index < step;
-              const lineCompleted = index < step;
-
-              return (
-                <div key={label} className="flex flex-1 items-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <div
-                      className={
-                        "flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold shadow-sm " +
-                        (completed
-                          ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
-                          : active
-                            ? "border-[#2f7d4a] text-[#2f7d4a] bg-white"
-                            : "border-slate-300 text-slate-400 bg-white")
-                      }
-                    >
-                      {completed ? (
-                        <span className="text-lg leading-none">✓</span>
-                      ) : (
-                        index + 1
-                      )}
-                    </div>
-                    <span
-                      className={
-                        "text-[11px] md:text-[13px] " +
-                        (active
-                          ? "font-semibold text-slate-900"
-                          : "text-slate-600")
-                      }
-                    >
-                      {label}
-                    </span>
-                  </div>
-
-                  {index < 4 && (
-                    <div
-                      className={
-                        "mt-[-20px] flex-1 border-t-2 " +
-                        (lineCompleted
-                          ? "border-[#2f7d4a]"
-                          : "border-dashed border-slate-300")
-                      }
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <StepIndicator currentStep={step} steps={STEPS} />
 
         <form
           onSubmit={(e) => {
@@ -816,7 +287,7 @@ export default function BookingForm() {
               e.preventDefault();
             }
           }}
-          className="rounded-xl border border-[#e0e7e2] bg-white px-6 py-8 md:px-10 md:py-10 shadow-sm"
+          className="rounded-xl border border-slate-200 bg-white px-6 py-8 md:px-10 md:py-10 shadow-sm"
         >
           {renderStep()}
 
@@ -845,7 +316,6 @@ export default function BookingForm() {
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   )}
-
                   {step === 5 && (
                     <Button
                       type="submit"

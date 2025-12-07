@@ -23,7 +23,8 @@ export const AutoConfirmationAdmin: React.FC<AutoConfirmationAdminProps> = ({
 }) => {
   const previewText = `[New Request] #${request?.requestId} from ${customer?.firstName} ${customer?.lastName}`;
 
-  const formatDateTime = (date: Date) => {
+  const formatDateTime = (date: Date | string) => {
+    const d = typeof date === "string" ? new Date(date) : date;
     return new Intl.DateTimeFormat("en-CA", {
       year: "numeric",
       month: "short",
@@ -31,8 +32,50 @@ export const AutoConfirmationAdmin: React.FC<AutoConfirmationAdminProps> = ({
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
-    }).format(date);
+    }).format(d);
   };
+
+  const getFloorDisplay = (
+    floor: string | number | null | undefined
+  ): string | null => {
+    if (floor === null || floor === undefined || floor === "") return null;
+
+    const num = Number(floor);
+    if (!isNaN(num) && floor !== "") {
+      const suffixes = ["th", "st", "nd", "rd"];
+      const value = num % 100;
+      return (
+        num +
+        (suffixes[(value - 20) % 10] || suffixes[value] || suffixes[0]) +
+        " floor"
+      );
+    }
+
+    return `${floor} floor`;
+  };
+
+  const getDetailsString = (
+    floor: string | number | null | undefined,
+    elevator?: boolean | null
+  ) => {
+    const parts = [];
+    const floorStr = getFloorDisplay(floor);
+
+    if (floorStr) parts.push(floorStr);
+    if (elevator !== undefined && elevator !== null)
+      parts.push(elevator ? "Elevator: Yes" : "Elevator: No");
+
+    return parts.length > 0 ? parts.join(", ") : "None";
+  };
+
+  const pickupDetails = getDetailsString(
+    request.pickupFloor,
+    request.pickupElevator
+  );
+  const deliveryDetails = getDetailsString(
+    (request as any).deliveryFloor,
+    (request as any).deliveryElevator
+  );
 
   return (
     <LayoutAdmin previewText={previewText}>
@@ -106,18 +149,28 @@ export const AutoConfirmationAdmin: React.FC<AutoConfirmationAdminProps> = ({
         >
           Location Details
         </Heading>
-        <Text className="text-sm text-gray-700 m-0 mt-2">
-          <strong>Pickup:</strong> {request?.pickupAddress}
-        </Text>
-        {request?.deliveryAddress && (
-          <Text className="text-sm text-gray-700 m-0">
-            <strong>Delivery:</strong> {request.deliveryAddress}
+
+        {/* Pickup Info */}
+        <div style={{ marginBottom: "10px" }}>
+          <Text className="text-sm text-gray-700 m-0 mt-2">
+            <strong>Pickup:</strong> {request?.pickupAddress}
           </Text>
+          <Text className="text-xs text-gray-500 m-0 ml-2">
+            └ {pickupDetails}
+          </Text>
+        </div>
+
+        {/* Delivery Info */}
+        {request?.deliveryAddress && (
+          <div style={{ marginBottom: "10px" }}>
+            <Text className="text-sm text-gray-700 m-0 mt-2">
+              <strong>Delivery:</strong> {request.deliveryAddress}
+            </Text>
+            <Text className="text-xs text-gray-500 m-0 ml-2">
+              └ {deliveryDetails}
+            </Text>
+          </div>
         )}
-        <Text className="text-sm text-gray-700 m-0">
-          <strong>Details:</strong> Floor {request?.pickupFloor || "N/A"},
-          Elevator: {request?.pickupElevator ? "Yes" : "No"}
-        </Text>
       </Section>
 
       <Section className="mb-8">

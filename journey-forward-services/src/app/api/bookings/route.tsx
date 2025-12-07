@@ -59,6 +59,14 @@ export async function POST(request: NextRequest) {
       pickupFloor,
       pickupElevator = false,
 
+      deliveryPostalCode,
+      deliveryAddressLine1,
+      deliveryAddressLine2,
+      deliveryCity,
+      deliveryState = "BC",
+      deliveryFloor,
+      deliveryElevator = false,
+
       preferredDatetime,
       freeCancellationDeadline,
       status = "RECEIVED",
@@ -68,7 +76,6 @@ export async function POST(request: NextRequest) {
 
     const { firstName, lastName, email, phone } = customer ?? {};
 
-    // ---- バリデーション ----
     if (!pickupPostalCode || typeof pickupPostalCode !== "string") {
       return NextResponse.json(
         { error: "pickupPostalCode is required" },
@@ -112,23 +119,15 @@ export async function POST(request: NextRequest) {
     const preferredDt = new Date(preferredDatetime);
     const freeCancelDt = new Date(freeCancellationDeadline);
 
-    // floor は number | null に整形
-    let pickupFloorNum: number | null = null;
-    if (typeof pickupFloor === "number") {
-      pickupFloorNum = pickupFloor;
-    } else if (typeof pickupFloor === "string" && pickupFloor.trim()) {
-      const parsed = Number.parseInt(pickupFloor.trim(), 10);
-      pickupFloorNum = Number.isNaN(parsed) ? null : parsed;
-    }
+    const pickupFloorStr = pickupFloor ? String(pickupFloor) : null;
+    const deliveryFloorStr = deliveryFloor ? String(deliveryFloor) : null;
 
-    // ---- Customer を email で upsert ----
     const customerRecord = await prisma.customer.upsert({
       where: { email },
       update: { firstName, lastName, phone },
       create: { firstName, lastName, email, phone },
     });
 
-    // ---- Request + Items を作成 ----
     const requestRecord = await prisma.request.create({
       data: {
         customerId: customerRecord.id,
@@ -139,8 +138,16 @@ export async function POST(request: NextRequest) {
         pickupAddressLine2,
         pickupCity,
         pickupState,
-        pickupFloor: pickupFloorNum,
+        pickupFloor: pickupFloorStr,
         pickupElevator,
+
+        deliveryPostalCode: deliveryRequired ? deliveryPostalCode : null,
+        deliveryAddressLine1: deliveryRequired ? deliveryAddressLine1 : null,
+        deliveryAddressLine2: deliveryRequired ? deliveryAddressLine2 : null,
+        deliveryCity: deliveryRequired ? deliveryCity : null,
+        deliveryState: deliveryRequired ? deliveryState : null,
+        deliveryFloor: deliveryRequired ? deliveryFloorStr : null,
+        deliveryElevator: deliveryRequired ? deliveryElevator : null,
 
         preferredDatetime: preferredDt,
         freeCancellationDeadline: freeCancelDt,
@@ -162,7 +169,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // ---- SendGrid メール送信処理 (React Email対応版) ----
     const apiKey = process.env.SENDGRID_API_KEY;
     const fromEmail = process.env.SENDGRID_FROM_EMAIL;
     const adminEmail = process.env.ADMIN_EMAIL;
@@ -175,20 +181,29 @@ export async function POST(request: NextRequest) {
     if (apiKey && fromEmail && adminEmail) {
       sgMail.setApiKey(apiKey);
 
-      // ★ requestDataの定義を修正 (必須プロパティを追加)
+      const deliveryAddressStr =
+        deliveryRequired && deliveryAddressLine1
+          ? `${deliveryAddressLine1} ${deliveryAddressLine2 || ""} ${deliveryCity}, ${deliveryPostalCode}`
+          : null;
+
       const requestData = {
         requestId: requestRecord.id,
         pickupAddress: `${pickupAddressLine1} ${pickupAddressLine2 || ""} ${pickupCity}, ${pickupPostalCode}`,
-        deliveryAddress: deliveryRequired ? "Delivery Requested" : null,
-        pickupFloor: pickupFloorNum || 0,
+        deliveryAddress: deliveryAddressStr,
+        pickupFloor: pickupFloorStr || "N/A",
         pickupElevator: pickupElevator,
+        deliveryFloor: deliveryRequired ? deliveryFloorStr : undefined,
+        deliveryElevator: deliveryRequired ? deliveryElevator : undefined,
+
         items: requestRecord.items.map((item) => ({
           name: item.name,
           size: item.size,
           quantity: item.quantity,
+          price: 0,
+          delivery: deliveryRequired,
         })),
-        preferredDatetime: preferredDt, // 追加
-        status: status as any, // 追加
+        preferredDatetime: preferredDt,
+        status: status as any,
       };
 
       const customerData = {
@@ -209,20 +224,18 @@ export async function POST(request: NextRequest) {
         process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       const dashboardLink = `${baseUrl}/admin/requests/${requestRecord.id}`;
 
-      // 1. カスタマー用メール HTML生成
       const customerHtml = await render(
         <AutoConfirmationCustomer
           customer={customerData}
-          request={requestData} // 修正済みのオブジェクトを渡す
+          request={requestData}
           requestDate={dateStr}
         />
       );
 
-      // 2. 管理者用メール HTML生成
       const adminHtml = await render(
         <AutoConfirmationAdmin
           customer={customerData}
-          request={requestData} // 修正済みのオブジェクトを渡す
+          request={requestData}
           requestDate={dateStr}
           dashboardLink={dashboardLink}
         />
@@ -242,10 +255,8 @@ export async function POST(request: NextRequest) {
         html: adminHtml,
       };
 
-      // 送信実行
-      Promise.all([sgMail.send(msgToAdmin), sgMail.send(msgToCustomer)])
-        .then(() => console.log("Emails sent successfully with React Email"))
-        .catch((err) => console.error("Failed to send emails:", err));
+      await Promise.all([sgMail.send(msgToAdmin), sgMail.send(msgToCustomer)]);
+      console.log("Emails sent successfully with React Email");
     } else {
       console.warn("Skipping email sending: Missing SendGrid env variables");
     }
