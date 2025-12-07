@@ -74,6 +74,7 @@ type PageProps = {
 export default function RequestDetailPage({ params }: PageProps) {
   const { id: requestId } = usePromise(params);
   const router = useRouter();
+
   const [request, setRequest] = useState<RequestDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +90,7 @@ export default function RequestDetailPage({ params }: PageProps) {
   const [confirmingStatus, setConfirmingStatus] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
+  // ---- データ読み込み ----
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -111,6 +113,7 @@ export default function RequestDetailPage({ params }: PageProps) {
     load();
   }, [requestId]);
 
+  // ---- フォーマット系 ----
   function formatDate(iso: string) {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return "-";
@@ -128,6 +131,13 @@ export default function RequestDetailPage({ params }: PageProps) {
     return s.charAt(0) + s.slice(1).toLowerCase();
   }
 
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat("en-CA", {
+      style: "currency",
+      currency: "CAD",
+    }).format(val);
+
+  // ---- ステータス更新 ----
   async function handleStatusChange(next: RequestStatus): Promise<boolean> {
     if (!request) return false;
     if (next === request.status) return true;
@@ -176,10 +186,11 @@ export default function RequestDetailPage({ params }: PageProps) {
     setPendingStatus(null);
   }
 
+  // ---- ローディング / エラー ----
   if (loading) {
     return (
       <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-8">
+        <h1 className="mb-8 text-4xl font-extrabold text-slate-900 md:text-5xl">
           Request Details
         </h1>
         <p className="text-slate-500">Loading request...</p>
@@ -190,16 +201,17 @@ export default function RequestDetailPage({ params }: PageProps) {
   if (error || !request) {
     return (
       <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-8">
+        <h1 className="mb-8 text-4xl font-extrabold text-slate-900 md:text-5xl">
           Request Details
         </h1>
-        <p className="text-red-600 font-semibold">
+        <p className="font-semibold text-red-600">
           {error || "Request not found"}
         </p>
       </main>
     );
   }
 
+  // ---- 派生値 ----
   const customerName = `${request.customer.firstName} ${request.customer.lastName}`;
   const pickupDate = formatDate(request.preferredDatetime);
   const finalAmount =
@@ -207,17 +219,18 @@ export default function RequestDetailPage({ params }: PageProps) {
       ? `$${request.payment.total}`
       : "-";
 
-  const formatCurrency = (val: number) =>
-    new Intl.NumberFormat("en-CA", {
-      style: "currency",
-      currency: "CAD",
-    }).format(val);
+  // ★ ボタン制御ロジック
+  const canEditQuotation =
+    request.status === "RECEIVED" || request.status === "QUOTED";
+
+  const canSendFinalAmount =
+    request.status !== "PAID" && request.status !== "CANCELLED";
 
   return (
     <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
       {/* タイトル＋一覧に戻るボタン */}
       <div className="mb-8 flex items-center justify-between gap-4">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900">
+        <h1 className="text-4xl font-extrabold text-slate-900 md:text-5xl">
           Request Details
         </h1>
 
@@ -229,10 +242,11 @@ export default function RequestDetailPage({ params }: PageProps) {
           Back to list
         </button>
       </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* 1. Customer */}
-        <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-4">
+        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Customer
           </h2>
           <p className="mb-2">
@@ -250,12 +264,12 @@ export default function RequestDetailPage({ params }: PageProps) {
         </section>
 
         {/* 2. Status Management */}
-        <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-4">
+        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Status Management
           </h2>
 
-          <div className="flex flex-wrap gap-3 mb-4">
+          <div className="mb-4 flex flex-wrap gap-3">
             {STATUS_FLOW.map((s) => {
               const active = request.status === s;
               const label = formatStatusLabel(s);
@@ -272,9 +286,9 @@ export default function RequestDetailPage({ params }: PageProps) {
                     setIsConfirmModalOpen(true);
                   }}
                   className={
-                    "rounded-full px-6 py-2 text-sm font-semibold border transition " +
+                    "rounded-full border px-6 py-2 text-sm font-semibold transition " +
                     (active
-                      ? " bg-emerald-900 text-white border-emerald-900"
+                      ? "bg-emerald-900 text-white border-emerald-900"
                       : "bg-white text-slate-900 border-slate-300 hover:bg-emerald-900 hover:text-white")
                   }
                 >
@@ -284,8 +298,8 @@ export default function RequestDetailPage({ params }: PageProps) {
             })}
           </div>
 
-          <p className="mt-6 text-base md:text-lg text-slate-900">
-            <span className="font-semibold mr-2">Current Status:</span>
+          <p className="mt-6 text-base text-slate-900 md:text-lg">
+            <span className="mr-2 font-semibold">Current Status:</span>
             <span className="inline-block px-3 py-1 font-extrabold">
               {formatStatusLabel(request.status)}
             </span>
@@ -293,8 +307,8 @@ export default function RequestDetailPage({ params }: PageProps) {
         </section>
 
         {/* 3. Booking */}
-        <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-4">
+        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Booking
           </h2>
           <p className="mb-2">
@@ -323,7 +337,7 @@ export default function RequestDetailPage({ params }: PageProps) {
 
           {request.deliveryRequired && (
             <div className="mt-4">
-              <h3 className="font-semibold mb-1">Delivery</h3>
+              <h3 className="mb-1 font-semibold">Delivery</h3>
               <p className="mb-1">
                 <span className="font-semibold">Address: </span>
                 {request.deliveryAddressLine1}
@@ -348,8 +362,8 @@ export default function RequestDetailPage({ params }: PageProps) {
         </section>
 
         {/* 4. Quotation */}
-        <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-4">
+        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Quotation
           </h2>
 
@@ -373,21 +387,32 @@ export default function RequestDetailPage({ params }: PageProps) {
               </div>
             </div>
           ) : (
-            <p className="mb-4 text-slate-500">No quotation created yet.</p>
+            <p className="mb-4 text-sm text-slate-500">
+              No quotation created yet.
+            </p>
           )}
 
           <button
             type="button"
-            onClick={() => setShowQuotationModal(true)}
-            className="w-full rounded-xl bg-emerald-900 py-2 text-sm font-semibold text-white hover:bg-emerald-950 transition"
+            disabled={!canEditQuotation}
+            onClick={() => {
+              if (!canEditQuotation) return;
+              setShowQuotationModal(true);
+            }}
+            className={
+              "w-full rounded-xl py-2 text-sm font-semibold transition " +
+              (canEditQuotation
+                ? "bg-emerald-900 text-white hover:bg-emerald-950"
+                : "cursor-not-allowed bg-slate-100 text-slate-400")
+            }
           >
             {request.quotation ? "Edit Quotation" : "Create Quotation"}
           </button>
         </section>
 
         {/* 5. Items & Photos */}
-        <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-4">
+        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Items &amp; Photos
           </h2>
           {request.items.length === 0 && (
@@ -396,12 +421,12 @@ export default function RequestDetailPage({ params }: PageProps) {
 
           <ul className="space-y-4">
             {request.items.map((item) => (
-              <li key={item.id} className="flex gap-4 items-start">
+              <li key={item.id} className="flex items-start gap-4">
                 {item.photoUrl && (
                   <img
                     src={item.photoUrl}
                     alt={item.name}
-                    className="w-20 h-20 rounded-lg object-cover border border-slate-200"
+                    className="h-20 w-20 rounded-lg border border-slate-200 object-cover"
                   />
                 )}
                 <div>
@@ -418,8 +443,8 @@ export default function RequestDetailPage({ params }: PageProps) {
         </section>
 
         {/* 6. Final Billing */}
-        <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-4">
+        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Final Billing
           </h2>
           <p className="mb-4">
@@ -428,8 +453,17 @@ export default function RequestDetailPage({ params }: PageProps) {
           </p>
           <button
             type="button"
-            onClick={() => setShowFinalAmountModal(true)}
-            className="w-full rounded-xl bg-emerald-900 py-2 text-sm font-semibold text-white hover:bg-emerald-950 transition"
+            disabled={!canSendFinalAmount}
+            onClick={() => {
+              if (!canSendFinalAmount) return;
+              setShowFinalAmountModal(true);
+            }}
+            className={
+              "w-full rounded-xl py-2 text-sm font-semibold transition " +
+              (canSendFinalAmount
+                ? "bg-emerald-900 text-white hover:bg-emerald-950"
+                : "cursor-not-allowed bg-slate-100 text-slate-400")
+            }
           >
             Send Final Amount
           </button>
@@ -487,7 +521,7 @@ export default function RequestDetailPage({ params }: PageProps) {
                 type="button"
                 onClick={handleConfirmStatusChange}
                 disabled={confirmingStatus}
-                className="flex-1 rounded-xl bg-emerald-900 py-3 text-sm font-semibold text-white hover:bg-emerald-950 transition disabled:opacity-60"
+                className="flex-1 rounded-xl bg-emerald-900 py-3 text-sm font-semibold text-white transition hover:bg-emerald-950 disabled:opacity-60"
               >
                 {confirmingStatus ? "Updating..." : "Yes, change status"}
               </button>
@@ -499,7 +533,7 @@ export default function RequestDetailPage({ params }: PageProps) {
                   setPendingStatus(null);
                   setConfirmError(null);
                 }}
-                className="flex-1 rounded-xl border border-slate-300 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-100 transition"
+                className="flex-1 rounded-xl border border-slate-300 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
               >
                 Cancel
               </button>
