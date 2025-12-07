@@ -13,9 +13,6 @@ export const AutoConfirmationCustomer: React.FC<BookingReceivedProps> = ({
 }) => {
   const previewText = "We've received your quote request.";
 
-  const fullPickupAddress =
-    request.pickupAddress + (request.deliveryAddress ? "" : " (No delivery)");
-
   const itemSummary =
     request.items && request.items.length > 0
       ? request.items
@@ -23,36 +20,55 @@ export const AutoConfirmationCustomer: React.FC<BookingReceivedProps> = ({
           .join(", ")
       : "No items";
 
-  const getOrdinalFloor = (floor: number): string => {
-    const suffixes = ["th", "st", "nd", "rd"];
-    const value = floor % 100;
-    return (
-      floor +
-      (suffixes[(value - 20) % 10] || suffixes[value] || suffixes[0]) +
-      " floor"
-    );
+  const getFloorDisplay = (
+    floor: string | number | null | undefined
+  ): string | null => {
+    if (floor === null || floor === undefined || floor === "") return null;
+
+    const num = Number(floor);
+    if (!isNaN(num) && floor !== "") {
+      const suffixes = ["th", "st", "nd", "rd"];
+      const value = num % 100;
+      return (
+        num +
+        (suffixes[(value - 20) % 10] || suffixes[value] || suffixes[0]) +
+        " floor"
+      );
+    }
+
+    return `${floor} floor`;
   };
 
-  const pickupFloorInfo = (() => {
-    const floorText = request.pickupFloor
-      ? getOrdinalFloor(request.pickupFloor)
-      : null;
+  const getDetailsString = (
+    floor: string | number | null | undefined,
+    elevator?: boolean
+  ) => {
+    const floorText = getFloorDisplay(floor);
     const elevatorText =
-      request.pickupElevator !== undefined
-        ? request.pickupElevator
+      elevator !== undefined
+        ? elevator
           ? "Elevator available"
           : "No elevator"
         : null;
 
     if (floorText && elevatorText) {
-      return `${floorText}/${elevatorText}`;
+      return `${floorText} / ${elevatorText}`;
     } else if (floorText) {
       return floorText;
     } else if (elevatorText) {
       return elevatorText;
     }
     return null;
-  })();
+  };
+
+  const pickupFloorInfo = getDetailsString(
+    request.pickupFloor,
+    request.pickupElevator
+  );
+  const deliveryFloorInfo = getDetailsString(
+    (request as any).deliveryFloor,
+    (request as any).deliveryElevator
+  );
 
   return (
     <Layout previewText={previewText}>
@@ -80,17 +96,29 @@ export const AutoConfirmationCustomer: React.FC<BookingReceivedProps> = ({
           We've successfully received the following details:
         </Text>
 
-        <Text className="text-smleading-6 m-0">
+        <Text className="text-sm leading-6 m-0">
           <span className="font-semibold text-[#367D5E]">Pickup Date:</span>{" "}
           {requestDate} <br />
           <span className="font-semibold text-[#367D5E]">
             Pickup address:
           </span>{" "}
-          {fullPickupAddress} <br />
+          {request.pickupAddress} <br />
           {pickupFloorInfo && (
+            <span className="text-gray-600 text-xs pl-2">
+              └ Details: {pickupFloorInfo} <br />
+            </span>
+          )}
+          {request.deliveryAddress && (
             <>
-              <span className="font-semibold text-[#367D5E]">Other:</span>{" "}
-              {pickupFloorInfo} <br />
+              <span className="font-semibold text-[#367D5E]">
+                Delivery address:
+              </span>{" "}
+              {request.deliveryAddress} <br />
+              {deliveryFloorInfo && (
+                <span className="text-gray-600 text-xs pl-2">
+                  └ Details: {deliveryFloorInfo} <br />
+                </span>
+              )}
             </>
           )}
           <span className="font-semibold text-[#367D5E]">

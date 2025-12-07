@@ -14,13 +14,18 @@ export interface CustomerData {
 }
 
 export interface RequestData {
-    requestId: number;
-    preferredDatetime: Date;
+    requestId: number | string;
+    preferredDatetime: Date | string;
     pickupAddress: string;
-    deliveryAddress?: string;
-    pickupFloor?: number;
-    pickupElevator?: boolean;
-    status: string;
+    deliveryAddress?: string | null;
+
+    pickupFloor?: string | number | null;
+    pickupElevator?: boolean | null;
+
+    deliveryFloor?: string | number | null;
+    deliveryElevator?: boolean | null;
+
+    status: any;
     items?: ItemData[];
     deliveryRequired?: boolean;
 }
@@ -47,9 +52,12 @@ export interface BookingConfirmedProps extends BookingReceivedProps {
         tax: number;
         total: number;
     };
+    pdfLink?: string;
+    manageLink?: string;
 }
 
 export interface AdminBookingConfirmedProps extends BookingReceivedProps {
     customerPhone: string;
     quotationTotal: number;
+    dashboardLink?: string;
 }
