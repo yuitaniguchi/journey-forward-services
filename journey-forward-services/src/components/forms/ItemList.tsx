@@ -1,8 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, X, CloudUpload, Pencil, Loader2 } from "lucide-react";
-import ItemPickerModal from "./ItemPickerModal";
+import {
+  Plus,
+  X,
+  CloudUpload,
+  Pencil,
+  Loader2,
+  Minus,
+  Trash2,
+} from "lucide-react";
+import ItemPickerModal, { SIZE_OPTIONS } from "./ItemPickerModal";
 
 export type ItemSize = "small" | "medium" | "large";
 
@@ -33,6 +41,22 @@ export default function ItemList({ items, onChange }: ItemListProps) {
   const handleUpdateDescription = (id: string, description: string) => {
     onChange(
       items.map((item) => (item.id === id ? { ...item, description } : item))
+    );
+  };
+
+  const handleUpdateQuantity = (id: string, delta: number) => {
+    onChange(
+      items.map((item) => {
+        if (item.id !== id) return item;
+        const newQty = Math.max(1, item.quantity + delta);
+        return { ...item, quantity: newQty };
+      })
+    );
+  };
+
+  const handleUpdateSize = (id: string, newSize: string) => {
+    onChange(
+      items.map((item) => (item.id === id ? { ...item, size: newSize } : item))
     );
   };
 
@@ -74,8 +98,6 @@ export default function ItemList({ items, onChange }: ItemListProps) {
   const handleDeleteImage = async (item: Item) => {
     if (!item.public_id) return;
 
-    if (!confirm("Are you sure you want to delete this image?")) return;
-
     try {
       await fetch("/api/upload", {
         method: "DELETE",
@@ -98,111 +120,126 @@ export default function ItemList({ items, onChange }: ItemListProps) {
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 auto-rows-fr">
         {items.map((item) => (
           <div
             key={item.id}
-            className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+            className="flex h-full flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-brand/30"
           >
-            {/* 写真アップロードエリア */}
-            <div className="mb-4">
+            <div className="mb-4 w-full">
               {item.image ? (
                 <div className="relative h-32 w-full">
                   <img
                     src={item.image}
                     alt={item.name}
-                    className="h-full w-full rounded-md object-cover border border-slate-200"
+                    className="h-full w-full rounded-md object-cover border border-slate-100"
                   />
                   <button
                     type="button"
                     onClick={() => handleDeleteImage(item)}
-                    className="absolute -right-2 -top-2 rounded-full bg-white p-1 text-slate-500 shadow hover:text-red-600 border border-slate-200"
+                    className="absolute -right-2 -top-2 rounded-full border border-slate-200 bg-white p-1 text-slate-500 shadow hover:text-red-600"
+                    title="Delete Image"
                   >
                     <X className="h-3 w-3" />
                   </button>
                 </div>
               ) : (
-                <div className="relative h-32 w-full">
-                  <label className="flex h-full w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors">
-                    {loadingIds.includes(item.id) ? (
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                    ) : (
-                      <CloudUpload className="mb-1 h-6 w-6" />
-                    )}
-                    <span className="text-xs font-medium">
-                      {loadingIds.includes(item.id)
-                        ? "Uploading..."
-                        : "Add photo"}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      disabled={loadingIds.includes(item.id)}
-                      onChange={(e) =>
-                        handleImageUpload(item.id, e.target.files?.[0] || null)
-                      }
-                    />
-                  </label>
-                </div>
+                <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100 transition-colors">
+                  {loadingIds.includes(item.id) ? (
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  ) : (
+                    <CloudUpload className="mb-1 h-6 w-6" />
+                  )}
+                  <span className="text-xs font-medium">
+                    {loadingIds.includes(item.id)
+                      ? "Uploading..."
+                      : "Add Photo"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={loadingIds.includes(item.id)}
+                    onChange={(e) =>
+                      handleImageUpload(item.id, e.target.files?.[0] || null)
+                    }
+                  />
+                </label>
               )}
             </div>
 
-            {/* アイテム情報 */}
-            <div className="flex items-start justify-between">
+            <div className="mb-3 flex items-start justify-between">
               <div>
-                <div className="mb-1 flex items-center gap-2">
-                  <span className="font-bold text-slate-900">{item.name}</span>
-                  {item.quantity > 1 && (
-                    <span className="text-xs font-semibold text-slate-500">
-                      x{item.quantity}
-                    </span>
-                  )}
-                </div>
-                <span className="inline-block rounded-full border border-brand/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-brand-dark">
-                  {item.size}
-                </span>
+                <p className="font-bold text-slate-900">{item.name}</p>
               </div>
-              <div className="flex gap-3 text-xs text-slate-400">
+              <button
+                type="button"
+                onClick={() => handleRemoveItem(item.id)}
+                className="text-slate-400 hover:text-red-500 transition-colors"
+                title="Remove item"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mb-3 flex items-center justify-between gap-3 mt-auto">
+              <div className="flex-1">
+                <select
+                  value={item.size}
+                  onChange={(e) => handleUpdateSize(item.id, e.target.value)}
+                  className="w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-[#2f7d4a]"
+                >
+                  {SIZE_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center rounded-md border border-slate-200 bg-white">
                 <button
                   type="button"
-                  className="underline decoration-slate-300 underline-offset-2 hover:text-brand"
+                  onClick={() => handleUpdateQuantity(item.id, -1)}
+                  disabled={item.quantity <= 1}
+                  className="flex h-7 w-8 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-[#2f7d4a] disabled:opacity-30"
                 >
-                  Edit
+                  <Minus className="h-3 w-3" />
                 </button>
+                <span className="w-8 text-center text-xs font-bold text-slate-900">
+                  {item.quantity}
+                </span>
                 <button
                   type="button"
-                  onClick={() => handleRemoveItem(item.id)}
-                  className="underline decoration-slate-300 underline-offset-2 hover:text-red-500"
+                  onClick={() => handleUpdateQuantity(item.id, 1)}
+                  className="flex h-7 w-8 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-[#2f7d4a]"
                 >
-                  Remove
+                  <Plus className="h-3 w-3" />
                 </button>
               </div>
             </div>
 
-            {/* 説明文入力 */}
-            <div className="mt-4 flex items-center gap-2 border-b border-slate-200 pb-1">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-1">
               <Pencil className="h-3 w-3 text-slate-400" />
               <input
                 type="text"
-                placeholder="Add a description"
+                placeholder="Add a description..."
                 value={item.description || ""}
                 onChange={(e) =>
                   handleUpdateDescription(item.id, e.target.value)
                 }
-                className="w-full text-xs text-slate-700 placeholder:text-slate-400 outline-none"
+                className="w-full bg-transparent text-xs text-slate-700 placeholder:text-slate-400 outline-none"
               />
             </div>
           </div>
         ))}
 
-        {/* 追加ボタン */}
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex min-h-[220px] flex-col items-center justify-center rounded-lg border border-slate-200 bg-white transition-colors hover:bg-slate-50"
+          className="flex min-h-[300px] h-full flex-col items-center justify-center rounded-lg border border-slate-200 bg-white transition-colors hover:border-[#2f7d4a] hover:bg-slate-50"
         >
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-brand text-brand">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-[#2f7d4a] text-[#2f7d4a]">
             <Plus className="h-5 w-5" />
           </div>
           <span className="font-medium text-slate-700">Add New Item</span>
@@ -214,7 +251,6 @@ export default function ItemList({ items, onChange }: ItemListProps) {
         onClose={() => setOpen(false)}
         onAdd={(newItems) => {
           if (newItems.length === 0) return;
-          // ItemPickerModalからのデータには image/description がないので初期化して追加
           const formattedItems = newItems.map((item) => ({
             ...item,
             image: undefined,

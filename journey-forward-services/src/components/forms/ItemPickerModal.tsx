@@ -45,7 +45,7 @@ const ITEM_CATALOG = [
   { category: "Others", items: ["Other"] },
 ] as const;
 
-const SIZE_OPTIONS = [
+export const SIZE_OPTIONS = [
   { id: "small", label: "Small", description: "up to 65 inches" },
   { id: "medium", label: "Medium", description: "66–85 inches" },
   { id: "large", label: "Large", description: "+ 86 inches" },
@@ -230,7 +230,12 @@ export default function ItemPickerModal({ open, onClose, onAdd }: Props) {
                           return (
                             <div
                               key={size.id}
-                              className={`flex items-center justify-between rounded-lg border px-4 py-3 transition-all
+                              onClick={() => {
+                                if (qty === 0) {
+                                  increase(name, size.id);
+                                }
+                              }}
+                              className={`flex cursor-pointer items-center justify-between rounded-lg border px-4 py-3 transition-all hover:border-brand
                                 ${
                                   isSelected
                                     ? "border-brand bg-[#EAF5EF]"
@@ -248,7 +253,10 @@ export default function ItemPickerModal({ open, onClose, onAdd }: Props) {
 
                               <div className="flex items-center gap-3">
                                 <button
-                                  onClick={() => decrease(name, size.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    decrease(name, size.id);
+                                  }}
                                   className="flex h-6 w-6 items-center justify-center text-slate-900 hover:opacity-70"
                                 >
                                   <Minus className="h-4 w-4" strokeWidth={3} />
@@ -259,7 +267,10 @@ export default function ItemPickerModal({ open, onClose, onAdd }: Props) {
                                 </div>
 
                                 <button
-                                  onClick={() => increase(name, size.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    increase(name, size.id);
+                                  }}
                                   className="flex h-6 w-6 items-center justify-center text-slate-900 hover:opacity-70"
                                 >
                                   <Plus className="h-4 w-4" strokeWidth={3} />
