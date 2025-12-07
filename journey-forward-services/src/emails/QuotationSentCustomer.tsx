@@ -185,7 +185,6 @@ export const QuotationSentCustomer: React.FC<ExtendedQuotationSentProps> = ({
               <th className="p-2 text-left">Item</th>
               <th className="p-2 text-center">Qty</th>
               <th className="p-2 text-center">Size</th>
-              <th className="p-2 text-center">Delivery</th>
             </tr>
           </thead>
           <tbody>
@@ -195,27 +194,24 @@ export const QuotationSentCustomer: React.FC<ExtendedQuotationSentProps> = ({
                 <td className="p-2">{item.name}</td>
                 <td className="p-2 text-center">{item.quantity}</td>
                 <td className="p-2 text-center">{item.size}</td>
-                <td className="p-2 text-center">
-                  {item.delivery ? "Yes" : "No"}
-                </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={4} className="p-2 text-right font-bold">
+              <td colSpan={3} className="p-2 text-right font-bold">
                 Sub Total:
               </td>
               <td className="p-2 text-right">{formatCAD(subTotal)}</td>
             </tr>
             <tr>
-              <td colSpan={4} className="p-2 text-right font-bold">
+              <td colSpan={3} className="p-2 text-right font-bold">
                 Tax:
               </td>
               <td className="p-2 text-right">{formatCAD(tax)}</td>
             </tr>
             <tr>
-              <td colSpan={4} className="p-2 text-right font-extrabold text-lg">
+              <td colSpan={3} className="p-2 text-right font-extrabold text-lg">
                 Total:
               </td>
               <td className="p-2 text-right font-extrabold text-lg">

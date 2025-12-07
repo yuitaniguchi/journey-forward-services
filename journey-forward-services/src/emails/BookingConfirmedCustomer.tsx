@@ -159,7 +159,6 @@ export const BookingConfirmedCustomer: React.FC<
                 <th className="p-2 font-normal">Item</th>
                 <th className="p-2 font-normal text-center">Qty</th>
                 <th className="p-2 font-normal text-center">Size</th>
-                <th className="p-2 font-normal text-center">Delivery</th>
               </tr>
             </thead>
             <tbody>
@@ -173,9 +172,6 @@ export const BookingConfirmedCustomer: React.FC<
                     <td className="p-2">{item.name}</td>
                     <td className="p-2 text-center">{item.quantity}</td>
                     <td className="p-2 text-center">{item.size}</td>
-                    <td className="p-2 text-center">
-                      {request.deliveryRequired ? "Yes" : "No"}
-                    </td>
                   </tr>
                 ))
               ) : (

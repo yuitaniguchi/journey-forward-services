@@ -121,10 +121,9 @@ const styles = StyleSheet.create({
   },
   // Columns
   col1: { width: "10%", textAlign: "center" }, // #
-  col2: { width: "40%", textAlign: "left" }, // Item
+  col2: { width: "50%", textAlign: "left" }, // Item (広くした)
   col3: { width: "15%", textAlign: "center" }, // Qty
-  col4: { width: "20%", textAlign: "center" }, // Size
-  col5: { width: "15%", textAlign: "center" }, // Delivery
+  col4: { width: "25%", textAlign: "center" }, // Size (少し広くした)
 
   // --- Totals Area ---
   totalSection: {
@@ -294,7 +293,6 @@ export const QuotationPdf = ({ request, customer, quotation, logo }: any) => {
             <Text style={[styles.th, styles.col2]}>Item</Text>
             <Text style={[styles.th, styles.col3]}>Qty</Text>
             <Text style={[styles.th, styles.col4]}>Size</Text>
-            <Text style={[styles.th, styles.col5]}>Delivery</Text>
           </View>
 
           {request.items.map((item: any, i: number) => (
@@ -303,9 +301,6 @@ export const QuotationPdf = ({ request, customer, quotation, logo }: any) => {
               <Text style={[styles.td, styles.col2]}>{item.name}</Text>
               <Text style={[styles.td, styles.col3]}>{item.quantity}</Text>
               <Text style={[styles.td, styles.col4]}>{item.size}</Text>
-              <Text style={[styles.td, styles.col5]}>
-                {request.deliveryRequired ? "Yes" : "No"}
-              </Text>
             </View>
           ))}
         </View>
