@@ -3,8 +3,6 @@ import { prisma } from "@/lib/prisma";
 import sgMail from "@sendgrid/mail";
 import { render } from "@react-email/render";
 import QuotationSentCustomer from "@/emails/QuotationSentCustomer";
-import fs from "fs";
-import path from "path";
 import crypto from "crypto";
 
 type RouteParams = Promise<{ id: string }>;
@@ -74,16 +72,6 @@ export async function POST(
       const apiKey = process.env.SENDGRID_API_KEY;
       const fromEmail = process.env.SENDGRID_FROM_EMAIL;
 
-      const logoPath = path.join(process.cwd(), "public", "pdf-logo.png");
-      let logoBuffer: Buffer | null = null;
-      try {
-        if (fs.existsSync(logoPath)) {
-          logoBuffer = fs.readFileSync(logoPath);
-        }
-      } catch (e) {
-        console.error("Failed to load logo image", e);
-      }
-
       if (apiKey && fromEmail) {
         sgMail.setApiKey(apiKey);
 
@@ -101,6 +89,17 @@ export async function POST(
           delivery: requestData.deliveryRequired,
         }));
 
+        const deliveryAddressStr = requestData.deliveryRequired
+          ? [
+              requestData.deliveryAddressLine1,
+              requestData.deliveryAddressLine2,
+              requestData.deliveryCity,
+              requestData.deliveryPostalCode,
+            ]
+              .filter(Boolean)
+              .join(", ")
+          : undefined;
+
         const emailHtml = await render(
           <QuotationSentCustomer
             customer={{
@@ -111,12 +110,20 @@ export async function POST(
             }}
             request={{
               requestId: requestData.id,
-              pickupAddress: `${requestData.pickupAddressLine1} ${requestData.pickupCity}`,
-              deliveryAddress: requestData.deliveryRequired
-                ? "Delivery Requested"
-                : undefined,
+              pickupAddress: `${requestData.pickupAddressLine1} ${requestData.pickupAddressLine2 || ""} ${requestData.pickupCity}, ${requestData.pickupPostalCode}`,
+
+              deliveryAddress: deliveryAddressStr,
+
               pickupFloor: requestData.pickupFloor ?? undefined,
               pickupElevator: requestData.pickupElevator,
+
+              deliveryFloor: requestData.deliveryRequired
+                ? requestData.deliveryFloor
+                : undefined,
+              deliveryElevator: requestData.deliveryRequired
+                ? requestData.deliveryElevator
+                : undefined,
+
               preferredDatetime: requestData.preferredDatetime,
               status: requestData.status as any,
             }}

@@ -35,12 +35,39 @@ export async function GET(
       console.error("Failed to load logo image", e);
     }
 
+    const pickupAddress = [
+      requestData.pickupAddressLine1,
+      requestData.pickupAddressLine2,
+      requestData.pickupCity,
+      requestData.pickupState,
+      requestData.pickupPostalCode,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    const deliveryAddress = requestData.deliveryRequired
+      ? [
+          requestData.deliveryAddressLine1,
+          requestData.deliveryAddressLine2,
+          requestData.deliveryCity,
+          requestData.deliveryState,
+          requestData.deliveryPostalCode,
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : undefined;
+
     const props = {
       request: {
         requestId: requestData.id,
         preferredDatetime: requestData.preferredDatetime,
-        pickupAddress: `${requestData.pickupAddressLine1} ${requestData.pickupCity}`,
+        pickupAddress,
+        deliveryAddress,
         deliveryRequired: requestData.deliveryRequired,
+        pickupFloor: requestData.pickupFloor,
+        pickupElevator: requestData.pickupElevator,
+        deliveryFloor: requestData.deliveryFloor,
+        deliveryElevator: requestData.deliveryElevator,
         items: requestData.items,
       },
       customer: requestData.customer,

@@ -187,8 +187,21 @@ export default function BookingConfirmationPage() {
 
   const customerName = `${booking.customer.firstName} ${booking.customer.lastName}`;
   const pickupDateTime = new Date(booking.preferredDatetime).toLocaleString();
-  const pickupAddress = `${booking.pickupAddressLine1}, ${booking.pickupCity}`;
   const quotation = booking.quotation;
+
+  const pickupAddress = `${booking.pickupAddressLine1}${
+    booking.pickupAddressLine2 ? ` ${booking.pickupAddressLine2}` : ""
+  }, ${booking.pickupCity}, ${booking.pickupState} ${
+    booking.pickupPostalCode ?? ""
+  }`;
+
+  const deliveryAddress = booking.deliveryRequired
+    ? `${booking.deliveryAddressLine1}${
+        booking.deliveryAddressLine2 ? ` ${booking.deliveryAddressLine2}` : ""
+      }, ${booking.deliveryCity}, ${booking.deliveryState} ${
+        booking.deliveryPostalCode ?? ""
+      }`
+    : null;
 
   return (
     <main className="min-h-screen bg-[#f7f7f7] py-10">
@@ -236,10 +249,19 @@ export default function BookingConfirmationPage() {
               </div>
               <div>
                 <span className="font-bold block text-gray-500 text-xs">
-                  Address
+                  Pickup Address
                 </span>{" "}
                 {pickupAddress}
               </div>
+
+              {deliveryAddress && (
+                <div>
+                  <span className="font-bold block text-gray-500 text-xs">
+                    Delivery Address
+                  </span>{" "}
+                  {deliveryAddress}
+                </div>
+              )}
             </div>
 
             {/* Estimate Table */}

@@ -1,3 +1,4 @@
+import React from "react";
 import {
   Page,
   Text,
@@ -185,6 +186,26 @@ export const QuotationPdf = ({ request, customer, quotation, logo }: any) => {
   const expiryDate = new Date();
   expiryDate.setMonth(expiryDate.getMonth() + 2);
 
+  const formatDetails = (floor: any, elevator: any) => {
+    const parts = [];
+    if (floor) {
+      parts.push(`${floor} floor`);
+    }
+    if (elevator !== undefined && elevator !== null) {
+      parts.push(elevator ? "Elevator available" : "No elevator");
+    }
+    return parts.length > 0 ? parts.join(" / ") : "-";
+  };
+
+  const pickupDetails = formatDetails(
+    request.pickupFloor,
+    request.pickupElevator
+  );
+
+  const deliveryDetails = request.deliveryRequired
+    ? formatDetails(request.deliveryFloor, request.deliveryElevator)
+    : null;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -229,23 +250,22 @@ export const QuotationPdf = ({ request, customer, quotation, logo }: any) => {
           </View>
         </View>
 
-        {/* Info Blocks  */}
+        {/* Info Blocks */}
         <View style={styles.infoContainer}>
           {/* 1. Bill to */}
           <View style={styles.infoBlock}>
             <Text style={styles.sectionTitle}>
               Bill to: {customer.firstName} {customer.lastName}
             </Text>
-            <Text style={styles.textLine}>
-              Address: {request.pickupAddress} (Pickup)
-            </Text>
             <Text style={styles.textLine}>Email: {customer.email}</Text>
             <Text style={styles.textLine}>Phone: {customer.phone || "-"}</Text>
           </View>
 
-          {/* 2. Pick-up Info */}
+          {/* 2. Pick-up & Delivery Info */}
           <View style={styles.infoBlock}>
             <Text style={styles.sectionTitle}>Pick-up &amp; Delivery Info</Text>
+
+            {/* Pickup */}
             <Text style={styles.textLine}>
               Pickup date:{" "}
               {new Date(request.preferredDatetime).toLocaleString()}
@@ -253,10 +273,17 @@ export const QuotationPdf = ({ request, customer, quotation, logo }: any) => {
             <Text style={styles.textLine}>
               Pickup address: {request.pickupAddress}
             </Text>
-            <Text style={styles.textLine}>
-              Other: {request.items[0]?.pickupFloor || "-"} floor /{" "}
-              {request.items[0]?.pickupElevator ? "Elevator" : "No elevator"}
-            </Text>
+            <Text style={styles.textLine}>Other: {pickupDetails}</Text>
+
+            {/* Delivery */}
+            {request.deliveryAddress && (
+              <>
+                <Text style={[styles.textLine, { marginTop: 4 }]}>
+                  Delivery address: {request.deliveryAddress}
+                </Text>
+                <Text style={styles.textLine}>Other: {deliveryDetails}</Text>
+              </>
+            )}
           </View>
         </View>
 

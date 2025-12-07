@@ -83,6 +83,29 @@ export async function POST(req: Request) {
       const manageLink = token ? `${baseUrl}/booking-detail/${token}` : baseUrl;
       const dashboardLink = `${baseUrl}/admin/requests/${requestId}`;
 
+      const pickupAddressStr = [
+        booking.pickupAddressLine1,
+        booking.pickupAddressLine2,
+        booking.pickupCity,
+        booking.pickupState,
+        booking.pickupPostalCode,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      const deliveryAddressStr =
+        booking.deliveryRequired && booking.deliveryAddressLine1
+          ? [
+              booking.deliveryAddressLine1,
+              booking.deliveryAddressLine2,
+              booking.deliveryCity,
+              booking.deliveryState,
+              booking.deliveryPostalCode,
+            ]
+              .filter(Boolean)
+              .join(", ")
+          : undefined;
+
       const commonProps = {
         customer: {
           firstName: booking.customer.firstName,
@@ -92,12 +115,16 @@ export async function POST(req: Request) {
         },
         request: {
           requestId: booking.id,
-          pickupAddress: `${booking.pickupAddressLine1} ${booking.pickupCity}`,
-          deliveryAddress: booking.deliveryRequired
-            ? "Delivery Requested"
-            : undefined,
+          pickupAddress: pickupAddressStr,
+          deliveryAddress: deliveryAddressStr,
           pickupFloor: booking.pickupFloor ?? undefined,
           pickupElevator: booking.pickupElevator,
+          deliveryFloor: booking.deliveryRequired
+            ? (booking.deliveryFloor ?? undefined)
+            : undefined,
+          deliveryElevator: booking.deliveryRequired
+            ? booking.deliveryElevator
+            : undefined,
           items: booking.items.map((i) => ({
             name: i.name,
             size: i.size,
