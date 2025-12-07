@@ -24,8 +24,13 @@ export async function POST(
       );
     }
 
-    const body = await request.json();
-    const { subtotal, sendEmail } = body;
+    // ★ note を受け取る
+    const body = (await request.json()) as {
+      subtotal: number;
+      sendEmail?: boolean;
+      note?: string | null;
+    };
+    const { subtotal, sendEmail, note } = body;
 
     const taxRate = 0.12;
     const subtotalNum = Number(subtotal);
@@ -46,6 +51,7 @@ export async function POST(
         tax: taxNum,
         total: totalNum,
         bookingLink,
+        note: note ?? null, // ★ 既存更新時にも保存
       },
       create: {
         requestId,
@@ -53,6 +59,7 @@ export async function POST(
         tax: taxNum,
         total: totalNum,
         bookingLink,
+        note: note ?? null, // ★ 新規作成時にも保存
       },
     });
 
@@ -139,7 +146,20 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({ quotation }, { status: 200 });
+    // ★ レスポンスにも note を含める（Decimal はそのままでも string としてシリアライズされる）
+    return NextResponse.json(
+      {
+        quotation: {
+          id: quotation.id,
+          subtotal: quotation.subtotal,
+          tax: quotation.tax,
+          total: quotation.total,
+          bookingLink: quotation.bookingLink,
+          note: quotation.note, // ← ここ
+        },
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Quotation API Error:", error);
     return NextResponse.json(
