@@ -74,15 +74,16 @@ export default function AdminRequestsPage() {
   }, [requests, searchId, statusFilter]);
 
   return (
-    <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
+    <>
+      {/* 👇 背景色と min-h-screen は layout 側に任せる */}
       {/* Title */}
-      <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 mb-8">
+      <h1 className="mb-8 text-4xl font-extrabold tracking-tight text-slate-900 md:text-5xl">
         Requests
       </h1>
 
       {/* Search */}
-      <section className="max-w-xl mb-6">
-        <label className="block text-lg font-semibold text-slate-900 mb-2">
+      <section className="mb-6 max-w-xl">
+        <label className="mb-2 block text-lg font-semibold text-slate-900">
           Search Requests
         </label>
         <input
@@ -90,13 +91,13 @@ export default function AdminRequestsPage() {
           placeholder="Search by ID (e.g. 12345)"
           value={searchId}
           onChange={(e) => setSearchId(e.target.value)}
-          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 placeholder:text-slate-400"
+          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base shadow-sm placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
         />
       </section>
 
       {/* Status Filter */}
       <section className="mb-6">
-        <p className="text-base font-semibold text-slate-900 mb-3">Status:</p>
+        <p className="mb-3 text-base font-semibold text-slate-900">Status:</p>
         <div className="flex flex-wrap gap-3">
           {STATUS_TABS.map((tab) => {
             const active = statusFilter === tab.value;
@@ -113,7 +114,7 @@ export default function AdminRequestsPage() {
                   )
                 }
                 className={
-                  "rounded-full px-7 py-2 text-sm md:text-base font-semibold border transition " +
+                  "rounded-full border px-7 py-2 text-sm font-semibold transition md:text-base " +
                   (isActive
                     ? "bg-slate-900 text-white border-slate-900"
                     : "bg-white text-slate-900 border-slate-300 hover:bg-slate-900 hover:text-white")
@@ -131,13 +132,13 @@ export default function AdminRequestsPage() {
         <div className="w-full overflow-x-auto rounded-3xl border border-slate-200 bg-[#f3f7fc] shadow-sm">
           <table className="min-w-full border-collapse">
             <thead>
-              <tr className="bg-[#f3f7fc] text-left text-sm md:text-base font-semibold text-slate-900">
-                <th className="px-8 py-4 rounded-tl-3xl">ID</th>
+              <tr className="bg-[#f3f7fc] text-left text-sm font-semibold text-slate-900 md:text-base">
+                <th className="rounded-tl-3xl px-8 py-4">ID</th>
                 <th className="px-4 py-4">Customer</th>
                 <th className="px-4 py-4">Pickup</th>
                 <th className="px-4 py-4">Estimate</th>
                 <th className="px-4 py-4">Status</th>
-                <th className="px-8 py-4 rounded-tr-3xl text-right">Action</th>
+                <th className="rounded-tr-3xl px-8 py-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -145,7 +146,7 @@ export default function AdminRequestsPage() {
               <tr>
                 <td
                   colSpan={6}
-                  className="border-t-2 border-b border-[#f6b55f] bg-white"
+                  className="border-b border-[#f6b55f] border-t-2 bg-white"
                 />
               </tr>
 
@@ -185,6 +186,6 @@ export default function AdminRequestsPage() {
           </p>
         )}
       </section>
-    </main>
+    </>
   );
 }
