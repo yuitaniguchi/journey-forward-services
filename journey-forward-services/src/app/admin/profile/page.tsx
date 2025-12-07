@@ -1,7 +1,8 @@
-// src/app/admin/profile/page.tsx
 "use client";
 
 import { useState } from "react";
+import AdminFormCard from "@/components/admin/AdminFormCard";
+import PasswordInput from "@/components/admin/PasswordInput";
 
 export default function AdminProfilePage() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -59,79 +60,63 @@ export default function AdminProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10    flex items-center justify-center    // 👈 追加">
-      <section className="max-w-xl rounded-3xl border border-slate-200 bg-white px-8 py-8 shadow-sm">
-        <h2 className="mb-4 text-2xl font-semibold text-slate-900">
-          Change Password
-        </h2>
-        <p className="mb-6 text-sm text-slate-600">
-          Update your admin password. Make sure to choose a strong password that
-          you don&apos;t use elsewhere.
-        </p>
+    <AdminFormCard
+      title="Change Password"
+      subtitle="Update your admin password. Make sure to choose a strong password that you don't use elsewhere."
+    >
+      {error && (
+        <div className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="mb-4 rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {success}
+        </div>
+      )}
 
-        {error && (
-          <div className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="mb-4 rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {success}
-          </div>
-        )}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-900">
+            Current password
+          </label>
+          <PasswordInput
+            autoComplete="current-password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+          />
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Current password */}
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-900">
-              Current password
-            </label>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
-            />
-          </div>
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-900">
+            New password
+          </label>
+          <PasswordInput
+            autoComplete="new-password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+        </div>
 
-          {/* New password */}
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-900">
-              New password
-            </label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
-            />
-          </div>
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-slate-900">
+            Confirm new password
+          </label>
+          <PasswordInput
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+        </div>
 
-          {/* Confirm new password */}
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-900">
-              Confirm new password
-            </label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="mt-4 w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {submitting ? "Updating..." : "Update password"}
-          </button>
-        </form>
-      </section>
-    </main>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="mt-4 w-full rounded-xl bg-emerald-800 py-3 text-sm font-semibold text-white hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {submitting ? "Updating..." : "Update password"}
+        </button>
+      </form>
+    </AdminFormCard>
   );
 }
