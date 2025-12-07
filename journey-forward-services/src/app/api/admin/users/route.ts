@@ -2,12 +2,62 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcrypt";
+import { getTokenFromCookies, verifyAdminJWT } from "@/lib/auth";
 
 const MIN_PASSWORD_LENGTH = 8;
 const SALT_ROUNDS = 10;
 
+async function requireAdminSession() {
+  const token = await getTokenFromCookies();
+  if (!token) return null;
+
+  try {
+    const session = await verifyAdminJWT(token);
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+// --- GET /api/admin/users ---
+// 管理ユーザー一覧を返す
+export async function GET(_req: NextRequest) {
+  try {
+    const session = await requireAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const admins = await prisma.admin.findMany({
+      orderBy: { id: "asc" },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        createdAt: true,
+      },
+    });
+
+    return NextResponse.json({ admins }, { status: 200 });
+  } catch (err) {
+    console.error("GET /api/admin/users error:", err);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
+// --- POST /api/admin/users ---
+// 新規 Admin 作成
 export async function POST(req: NextRequest) {
   try {
+    // 認証必須（ログイン済み Admin だけが作成できる）
+    const session = await requireAdminSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // 1. JSON を読む
     let body: unknown;
     try {
@@ -76,7 +126,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    // 4. パスワードハッシュ化（bcrypt を auth と揃える）
+    // 4. パスワードハッシュ化
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
     // 5. Admin を作成（パスワードハッシュは返さない）
@@ -84,7 +134,7 @@ export async function POST(req: NextRequest) {
       data: {
         username: normalizedUsername,
         email: normalizedEmail,
-        passwordHash, // schema.prisma のフィールド名と一致
+        passwordHash,
       },
       select: {
         id: true,
