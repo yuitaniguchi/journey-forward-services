@@ -22,8 +22,13 @@ export async function POST(
       );
     }
 
-    const body = await request.json();
-    const { subtotal, currency = "CAD" } = body;
+    // ★ note を受け取るようにする
+    const body = (await request.json()) as {
+      subtotal: number;
+      currency?: string;
+      note?: string | null;
+    };
+    const { subtotal, currency = "CAD", note } = body;
 
     const subtotalNum = Number(subtotal);
 
@@ -45,6 +50,7 @@ export async function POST(
         tax: taxNum,
         total: totalNum,
         status: "PENDING",
+        note: note ?? null, // ★ 既存レコード更新時に保存
       },
       create: {
         requestId,
@@ -53,6 +59,7 @@ export async function POST(
         total: totalNum,
         status: "PENDING",
         currency,
+        note: note ?? null, // ★ 新規作成時に保存
       },
     });
 
@@ -157,7 +164,21 @@ export async function POST(
       });
     }
 
-    return NextResponse.json({ payment }, { status: 200 });
+    // ★ レスポンスに note を含める
+    return NextResponse.json(
+      {
+        payment: {
+          id: payment.id,
+          subtotal: payment.subtotal,
+          tax: payment.tax,
+          total: payment.total,
+          status: payment.status,
+          currency: payment.currency,
+          note: payment.note, // ← ここ
+        },
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Finalize API Error:", error);
     return NextResponse.json(
