@@ -138,7 +138,6 @@ export default function AdminRequestsPage() {
                 <th className="px-4 py-4">Pickup</th>
                 <th className="px-4 py-4">Estimate</th>
                 <th className="px-4 py-4">Status</th>
-                <th className="rounded-tr-3xl px-8 py-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody>

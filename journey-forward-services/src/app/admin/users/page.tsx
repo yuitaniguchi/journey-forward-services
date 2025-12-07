@@ -91,7 +91,6 @@ export default function AdminUsersPage() {
               <th className="px-4 py-4">Username</th>
               <th className="px-4 py-4">Email</th>
               <th className="px-4 py-4">Created</th>
-              <th className="rounded-tr-3xl px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
