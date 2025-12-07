@@ -82,6 +82,7 @@ export default function RequestDetailPage({ params }: PageProps) {
 
   const [showQuotationModal, setShowQuotationModal] = useState(false);
   const [showFinalAmountModal, setShowFinalAmountModal] = useState(false);
+  const [showAllItems, setShowAllItems] = useState(false);
 
   const [pendingStatus, setPendingStatus] = useState<RequestStatus | null>(
     null
@@ -89,6 +90,11 @@ export default function RequestDetailPage({ params }: PageProps) {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmingStatus, setConfirmingStatus] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+
+  // 🔍 ライトボックス用 state
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
+  const [photoItems, setPhotoItems] = useState<RequestDetail["items"]>([]);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   // ---- データ読み込み ----
   useEffect(() => {
@@ -186,6 +192,34 @@ export default function RequestDetailPage({ params }: PageProps) {
     setPendingStatus(null);
   }
 
+  // 🔁 ライトボックスの前後ナビゲーション
+  function goPrevPhoto() {
+    setCurrentPhotoIndex((i) =>
+      photoItems.length === 0
+        ? 0
+        : (i - 1 + photoItems.length) % photoItems.length
+    );
+  }
+
+  function goNextPhoto() {
+    setCurrentPhotoIndex((i) =>
+      photoItems.length === 0 ? 0 : (i + 1) % photoItems.length
+    );
+  }
+
+  // 🔍 サムネイルクリック時のハンドラ
+  function handlePhotoClick(itemId: number) {
+    const itemsWithPhotos = request?.items.filter((i) => i.photoUrl) ?? [];
+    if (itemsWithPhotos.length === 0) return;
+
+    const index = itemsWithPhotos.findIndex((i) => i.id === itemId);
+    if (index === -1) return;
+
+    setPhotoItems(itemsWithPhotos);
+    setCurrentPhotoIndex(index);
+    setPhotoViewerOpen(true);
+  }
+
   // ---- ローディング / エラー ----
   if (loading) {
     return (
@@ -219,12 +253,16 @@ export default function RequestDetailPage({ params }: PageProps) {
       ? `$${request.payment.total}`
       : "-";
 
-  // ★ ボタン制御ロジック
+  // ボタン制御ロジック
   const canEditQuotation =
     request.status === "RECEIVED" || request.status === "QUOTED";
 
   const canSendFinalAmount =
     request.status !== "PAID" && request.status !== "CANCELLED";
+
+  // Items & Photos 表示件数制御
+  const itemsToShow = showAllItems ? request.items : request.items.slice(0, 3);
+  const hasMoreItems = request.items.length > 3;
 
   return (
     <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
@@ -415,31 +453,56 @@ export default function RequestDetailPage({ params }: PageProps) {
           <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Items &amp; Photos
           </h2>
+
           {request.items.length === 0 && (
             <p className="text-slate-500">No items registered.</p>
           )}
 
-          <ul className="space-y-4">
-            {request.items.map((item) => (
-              <li key={item.id} className="flex items-start gap-4">
-                {item.photoUrl && (
-                  <img
-                    src={item.photoUrl}
-                    alt={item.name}
-                    className="h-20 w-20 rounded-lg border border-slate-200 object-cover"
-                  />
-                )}
-                <div>
-                  <p className="font-semibold">
-                    {item.name} - {item.size} (x{item.quantity})
-                  </p>
-                  {item.description && (
-                    <p className="text-sm text-slate-600">{item.description}</p>
-                  )}
+          {request.items.length > 0 && (
+            <>
+              <ul className="space-y-4">
+                {itemsToShow.map((item) => (
+                  <li key={item.id} className="flex items-start gap-4">
+                    {item.photoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => handlePhotoClick(item.id)}
+                        className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-200"
+                      >
+                        <img
+                          src={item.photoUrl}
+                          alt={item.name}
+                          className="h-full w-full object-cover"
+                        />
+                      </button>
+                    )}
+                    <div>
+                      <p className="font-semibold">
+                        {item.name} - {item.size} (x{item.quantity})
+                      </p>
+                      {item.description && (
+                        <p className="text-sm text-slate-600">
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              {hasMoreItems && (
+                <div className="mt-4 text-right">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllItems((prev) => !prev)}
+                    className="text-sm font-semibold text-emerald-900 hover:underline"
+                  >
+                    {showAllItems ? "Show less" : "Show all"}
+                  </button>
                 </div>
-              </li>
-            ))}
-          </ul>
+              )}
+            </>
+          )}
         </section>
 
         {/* 6. Final Billing */}
@@ -538,6 +601,58 @@ export default function RequestDetailPage({ params }: PageProps) {
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🔍 Photo Lightbox */}
+      {photoViewerOpen && photoItems.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          onClick={() => setPhotoViewerOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-3xl max-h-[80vh] rounded-2xl bg-black"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setPhotoViewerOpen(false)}
+              className="absolute right-4 top-4 text-2xl text-white hover:text-slate-200"
+              aria-label="Close"
+            >
+              ×
+            </button>
+
+            {/* Image */}
+            <img
+              src={photoItems[currentPhotoIndex].photoUrl ?? ""}
+              alt={photoItems[currentPhotoIndex].name ?? "Item photo"}
+              className="h-[80vh] w-full object-contain"
+            />
+
+            {/* Navigation */}
+            {photoItems.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={goPrevPhoto}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/50 px-3 py-2 text-lg text-white hover:bg-black/70"
+                  aria-label="Previous photo"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={goNextPhoto}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/50 px-3 py-2 text-lg text-white hover:bg-black/70"
+                  aria-label="Next photo"
+                >
+                  ›
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
