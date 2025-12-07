@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import PasswordInput from "@/components/admin/PasswordInput";
 
 type AdminUser = {
   id: number;
@@ -67,6 +68,7 @@ export default function AdminUsersPage() {
 
   return (
     <div>
+      {/* ページタイトル + 新規作成ボタン */}
       <div className="mb-8 flex items-center justify-between gap-4">
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">
           Admin Users
@@ -74,12 +76,13 @@ export default function AdminUsersPage() {
         <button
           type="button"
           onClick={() => setShowCreate(true)}
-          className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+          className="rounded-full bg-emerald-800 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-900"
         >
           Create Admin User
         </button>
       </div>
 
+      {/* 一覧テーブル */}
       <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full border-collapse">
           <thead>
@@ -92,7 +95,7 @@ export default function AdminUsersPage() {
             </tr>
           </thead>
           <tbody>
-            {/* 上部の線 */}
+            {/* 上部のライン */}
             <tr>
               <td
                 colSpan={5}
@@ -270,45 +273,47 @@ function CreateUserModal({ open, onClose, onCreated }: CreateUserModalProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-900">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               Username
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+              placeholder="Enter username"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-900">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               Email
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+              placeholder="Enter email"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-900">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               Password
             </label>
-            <input
-              type="password"
+            <PasswordInput
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              placeholder="Enter password"
+              autoComplete="new-password"
             />
           </div>
 
           <button
             type="submit"
             disabled={submitting}
-            className="mt-2 w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-4 w-full rounded-xl bg-emerald-800 py-3 text-sm font-semibold text-white hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? "Creating..." : "Create user"}
           </button>
@@ -397,46 +402,47 @@ function EditUserModal({ open, user, onClose, onUpdated }: EditUserModalProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-900">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               Username
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+              placeholder="Enter username"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-900">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               Email
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+              placeholder="Enter email"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-900">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               New password (optional)
             </label>
-            <input
-              type="password"
+            <PasswordInput
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
               placeholder="Leave blank to keep current password"
+              autoComplete="new-password"
             />
           </div>
 
           <button
             type="submit"
             disabled={submitting}
-            className="mt-2 w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-4 w-full rounded-xl bg-emerald-800 py-3 text-sm font-semibold text-white hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? "Updating..." : "Update user"}
           </button>
