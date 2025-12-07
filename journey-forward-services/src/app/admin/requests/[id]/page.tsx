@@ -64,6 +64,7 @@ const STATUS_FLOW: RequestStatus[] = [
   "CONFIRMED",
   "INVOICED",
   "PAID",
+  "CANCELLED",
 ];
 
 type PageProps = {
@@ -273,8 +274,8 @@ export default function RequestDetailPage({ params }: PageProps) {
                   className={
                     "rounded-full px-6 py-2 text-sm font-semibold border transition " +
                     (active
-                      ? "bg-slate-900 text-white border-slate-900"
-                      : "bg-white text-slate-900 border-slate-300 hover:bg-slate-900 hover:text-white")
+                      ? " bg-emerald-900 text-white border-emerald-900"
+                      : "bg-white text-slate-900 border-slate-300 hover:bg-emerald-900 hover:text-white")
                   }
                 >
                   {label}
@@ -378,7 +379,7 @@ export default function RequestDetailPage({ params }: PageProps) {
           <button
             type="button"
             onClick={() => setShowQuotationModal(true)}
-            className="w-full rounded-xl border border-slate-900 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-900 hover:text-white transition"
+            className="w-full rounded-xl bg-emerald-900 py-2 text-sm font-semibold text-white hover:bg-emerald-950 transition"
           >
             {request.quotation ? "Edit Quotation" : "Create Quotation"}
           </button>
@@ -486,7 +487,7 @@ export default function RequestDetailPage({ params }: PageProps) {
                 type="button"
                 onClick={handleConfirmStatusChange}
                 disabled={confirmingStatus}
-                className="flex-1 rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-950 transition disabled:opacity-60"
+                className="flex-1 rounded-xl bg-emerald-900 py-3 text-sm font-semibold text-white hover:bg-emerald-950 transition disabled:opacity-60"
               >
                 {confirmingStatus ? "Updating..." : "Yes, change status"}
               </button>
