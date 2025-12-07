@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { RequestStatus } from "@prisma/client";
 import StatusBadge from "./StatusBadge";
 
@@ -35,12 +35,19 @@ export default function RequestCard({
 }: {
   request: RequestWithRelations;
 }) {
+  const router = useRouter();
+
   const fullName = `${request.customer.firstName} ${request.customer.lastName}`;
   const pickup = formatPickupDate(request.preferredDatetime);
   const estimate = request.quotation ? `$${request.quotation.total}` : "-";
 
   return (
-    <tr className="bg-white text-sm md:text-base text-slate-900 border-b border-slate-100">
+    <tr
+      onClick={() => router.push(`/admin/requests/${request.id}`)}
+      className="bg-white text-sm md:text-base text-slate-900 border-b border-slate-100 cursor-pointer transition-colors hover:bg-slate-50"
+      role="button"
+      tabIndex={0}
+    >
       <td className="px-8 py-5 whitespace-nowrap align-middle">
         <span className="font-semibold text-slate-900">#{request.id}</span>
       </td>
@@ -59,15 +66,6 @@ export default function RequestCard({
 
       <td className="px-4 py-5 whitespace-nowrap align-middle">
         <StatusBadge status={request.status} />
-      </td>
-
-      <td className="px-8 py-5 whitespace-nowrap text-right align-middle">
-        <Link
-          href={`/admin/requests/${request.id}`}
-          className="text-emerald-700 font-semibold hover:underline"
-        >
-          View
-        </Link>
       </td>
     </tr>
   );
