@@ -1,6 +1,7 @@
 "use client";
 
 import { use as usePromise, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { RequestStatus } from "@prisma/client";
 import QuotationModal from "@/components/admin/QuotationModal";
 import FinalAmountModal from "@/components/admin/FinalAmountModal";
@@ -71,6 +72,7 @@ type PageProps = {
 
 export default function RequestDetailPage({ params }: PageProps) {
   const { id: requestId } = usePromise(params);
+  const router = useRouter();
   const [request, setRequest] = useState<RequestDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -212,9 +214,20 @@ export default function RequestDetailPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
-      <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-8">
-        Request Details
-      </h1>
+      {/* タイトル＋一覧に戻るボタン */}
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900">
+          Request Details
+        </h1>
+
+        <button
+          type="button"
+          onClick={() => router.push("/admin")}
+          className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
+        >
+          Back to list
+        </button>
+      </div>
       <div className="grid gap-6 lg:grid-cols-2">
         {/* 1. Customer */}
         <section className="bg-white border border-slate-300 rounded-3xl px-8 py-6">
