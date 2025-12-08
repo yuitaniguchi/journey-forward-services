@@ -5,10 +5,11 @@ import { useParams, useRouter } from "next/navigation";
 import type { BookingRequest } from "@/types/booking";
 
 export default function FinalPaymentPage() {
-  const params = useParams<{ id: string }>();
+  const params = useParams<{ token: string }>();
   const router = useRouter();
 
-  const token = params?.id;
+  // フォルダ名が [token] なので params.token を使う
+  const token = params?.token;
 
   const [booking, setBooking] = useState<BookingRequest | null>(null);
   const [isLoadingBooking, setIsLoadingBooking] = useState(true);
@@ -35,8 +36,16 @@ export default function FinalPaymentPage() {
 
         const json = await resBooking.json();
         const bookingData = json.data as BookingRequest;
+
+        // 支払い済みならレシートへ
+        if (bookingData.status === "PAID") {
+          router.replace(`/booking/${token}/receipt`);
+          return;
+        }
+
         setBooking(bookingData);
 
+        // PaymentIntentの準備確認 (DB整合性チェックも兼ねて実行)
         setIsCreatingPi(true);
         const resPi = await fetch("/api/payments/create-payment-intent", {
           method: "POST",
@@ -45,7 +54,7 @@ export default function FinalPaymentPage() {
         });
 
         if (!resPi.ok) {
-          console.error("Failed to create payment intent");
+          console.error("Failed to check/create payment intent");
           setErrorMessage("Failed to initialize payment.");
           return;
         }
@@ -62,7 +71,7 @@ export default function FinalPaymentPage() {
     };
 
     loadBookingAndPi();
-  }, [token]);
+  }, [token, router]);
 
   const handleConfirmPayment = async () => {
     if (!booking) return;
@@ -84,7 +93,8 @@ export default function FinalPaymentPage() {
       }
 
       setSuccessMessage("Payment has been processed successfully.");
-      router.push(`/payment-confirmation/${booking.id}`);
+      // 修正: 正しいレシート画面へ遷移
+      router.push(`/booking/${token}/receipt`);
     } catch (err) {
       console.error(err);
       setErrorMessage("Unexpected error during payment.");
@@ -111,7 +121,7 @@ export default function FinalPaymentPage() {
 
   const fullName = `${booking.customer.firstName} ${booking.customer.lastName}`;
   const email = booking.customer.email;
-  const phone = booking.customer.phone ?? "-";
+  // const phone = booking.customer.phone ?? "-"; // デザインに合わせて不要なら削除
   const pickupAddress = `${booking.pickupAddressLine1}, ${booking.pickupCity}`;
   const preferredDatetime = new Date(
     booking.preferredDatetime
@@ -119,6 +129,7 @@ export default function FinalPaymentPage() {
 
   const payment = booking.payment;
   const finalAmount = payment?.total ?? 0;
+  // 金額があり、処理中でなければ押せる
   const canConfirmPayment = finalAmount > 0 && !isCreatingPi && !isConfirming;
 
   const formatMoney = (val: number) => val.toFixed(2);
@@ -142,6 +153,7 @@ export default function FinalPaymentPage() {
         )}
 
         <div className="grid gap-6 md:grid-cols-2">
+          {/* 左カラム: 案内 */}
           <section className="rounded-xl bg-white p-8 shadow-sm">
             <h2 className="mb-4 text-2xl font-semibold text-[#1a7c4c]">
               Confirm & Pay
@@ -152,6 +164,7 @@ export default function FinalPaymentPage() {
             </p>
           </section>
 
+          {/* 右カラム: 詳細とボタン */}
           <section className="rounded-xl bg-white p-8 shadow-sm">
             <h3 className="mb-6 text-lg font-semibold text-[#1a7c4c]">
               Request Number: {booking.id}
@@ -166,6 +179,7 @@ export default function FinalPaymentPage() {
               <p>
                 <span className="font-semibold">Date:</span> {preferredDatetime}
               </p>
+              {/* Pickup Addressを追加しても良いかも */}
             </div>
 
             <div className="mt-4 overflow-hidden rounded-md border border-gray-200 text-sm">

@@ -96,8 +96,8 @@ function PaymentForm({ onSuccess, requestId }: PaymentFormProps) {
 }
 
 export default function BookingConfirmationPage() {
-  const params = useParams<{ id: string }>();
-  const token = params?.id;
+  const params = useParams<{ token: string }>();
+  const token = params?.token;
   const router = useRouter();
 
   const [booking, setBooking] = useState<BookingRequest | null>(null);
@@ -134,7 +134,7 @@ export default function BookingConfirmationPage() {
           bookingData.status === "INVOICED" ||
           bookingData.status === "PAID"
         ) {
-          router.replace(`/booking-detail/${token}`);
+          router.replace(`/booking/${token}/dashboard`);
           return;
         }
 
@@ -175,7 +175,8 @@ export default function BookingConfirmationPage() {
       }
     : undefined;
 
-  const nextLink = `/booking-detail/${token}`;
+  // 修正: 完了後の遷移先をダッシュボードに変更
+  const nextLink = `/booking/${token}/dashboard`;
 
   if (isLoading || !booking) {
     return (
@@ -187,21 +188,8 @@ export default function BookingConfirmationPage() {
 
   const customerName = `${booking.customer.firstName} ${booking.customer.lastName}`;
   const pickupDateTime = new Date(booking.preferredDatetime).toLocaleString();
+  const pickupAddress = `${booking.pickupAddressLine1}, ${booking.pickupCity}`;
   const quotation = booking.quotation;
-
-  const pickupAddress = `${booking.pickupAddressLine1}${
-    booking.pickupAddressLine2 ? ` ${booking.pickupAddressLine2}` : ""
-  }, ${booking.pickupCity}, ${booking.pickupState} ${
-    booking.pickupPostalCode ?? ""
-  }`;
-
-  const deliveryAddress = booking.deliveryRequired
-    ? `${booking.deliveryAddressLine1}${
-        booking.deliveryAddressLine2 ? ` ${booking.deliveryAddressLine2}` : ""
-      }, ${booking.deliveryCity}, ${booking.deliveryState} ${
-        booking.deliveryPostalCode ?? ""
-      }`
-    : null;
 
   return (
     <main className="min-h-screen bg-[#f7f7f7] py-10">
@@ -229,7 +217,6 @@ export default function BookingConfirmationPage() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Left: Request Detail */}
           <section className="rounded-xl bg-white p-8 shadow-sm">
             <h2 className="mb-6 text-xl font-semibold text-[#1a7c4c]">
               Request Number: {booking.id}
@@ -249,22 +236,12 @@ export default function BookingConfirmationPage() {
               </div>
               <div>
                 <span className="font-bold block text-gray-500 text-xs">
-                  Pickup Address
+                  Address
                 </span>{" "}
                 {pickupAddress}
               </div>
-
-              {deliveryAddress && (
-                <div>
-                  <span className="font-bold block text-gray-500 text-xs">
-                    Delivery Address
-                  </span>{" "}
-                  {deliveryAddress}
-                </div>
-              )}
             </div>
 
-            {/* Estimate Table */}
             {quotation && (
               <div className="mt-8 border-t pt-4">
                 <h3 className="font-bold mb-3 text-gray-700">
@@ -288,7 +265,6 @@ export default function BookingConfirmationPage() {
             )}
           </section>
 
-          {/* Right: Payment */}
           <section className="rounded-xl bg-white p-8 shadow-sm">
             <h3 className="mb-6 text-lg font-semibold text-[#1a7c4c]">
               Credit Card Information

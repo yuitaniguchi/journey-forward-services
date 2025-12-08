@@ -45,7 +45,7 @@ export type BookingRequest = {
   pickupAddressLine2: string | null;
   pickupCity: string;
   pickupState: string;
-  pickupFloor: number | null;
+  pickupFloor: string | null;
   pickupElevator: boolean | null;
 
   deliveryPostalCode: string | null;
@@ -53,7 +53,7 @@ export type BookingRequest = {
   deliveryAddressLine2: string | null;
   deliveryCity: string | null;
   deliveryState: string | null;
-  deliveryFloor: number | null;
+  deliveryFloor: string | null;
   deliveryElevator: boolean | null;
 
   preferredDatetime: string; // ISO 文字列

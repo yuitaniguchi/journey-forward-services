@@ -14,11 +14,13 @@ type RequestStatus =
 
 type BookingDetailClientProps = {
   requestId: string;
+  token: string; // ★ 追加: 遷移用にトークンを受け取る
   initialBooking: BookingRequest;
 };
 
 export default function BookingDetailClient({
   requestId,
+  token,
   initialBooking,
 }: BookingDetailClientProps) {
   const router = useRouter();
@@ -68,18 +70,18 @@ export default function BookingDetailClient({
         setCancelError(
           "Failed to cancel this booking. Please try again or contact support."
         );
+        setIsCancelling(false); // エラー時はローディング解除
         return;
       }
 
-      window.location.reload();
+      // ★ 修正: トークンを使った新しいパスへ遷移
+      router.push(`/booking/${token}/cancelled`);
     } catch (err) {
       console.error("Unexpected error in cancel flow:", err);
       setCancelError(
         "An unexpected error occurred. Please try again or contact support."
       );
-    } finally {
       setIsCancelling(false);
-      setIsModalOpen(false);
     }
   };
 
@@ -131,7 +133,6 @@ export default function BookingDetailClient({
               whether that&apos;s through donation or delivery.
             </p>
 
-            {/* Status Badge */}
             <div className="mb-6">
               <span className="font-semibold text-gray-800 text-sm mr-2">
                 Current Status:
@@ -188,7 +189,6 @@ export default function BookingDetailClient({
             </h2>
 
             <div className="space-y-4 text-sm leading-relaxed text-gray-800">
-              {/* Customer Info */}
               <div className="border-b pb-4">
                 <p>
                   <span className="font-semibold">Name: </span>
@@ -204,7 +204,6 @@ export default function BookingDetailClient({
                 </p>
               </div>
 
-              {/* Pickup Info */}
               <div className="border-b pb-4">
                 <p className="font-bold text-[#1a7c4c] mb-1">Pickup Info</p>
                 <p>
@@ -226,7 +225,6 @@ export default function BookingDetailClient({
                 </p>
               </div>
 
-              {/* Delivery Info */}
               {booking.deliveryRequired && (
                 <div className="border-b pb-4">
                   <p className="font-bold text-[#1a7c4c] mb-1">Delivery Info</p>
@@ -249,7 +247,6 @@ export default function BookingDetailClient({
           </section>
         </div>
 
-        {/* Free cancellation banner */}
         {!isAlreadyCancelled && !isPickupPassed && (
           <div className="mt-10 text-center text-sm font-semibold text-[#d34130]">
             {freeCancellationDeadline
@@ -258,7 +255,6 @@ export default function BookingDetailClient({
           </div>
         )}
 
-        {/* Cancel button */}
         <div className="mt-6 flex justify-center">
           <button
             type="button"
@@ -284,7 +280,6 @@ export default function BookingDetailClient({
           <p className="mt-4 text-center text-sm text-red-600">{cancelError}</p>
         )}
 
-        {/* Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
             <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-lg">

@@ -1,18 +1,32 @@
-// src/app/(user)/booking-cancelled/[id]/page.tsx
 import React from "react";
+import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
-type PageParams = Promise<{ id: string }>;
-
-type BookingCancelledPageProps = {
-  params: PageParams;
+type PageProps = {
+  params: Promise<{ token: string }>;
 };
 
-export default async function BookingCancelledPage({
-  params,
-}: BookingCancelledPageProps) {
-  // Next.js 16: params は Promise なので await で展開
-  const { id } = await params;
+export default async function BookingCancelledPage({ params }: PageProps) {
+  const { token } = await params;
+
+  // トークンから予約情報を取得
+  const quotation = await prisma.quotation.findFirst({
+    where: {
+      bookingLink: {
+        contains: token,
+      },
+    },
+    include: {
+      request: true,
+    },
+  });
+
+  if (!quotation || !quotation.request) {
+    return notFound();
+  }
+
+  const booking = quotation.request;
 
   return (
     <main className="min-h-screen bg-[#f7f7f7] py-16">
@@ -29,10 +43,10 @@ export default async function BookingCancelledPage({
 
         {/* Request Number */}
         <p className="mb-10 text-lg font-semibold text-[#1f4733]">
-          Request Number: {id}
+          Request Number: {booking.id}
         </p>
 
-        {/* 説明文（必要なら） */}
+        {/* 説明文 */}
         <p className="mb-10 max-w-xl text-sm leading-relaxed text-gray-600">
           If this cancellation was made by mistake or if you have any questions,
           please contact our support team and provide your Request Number.

@@ -22,13 +22,8 @@ export async function POST(
       );
     }
 
-    // ★ note を受け取る
-    const body = (await request.json()) as {
-      subtotal: number;
-      sendEmail?: boolean;
-      note?: string | null;
-    };
-    const { subtotal, sendEmail, note } = body;
+    const body = await request.json();
+    const { subtotal, sendEmail } = body;
 
     const taxRate = 0.12;
     const subtotalNum = Number(subtotal);
@@ -39,7 +34,8 @@ export async function POST(
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-    const bookingLink = `${baseUrl}/booking/booking-confirmation/${token}`;
+    // 修正: 新しいURL構造に合わせる (/booking/[token]/confirm)
+    const bookingLink = `${baseUrl}/booking/${token}/confirm`;
     const pdfLink = `${baseUrl}/api/pdf/quotations/${requestId}`;
 
     const quotation = await prisma.quotation.upsert({
@@ -49,7 +45,6 @@ export async function POST(
         tax: taxNum,
         total: totalNum,
         bookingLink,
-        note: note ?? null, // ★ 既存更新時にも保存
       },
       create: {
         requestId,
@@ -57,7 +52,6 @@ export async function POST(
         tax: taxNum,
         total: totalNum,
         bookingLink,
-        note: note ?? null, // ★ 新規作成時にも保存
       },
     });
 
@@ -153,20 +147,7 @@ export async function POST(
       }
     }
 
-    // ★ レスポンスにも note を含める（Decimal はそのままでも string としてシリアライズされる）
-    return NextResponse.json(
-      {
-        quotation: {
-          id: quotation.id,
-          subtotal: quotation.subtotal,
-          tax: quotation.tax,
-          total: quotation.total,
-          bookingLink: quotation.bookingLink,
-          note: quotation.note, // ← ここ
-        },
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({ quotation }, { status: 200 });
   } catch (error) {
     console.error("Quotation API Error:", error);
     return NextResponse.json(
