@@ -24,6 +24,7 @@ export default function FinalAmountModal({
   useEffect(() => {
     if (open) {
       setSubtotalStr(initialSubtotal ? initialSubtotal.toString() : "");
+      setNote(initialNote ?? ""); // ★ ここを追加
     }
   }, [open, initialSubtotal, initialNote]);
 

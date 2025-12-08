@@ -28,6 +28,7 @@ export default function QuotationModal({
   useEffect(() => {
     if (open) {
       setSubtotalStr(initialSubtotal ? initialSubtotal.toString() : "");
+      setNote(initialNote ?? ""); // ★ ここを追加
     }
   }, [open, initialSubtotal, initialNote]);
 
