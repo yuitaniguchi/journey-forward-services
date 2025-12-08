@@ -73,7 +73,9 @@ export async function POST(req: Request) {
         token = booking.quotation.bookingLink.split("/").pop() || "";
       }
     }
-    const manageLink = token ? `${baseUrl}/booking-detail/${token}` : baseUrl;
+    const manageLink = token
+      ? `${baseUrl}/booking/${token}/dashboard`
+      : baseUrl;
     const dashboardLink = `${baseUrl}/admin/requests/${requestId}`;
 
     const pickupAddressStr = [
