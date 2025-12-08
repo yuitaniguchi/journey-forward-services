@@ -1,292 +1,152 @@
-"use client";
-
-import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  Elements,
-  PaymentElement,
-  useStripe,
-  useElements,
-} from "@stripe/react-stripe-js";
-import { stripePromise } from "@/lib/stripeClient";
+import React from "react";
+import { notFound, redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { stripe } from "@/lib/stripe"; // Stripeライブラリをインポート
+import BookingConfirmClient from "./BookingConfirmClient";
 import type { BookingRequest } from "@/types/booking";
 
-type PaymentFormProps = {
-  onSuccess: () => void;
-  requestId: number;
+type PageProps = {
+  params: Promise<{ token: string }>;
 };
 
-function PaymentForm({ onSuccess, requestId }: PaymentFormProps) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+export default async function BookingConfirmPage({ params }: PageProps) {
+  const { token } = await params;
 
-  const handleSubmit = async () => {
-    if (!stripe || !elements) return;
+  // 1. トークンで予約を取得
+  const quotation = await prisma.quotation.findFirst({
+    where: {
+      bookingLink: {
+        contains: token,
+      },
+    },
+    include: {
+      request: {
+        include: {
+          customer: true,
+          items: true,
+          quotation: true,
+          payment: true,
+        },
+      },
+    },
+  });
 
-    const paymentElement = elements.getElement(PaymentElement);
-    if (!paymentElement) {
-      console.error("PaymentElement is not loaded");
-      setMessage("Payment form failed to load. Please reload the page.");
-      return;
-    }
-
-    setIsProcessing(true);
-    setMessage(null);
-
-    const { error, setupIntent } = await stripe.confirmSetup({
-      elements,
-      redirect: "if_required",
-    });
-
-    if (error) {
-      console.error("confirmSetup error:", error);
-      setMessage(error.message ?? "Something went wrong.");
-      setIsProcessing(false);
-      return;
-    }
-
-    console.log("Setup succeeded ✅", setupIntent?.id);
-
-    const paymentMethodId =
-      typeof setupIntent.payment_method === "string"
-        ? setupIntent.payment_method
-        : setupIntent.payment_method?.id;
-
-    try {
-      await fetch("/api/bookings/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          requestId,
-          paymentMethodId,
-        }),
-      });
-    } catch (e) {
-      console.error("Failed to confirm booking or send email", e);
-    } finally {
-      setIsProcessing(false);
-      onSuccess();
-    }
-  };
-
-  return (
-    <>
-      <div className="mb-6">
-        <PaymentElement />
-      </div>
-
-      {message && (
-        <p className="mb-3 whitespace-pre-line text-sm text-red-600">
-          {message}
-        </p>
-      )}
-
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={!stripe || isProcessing}
-        className="mt-2 flex w-full items-center justify-center rounded-full bg-[#1a7c4c] px-6 py-3 text-sm font-semibold text-white hover:bg-[#15603a] disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {isProcessing ? "Processing..." : "Save card & continue"}
-      </button>
-    </>
-  );
-}
-
-export default function BookingConfirmationPage() {
-  const params = useParams<{ token: string }>();
-  const token = params?.token;
-  const router = useRouter();
-
-  const [booking, setBooking] = useState<BookingRequest | null>(null);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!token) {
-      setLoadError("Invalid URL.");
-      setIsLoading(false);
-      return;
-    }
-
-    const loadBookingAndIntent = async () => {
-      try {
-        setIsLoading(true);
-        setLoadError(null);
-
-        const resBooking = await fetch(`/api/bookings/token/${token}`);
-        if (!resBooking.ok) {
-          setLoadError("Invalid or expired link.");
-          return;
-        }
-
-        const bookingJson = (await resBooking.json()) as {
-          data: BookingRequest;
-        };
-        const bookingData = bookingJson.data;
-
-        if (
-          bookingData.status === "CONFIRMED" ||
-          bookingData.status === "INVOICED" ||
-          bookingData.status === "PAID"
-        ) {
-          router.replace(`/booking/${token}/dashboard`);
-          return;
-        }
-
-        setBooking(bookingData);
-
-        const resIntent = await fetch("/api/payments/create-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            requestId: bookingData.id,
-            customerEmail: bookingData.customer.email,
-          }),
-        });
-
-        if (!resIntent.ok) {
-          setLoadError("Failed to initialize payment.");
-          return;
-        }
-
-        const intentJson = await resIntent.json();
-        setClientSecret(intentJson.clientSecret);
-      } catch (e) {
-        console.error(e);
-        setLoadError("Unexpected error occurred.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadBookingAndIntent();
-  }, [token, router]);
-
-  const elementsOptions = clientSecret
-    ? {
-        clientSecret,
-        appearance: { theme: "stripe" as const },
-        locale: "en" as const,
-      }
-    : undefined;
-
-  // 修正: 完了後の遷移先をダッシュボードに変更
-  const nextLink = `/booking/${token}/dashboard`;
-
-  if (isLoading || !booking) {
-    return (
-      <main className="min-h-screen bg-[#f7f7f7] py-10 flex items-center justify-center">
-        <p className="text-gray-600">Loading...</p>
-      </main>
-    );
+  if (!quotation || !quotation.request) {
+    return notFound();
   }
 
-  const customerName = `${booking.customer.firstName} ${booking.customer.lastName}`;
-  const pickupDateTime = new Date(booking.preferredDatetime).toLocaleString();
-  const pickupAddress = `${booking.pickupAddressLine1}, ${booking.pickupCity}`;
-  const quotation = booking.quotation;
+  const booking = quotation.request;
 
+  // 2. 既に確定済みならダッシュボードへリダイレクト
+  if (
+    booking.status === "CONFIRMED" ||
+    booking.status === "INVOICED" ||
+    booking.status === "PAID"
+  ) {
+    redirect(`/booking/${token}/dashboard`);
+  }
+
+  // 3. データの整形
+  const formattedBooking: BookingRequest = {
+    ...booking,
+    preferredDatetime: booking.preferredDatetime.toISOString(),
+    freeCancellationDeadline: booking.freeCancellationDeadline.toISOString(),
+    createdAt: booking.createdAt.toISOString(),
+    updatedAt: booking.updatedAt.toISOString(),
+    cancelledAt: booking.cancelledAt?.toISOString() || null,
+
+    cancellationFee: booking.cancellationFee
+      ? Number(booking.cancellationFee)
+      : null,
+    pickupFloor: booking.pickupFloor,
+    deliveryFloor: booking.deliveryFloor,
+
+    customer: {
+      ...booking.customer,
+      phone: booking.customer.phone || null,
+    },
+    items: booking.items.map((item) => ({
+      ...item,
+      photoUrl: item.photoUrl || undefined,
+    })),
+    quotation: {
+      ...booking.quotation!,
+      subtotal: Number(booking.quotation!.subtotal),
+      tax: Number(booking.quotation!.tax),
+      total: Number(booking.quotation!.total),
+    },
+    payment: booking.payment
+      ? {
+          ...booking.payment,
+          subtotal: Number(booking.payment.subtotal),
+          tax: Number(booking.payment.tax),
+          total: Number(booking.payment.total),
+        }
+      : null,
+  };
+
+  // 4. Stripe SetupIntent の事前作成 (サーバーサイドで実行)
+  let clientSecret = "";
+  try {
+    // 4-1. Paymentレコードの確保
+    let payment = await prisma.payment.findUnique({
+      where: { requestId: booking.id },
+    });
+
+    // Paymentがなければ作成、CustomerIdがなければStripeで作成
+    if (!payment || !payment.stripeCustomerId) {
+      let stripeCustomerId = payment?.stripeCustomerId;
+
+      if (!stripeCustomerId) {
+        const stripeCustomer = await stripe.customers.create({
+          email: booking.customer.email,
+          metadata: {
+            requestId: String(booking.id),
+          },
+        });
+        stripeCustomerId = stripeCustomer.id;
+      }
+
+      payment = await prisma.payment.upsert({
+        where: { requestId: booking.id },
+        update: { stripeCustomerId },
+        create: {
+          requestId: booking.id,
+          stripeCustomerId,
+          status: "PENDING",
+          subtotal: 0,
+          tax: 0,
+          total: 0,
+          currency: "CAD",
+        },
+      });
+    }
+
+    // 4-2. SetupIntent 作成
+    const setupIntent = await stripe.setupIntents.create({
+      customer: payment.stripeCustomerId!,
+      usage: "off_session",
+      payment_method_types: ["card"],
+      metadata: {
+        requestId: String(booking.id),
+      },
+    });
+
+    if (setupIntent.client_secret) {
+      clientSecret = setupIntent.client_secret;
+    }
+  } catch (error) {
+    console.error("Failed to setup Stripe intent on server:", error);
+    // エラー時はクライアント側でハンドリングするか、エラーページを出す
+    // 今回はclientSecretが空文字になるので、Client側でエラー表示が出る
+  }
+
+  // 5. クライアントコンポーネントへ渡す
   return (
-    <main className="min-h-screen bg-[#f7f7f7] py-10">
-      <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 md:px-0">
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex items-center gap-6">
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#1a7c4c] bg-[#1a7c4c] text-sm font-semibold text-white">
-                ✓
-              </div>
-              <span className="text-xs text-[#1a7c4c] font-medium">
-                Detail info
-              </span>
-            </div>
-            <div className="h-px w-16 bg-[#1a7c4c]" />
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#1a7c4c] bg-white text-sm font-semibold text-[#1a7c4c]">
-                2
-              </div>
-              <span className="text-xs text-[#1a7c4c] font-medium">
-                Payment info
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <section className="rounded-xl bg-white p-8 shadow-sm">
-            <h2 className="mb-6 text-xl font-semibold text-[#1a7c4c]">
-              Request Number: {booking.id}
-            </h2>
-            <div className="space-y-3 text-sm text-gray-800">
-              <div>
-                <span className="font-bold block text-gray-500 text-xs">
-                  Name
-                </span>{" "}
-                {customerName}
-              </div>
-              <div>
-                <span className="font-bold block text-gray-500 text-xs">
-                  Date
-                </span>{" "}
-                {pickupDateTime}
-              </div>
-              <div>
-                <span className="font-bold block text-gray-500 text-xs">
-                  Address
-                </span>{" "}
-                {pickupAddress}
-              </div>
-            </div>
-
-            {quotation && (
-              <div className="mt-8 border-t pt-4">
-                <h3 className="font-bold mb-3 text-gray-700">
-                  Estimate Summary
-                </h3>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Subtotal</span>
-                  <span>${Number(quotation.subtotal).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm mb-3">
-                  <span>Tax</span>
-                  <span>${Number(quotation.tax).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between border-t border-dashed pt-2">
-                  <span className="font-bold text-lg">Total</span>
-                  <span className="font-bold text-lg text-[#1a7c4c]">
-                    ${Number(quotation.total).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            )}
-          </section>
-
-          <section className="rounded-xl bg-white p-8 shadow-sm">
-            <h3 className="mb-6 text-lg font-semibold text-[#1a7c4c]">
-              Credit Card Information
-            </h3>
-
-            {clientSecret && elementsOptions ? (
-              <Elements stripe={stripePromise} options={elementsOptions}>
-                <PaymentForm
-                  requestId={booking.id}
-                  onSuccess={() => {
-                    window.location.href = nextLink;
-                  }}
-                />
-              </Elements>
-            ) : (
-              <p className="text-red-500">
-                {loadError || "Initializing payment..."}
-              </p>
-            )}
-          </section>
-        </div>
-      </div>
-    </main>
+    <BookingConfirmClient
+      booking={formattedBooking}
+      token={token}
+      clientSecret={clientSecret}
+    />
   );
 }

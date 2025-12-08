@@ -1,217 +1,140 @@
-"use client";
-
-import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import React from "react";
+import { notFound, redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { stripe } from "@/lib/stripe";
+import BookingPayClient from "./BookingPayClient";
 import type { BookingRequest } from "@/types/booking";
 
-export default function FinalPaymentPage() {
-  const params = useParams<{ token: string }>();
-  const router = useRouter();
+type PageProps = {
+  params: Promise<{ token: string }>;
+};
 
-  // フォルダ名が [token] なので params.token を使う
-  const token = params?.token;
+export default async function FinalPaymentPage({ params }: PageProps) {
+  const { token } = await params;
 
-  const [booking, setBooking] = useState<BookingRequest | null>(null);
-  const [isLoadingBooking, setIsLoadingBooking] = useState(true);
-  const [isCreatingPi, setIsCreatingPi] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  // 1. トークンで予約を取得
+  const quotation = await prisma.quotation.findFirst({
+    where: {
+      bookingLink: {
+        contains: token,
+      },
+    },
+    include: {
+      request: {
+        include: {
+          customer: true,
+          items: true,
+          quotation: true,
+          payment: true,
+        },
+      },
+    },
+  });
 
-  useEffect(() => {
-    if (!token) return;
+  if (!quotation || !quotation.request) {
+    return notFound();
+  }
 
-    const loadBookingAndPi = async () => {
-      try {
-        setIsLoadingBooking(true);
-        setErrorMessage(null);
+  const booking = quotation.request;
 
-        const resBooking = await fetch(`/api/bookings/token/${token}`);
+  // 2. 支払い済みならレシートへリダイレクト
+  if (booking.status === "PAID") {
+    redirect(`/booking/${token}/receipt`);
+  }
 
-        if (!resBooking.ok) {
-          console.error("Failed to fetch booking via token");
-          setErrorMessage("Invalid or expired link.");
-          return;
+  // 3. データの整形
+  const formattedBooking: BookingRequest = {
+    ...booking,
+    preferredDatetime: booking.preferredDatetime.toISOString(),
+    freeCancellationDeadline: booking.freeCancellationDeadline.toISOString(),
+    createdAt: booking.createdAt.toISOString(),
+    updatedAt: booking.updatedAt.toISOString(),
+    cancelledAt: booking.cancelledAt?.toISOString() || null,
+    cancellationFee: booking.cancellationFee
+      ? Number(booking.cancellationFee)
+      : null,
+    pickupFloor: booking.pickupFloor,
+    deliveryFloor: booking.deliveryFloor,
+
+    customer: {
+      ...booking.customer,
+      phone: booking.customer.phone || null,
+    },
+    items: booking.items.map((item) => ({
+      ...item,
+      photoUrl: item.photoUrl || undefined,
+    })),
+    quotation: {
+      ...booking.quotation!,
+      subtotal: Number(booking.quotation!.subtotal),
+      tax: Number(booking.quotation!.tax),
+      total: Number(booking.quotation!.total),
+    },
+    payment: booking.payment
+      ? {
+          ...booking.payment,
+          subtotal: Number(booking.payment.subtotal),
+          tax: Number(booking.payment.tax),
+          total: Number(booking.payment.total),
         }
-
-        const json = await resBooking.json();
-        const bookingData = json.data as BookingRequest;
-
-        // 支払い済みならレシートへ
-        if (bookingData.status === "PAID") {
-          router.replace(`/booking/${token}/receipt`);
-          return;
-        }
-
-        setBooking(bookingData);
-
-        // PaymentIntentの準備確認 (DB整合性チェックも兼ねて実行)
-        setIsCreatingPi(true);
-        const resPi = await fetch("/api/payments/create-payment-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ requestId: bookingData.id }),
-        });
-
-        if (!resPi.ok) {
-          console.error("Failed to check/create payment intent");
-          setErrorMessage("Failed to initialize payment.");
-          return;
-        }
-
-        const piJson = await resPi.json();
-        console.log("PaymentIntent prepared:", piJson.paymentIntentId);
-      } catch (err) {
-        console.error("Unexpected error in final payment page:", err);
-        setErrorMessage("Unexpected error occurred.");
-      } finally {
-        setIsLoadingBooking(false);
-        setIsCreatingPi(false);
-      }
-    };
-
-    loadBookingAndPi();
-  }, [token, router]);
-
-  const handleConfirmPayment = async () => {
-    if (!booking) return;
-
-    setErrorMessage(null);
-    setSuccessMessage(null);
-    setIsConfirming(true);
-
-    try {
-      const res = await fetch("/api/payments/confirm-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestId: booking.id }),
-      });
-
-      if (!res.ok) {
-        setErrorMessage("Failed to confirm payment. Please try again.");
-        return;
-      }
-
-      setSuccessMessage("Payment has been processed successfully.");
-      // 修正: 正しいレシート画面へ遷移
-      router.push(`/booking/${token}/receipt`);
-    } catch (err) {
-      console.error(err);
-      setErrorMessage("Unexpected error during payment.");
-    } finally {
-      setIsConfirming(false);
-    }
+      : null,
   };
 
-  if (!token) {
-    return (
-      <main className="min-h-screen bg-[#f7f7f7] py-12 px-4">
-        <p className="text-red-600">Invalid URL.</p>
-      </main>
-    );
+  // 4. Stripe PaymentIntent の準備 (Server Side)
+  // 画面表示前に裏でIntentを作っておくことで、ボタンを押した時に即決済できるようにする
+  let serverError: string | undefined = undefined;
+
+  try {
+    const payment = booking.payment;
+
+    if (!payment || !payment.total) {
+      serverError = "Payment details are missing.";
+    } else if (!payment.stripeCustomerId || !payment.paymentMethod) {
+      serverError =
+        "Credit card information not found. Please contact support.";
+    } else {
+      const currency = payment.currency || "CAD";
+      const amountInCents = Math.round(Number(payment.total) * 100);
+
+      // PaymentIntentを作成
+      // (confirm: false で作成し、クライアントからのリクエストで confirm する)
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amountInCents,
+        currency,
+        customer: payment.stripeCustomerId,
+        payment_method: payment.paymentMethod,
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: "never",
+        },
+        confirm: false,
+        metadata: {
+          requestId: String(booking.id),
+        },
+      });
+
+      if (paymentIntent.id) {
+        // DBにIntent IDを保存
+        await prisma.payment.update({
+          where: { requestId: booking.id },
+          data: {
+            stripePaymentIntentId: paymentIntent.id,
+          },
+        });
+      } else {
+        serverError = "Failed to create payment intent.";
+      }
+    }
+  } catch (error) {
+    console.error("Stripe setup error on server:", error);
+    serverError = "An error occurred while preparing payment.";
   }
-
-  if (isLoadingBooking || !booking) {
-    return (
-      <main className="min-h-screen bg-[#f7f7f7] py-12 px-4">
-        <p className="text-gray-700 text-center">Loading payment details...</p>
-      </main>
-    );
-  }
-
-  const fullName = `${booking.customer.firstName} ${booking.customer.lastName}`;
-  const email = booking.customer.email;
-  // const phone = booking.customer.phone ?? "-"; // デザインに合わせて不要なら削除
-  const pickupAddress = `${booking.pickupAddressLine1}, ${booking.pickupCity}`;
-  const preferredDatetime = new Date(
-    booking.preferredDatetime
-  ).toLocaleString();
-
-  const payment = booking.payment;
-  const finalAmount = payment?.total ?? 0;
-  // 金額があり、処理中でなければ押せる
-  const canConfirmPayment = finalAmount > 0 && !isCreatingPi && !isConfirming;
-
-  const formatMoney = (val: number) => val.toFixed(2);
 
   return (
-    <main className="min-h-screen bg-[#f7f7f7] py-12">
-      <div className="mx-auto max-w-5xl px-4 md:px-0">
-        <h1 className="mb-10 text-center text-2xl font-semibold text-[#1f2933] md:text-3xl">
-          Final Payment
-        </h1>
-
-        {errorMessage && (
-          <div className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700 mx-auto max-w-3xl">
-            {errorMessage}
-          </div>
-        )}
-        {successMessage && (
-          <div className="mb-4 rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-700 mx-auto max-w-3xl">
-            {successMessage}
-          </div>
-        )}
-
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* 左カラム: 案内 */}
-          <section className="rounded-xl bg-white p-8 shadow-sm">
-            <h2 className="mb-4 text-2xl font-semibold text-[#1a7c4c]">
-              Confirm & Pay
-            </h2>
-            <p className="mb-4 text-sm text-gray-700">
-              Please review the final amount and confirm the payment. Your card
-              will be charged immediately.
-            </p>
-          </section>
-
-          {/* 右カラム: 詳細とボタン */}
-          <section className="rounded-xl bg-white p-8 shadow-sm">
-            <h3 className="mb-6 text-lg font-semibold text-[#1a7c4c]">
-              Request Number: {booking.id}
-            </h3>
-            <div className="space-y-2 text-sm text-gray-800 mb-6">
-              <p>
-                <span className="font-semibold">Name:</span> {fullName}
-              </p>
-              <p>
-                <span className="font-semibold">Email:</span> {email}
-              </p>
-              <p>
-                <span className="font-semibold">Date:</span> {preferredDatetime}
-              </p>
-              {/* Pickup Addressを追加しても良いかも */}
-            </div>
-
-            <div className="mt-4 overflow-hidden rounded-md border border-gray-200 text-sm">
-              <div className="bg-gray-50 p-3 flex justify-between">
-                <span>Subtotal</span>
-                <span>${formatMoney(Number(payment?.subtotal || 0))}</span>
-              </div>
-              <div className="bg-gray-50 p-3 flex justify-between border-t border-gray-200">
-                <span>Tax</span>
-                <span>${formatMoney(Number(payment?.tax || 0))}</span>
-              </div>
-              <div className="bg-white p-3 flex justify-between font-bold text-lg border-t border-gray-200">
-                <span>Total</span>
-                <span className="text-[#1a7c4c]">
-                  ${formatMoney(Number(finalAmount))}
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleConfirmPayment}
-              disabled={!canConfirmPayment}
-              className="mt-6 flex w-full items-center justify-center rounded-full bg-[#1a7c4c] px-6 py-3 text-sm font-semibold text-white hover:bg-[#15603a] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isConfirming
-                ? "Processing..."
-                : `Pay $${formatMoney(Number(finalAmount))}`}
-            </button>
-          </section>
-        </div>
-      </div>
-    </main>
+    <BookingPayClient
+      booking={formattedBooking}
+      token={token}
+      serverError={serverError}
+    />
   );
 }
