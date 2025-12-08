@@ -18,7 +18,7 @@ import StepAddress from "./steps/StepAddress";
 import StepItems from "./steps/StepItems";
 import StepUserInfo from "./steps/StepUserInfo";
 import StepConfirmation from "./steps/StepConfirmation";
-import StepSuccess from "./steps/StepSuccess"; // ★追加: 新しいコンポーネントをインポート
+import StepSuccess from "./steps/StepSuccess";
 
 const STEPS = [
   "Postal Code",
@@ -29,7 +29,11 @@ const STEPS = [
   "Confirmation",
 ] as const;
 
-export default function BookingForm() {
+type Props = {
+  onComplete?: () => void;
+};
+
+export default function BookingForm({ onComplete }: Props) {
   const methods = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
     mode: "onTouched",
@@ -79,7 +83,6 @@ export default function BookingForm() {
 
   const deliveryRequired = watch("deliveryRequired");
 
-  // 各ステップでバリデーションが必要なフィールド
   const stepFields: any[][] = [
     ["postalCode"],
     ["pickupDateTime"],
@@ -105,7 +108,6 @@ export default function BookingForm() {
       if (!ok) return;
     }
 
-    // Step 0: Postal Code Check
     if (step === 0) {
       const postal = getValues("postalCode")?.trim() ?? "";
       if (!isSupportedPostalCode(postal)) {
@@ -116,7 +118,6 @@ export default function BookingForm() {
       }
     }
 
-    // Step 3: Items Check
     if (step === 3) {
       if (items.length === 0) {
         setItemsError("Please add at least one item.");
@@ -215,6 +216,10 @@ export default function BookingForm() {
       setSubmittedRequestNumber(requestNumber);
       setStep(STEPS.length);
       window.scrollTo(0, 0);
+
+      if (onComplete) {
+        onComplete();
+      }
     } catch (e) {
       console.error(e);
       alert("Network error");
@@ -224,13 +229,10 @@ export default function BookingForm() {
   };
 
   const renderStep = () => {
-    // 完了画面
     if (step === STEPS.length) {
-      // ★変更: 新しいコンポーネントを使用
       return <StepSuccess requestNumber={submittedRequestNumber || "Error"} />;
     }
 
-    // 各ステップのコンポーネント
     switch (step) {
       case 0:
         return <StepPostalCode outOfArea={outOfArea} />;
@@ -258,8 +260,10 @@ export default function BookingForm() {
 
   return (
     <FormProvider {...methods}>
-      <div className="mx-auto max-w-3xl space-y-8">
-        <StepIndicator currentStep={step} steps={STEPS} />
+      <div className="mx-auto max-w-3xl space-y-0 md:space-y-8">
+        {step < STEPS.length && (
+          <StepIndicator currentStep={step} steps={STEPS} />
+        )}
 
         <form
           onSubmit={(e) => {
@@ -271,20 +275,24 @@ export default function BookingForm() {
           }}
           className=""
         >
-          {/* コンテンツ部分 */}
-          <div className="rounded-xl border border-slate-200 bg-white px-6 py-8 md:px-10 md:py-10 shadow-sm">
+          <div
+            className={`px-6 py-8 ${
+              step === STEPS.length
+                ? "bg-white md:bg-transparent md:p-0"
+                : "bg-white md:rounded-xl md:border md:border-slate-200 md:px-10 md:py-10 md:shadow-sm"
+            }`}
+          >
             {renderStep()}
           </div>
 
-          {/* ボタン (完了画面以外で表示) */}
           {step < STEPS.length && (
-            <div className="mt-8 flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-center sm:gap-6">
+            <div className="mt-8 mb-12 flex flex-col-reverse items-center gap-4 px-6 md:mb-0 md:px-0 sm:flex-row sm:justify-center sm:gap-6">
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleBack}
                 disabled={step === 0 && !outOfArea}
-                className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md border-[#3F7253] bg-white text-[#3F7253] hover:bg-[#e7f0eb] hover:text-[#3F7253] disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-md border border-[#3F7253] bg-white text-[#3F7253] hover:bg-[#e7f0eb] disabled:border-slate-300 disabled:text-slate-300 disabled:opacity-100 sm:w-40"
               >
                 <ArrowLeft className="h-4 w-4" />
                 <span>Back</span>
@@ -296,7 +304,7 @@ export default function BookingForm() {
                     <Button
                       type="button"
                       onClick={handleNext}
-                      className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md bg-[#3F7253] text-white hover:bg-[#315e45]"
+                      className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#3F7253] text-white hover:bg-[#315e45] sm:w-40"
                     >
                       <span>Next</span>
                       <ArrowRight className="h-4 w-4" />
@@ -306,7 +314,7 @@ export default function BookingForm() {
                     <Button
                       type="submit"
                       disabled={isSubmitting}
-                      className="flex w-full sm:w-40 items-center justify-center gap-2 rounded-md bg-[#3F7253] text-white hover:bg-[#315e45] disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#3F7253] text-white hover:bg-[#315e45] disabled:opacity-60 sm:w-40"
                     >
                       {isSubmitting ? "Submitting..." : "Submit"}
                     </Button>
