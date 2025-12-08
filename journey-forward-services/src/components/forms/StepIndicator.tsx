@@ -1,5 +1,8 @@
 "use client";
 
+import React from "react";
+import { Check } from "lucide-react";
+
 type Props = {
   currentStep: number;
   steps: readonly string[];
@@ -9,51 +12,51 @@ export default function StepIndicator({ currentStep, steps }: Props) {
   const displaySteps = steps.slice(0, 5);
 
   return (
-    <div className="mb-10 flex flex-col items-center">
+    <div className="mb-12 flex w-full flex-col items-center">
       {/* Mobile View: Vertical List */}
       <div className="w-full max-w-xs md:hidden">
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-0">
           {displaySteps.map((label, index) => {
             const active = index === currentStep;
             const completed = index < currentStep;
+            const isLastStep = index === displaySteps.length - 1;
 
             return (
-              <div key={label} className="flex">
-                <div className="mr-3 flex flex-col items-center">
+              <div key={label} className="relative flex pb-8 last:pb-0">
+                {/* 縦の線 */}
+                {!isLastStep && (
                   <div
                     className={
-                      "flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-semibold " +
+                      "absolute left-[20px] top-10 h-full w-[2px] -translate-x-1/2 " +
                       (completed
-                        ? "border-[#2f7d4a] bg-white text-[#2f7d4a]"
+                        ? "bg-[#2f7d4a]"
+                        : "border-l-2 border-dashed border-slate-300")
+                    }
+                  />
+                )}
+
+                <div className="z-10 mr-4 flex flex-col items-center">
+                  <div
+                    className={
+                      // ベースに shadow-sm を追加して、常に薄い影がつくように変更
+                      "flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold transition-all shadow-sm " +
+                      (completed
+                        ? "border-[#2f7d4a] bg-white text-[#2f7d4a]" // 完了
                         : active
-                          ? "border-[#2f7d4a] bg-white text-[#2f7d4a]"
-                          : "border-slate-300 bg-white text-slate-400")
+                          ? "border-white bg-white text-slate-900 shadow-md scale-110" // 現在: 影を少し強く(shadow-md)して強調
+                          : "border-white bg-slate-100 text-slate-400") // 未完了
                     }
                   >
-                    {completed ? (
-                      <span className="text-lg leading-none">✓</span>
-                    ) : (
-                      index + 1
-                    )}
+                    {completed ? <Check className="h-5 w-5" /> : index + 1}
                   </div>
-                  {index < displaySteps.length - 1 && (
-                    <div
-                      className={
-                        "mt-1 h-8 border-l-2 " +
-                        (index < currentStep
-                          ? "border-[#2f7d4a]"
-                          : "border-dashed border-slate-300")
-                      }
-                    />
-                  )}
                 </div>
-                <div className="pt-1">
+                <div className="flex items-center pt-2">
                   <p
                     className={
                       "text-sm " +
                       (active
-                        ? "font-semibold text-slate-900"
-                        : "text-slate-600")
+                        ? "font-bold text-slate-900"
+                        : "font-medium text-slate-500")
                     }
                   >
                     {label}
@@ -66,51 +69,55 @@ export default function StepIndicator({ currentStep, steps }: Props) {
       </div>
 
       {/* Desktop View: Horizontal Bar */}
-      <div className="hidden w-full max-w-3xl items-center justify-between text-xs text-slate-600 md:flex md:text-sm">
+      <div className="hidden w-full max-w-4xl flex-row items-start justify-between md:flex">
         {displaySteps.map((label, index) => {
           const active = index === currentStep;
           const completed = index < currentStep;
-          const lineCompleted = index < currentStep;
+          const isLastStep = index === displaySteps.length - 1;
 
           return (
-            <div key={label} className="flex flex-1 items-center">
-              <div className="flex flex-col items-center gap-2">
+            <div
+              key={label}
+              className="relative flex flex-1 flex-col items-center"
+            >
+              {/* 横の線 */}
+              {!isLastStep && (
                 <div
                   className={
-                    "flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold shadow-sm " +
+                    "absolute left-1/2 top-5 w-full -translate-y-1/2 " +
                     (completed
-                      ? "border-[#2f7d4a] bg-white text-[#2f7d4a]"
-                      : active
-                        ? "border-[#2f7d4a] bg-white text-[#2f7d4a]"
-                        : "border-slate-300 bg-white text-slate-400")
-                  }
-                >
-                  {completed ? (
-                    <span className="text-lg leading-none">✓</span>
-                  ) : (
-                    index + 1
-                  )}
-                </div>
-                <span
-                  className={
-                    "text-[11px] md:text-[13px] " +
-                    (active ? "font-semibold text-slate-900" : "text-slate-600")
-                  }
-                >
-                  {label}
-                </span>
-              </div>
-
-              {index < displaySteps.length - 1 && (
-                <div
-                  className={
-                    "mt-[-20px] flex-1 border-t-2 " +
-                    (lineCompleted
-                      ? "border-[#2f7d4a]"
-                      : "border-dashed border-slate-300")
+                      ? "h-[2px] bg-[#2f7d4a]"
+                      : "h-0 border-t-2 border-dashed border-slate-300")
                   }
                 />
               )}
+
+              {/* 円 */}
+              <div
+                className={
+                  // ベースに shadow-sm を追加して、常に薄い影がつくように変更
+                  "relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold transition-all duration-200 shadow-sm " +
+                  (completed
+                    ? "border-[#2f7d4a] bg-white text-[#2f7d4a]" // 完了
+                    : active
+                      ? "scale-110 border-white bg-white text-slate-900 shadow-lg" // 現在: 影を強く(shadow-lg)して強調
+                      : "border-white bg-slate-100 text-slate-400") // 未完了
+                }
+              >
+                {completed ? <Check className="h-5 w-5" /> : index + 1}
+              </div>
+
+              {/* ラベル */}
+              <span
+                className={
+                  "mt-4 text-xs tracking-wide " +
+                  (active
+                    ? "font-bold text-slate-900"
+                    : "font-medium text-slate-500")
+                }
+              >
+                {label}
+              </span>
             </div>
           );
         })}

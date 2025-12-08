@@ -16,10 +16,17 @@ export default function StepItems({
   setItemsError,
 }: Props) {
   return (
-    <div className="space-y-6">
-      <p className="font-semibold text-[#22503B]">Step 4</p>
-      <h2 className="text-xl font-semibold text-[#22503B]">Size of Items</h2>
-      <p className="text-xs text-slate-500">Uploading Pictures is optional</p>
+    <div className="flex w-full flex-col">
+      {/* ヘッダー部分 */}
+      <div className="mb-6">
+        <p className="text-lg font-bold text-[#22503B]">Step 4</p>
+        <h2 className="mt-2 text-xl font-bold text-slate-900">Size of items</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Uploading Pictures is optional
+        </p>
+      </div>
+
+      {/* アイテムリストコンポーネント */}
       <ItemList
         items={items}
         onChange={(updatedItems) => {
@@ -27,7 +34,9 @@ export default function StepItems({
           if (updatedItems.length > 0) setItemsError("");
         }}
       />
-      {itemsError && <p className="text-sm text-red-600">{itemsError}</p>}
+
+      {/* エラーメッセージ */}
+      {itemsError && <p className="mt-4 text-sm text-red-600">{itemsError}</p>}
     </div>
   );
 }

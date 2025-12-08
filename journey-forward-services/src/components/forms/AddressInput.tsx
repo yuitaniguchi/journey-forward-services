@@ -22,40 +22,39 @@ export default function AddressInput({ prefix = "address" }: Props) {
   };
 
   return (
-    <div className="mt-4 space-y-2">
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Street Address */}
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-600">
-            Street Address
-          </label>
-          <Input placeholder="123 Main St" {...register(`${prefix}.street`)} />
-          {getError("street") && (
-            <p className="text-sm text-red-600">{getError("street")}</p>
-          )}
-        </div>
+    <div className="grid gap-4 md:grid-cols-2">
+      {/* Street Address */}
+      <div className="space-y-1">
+        <Input
+          placeholder="Street Address"
+          className="h-12 rounded-lg border-slate-300 placeholder:text-slate-400 focus-visible:ring-[#2f7d4a]"
+          {...register(`${prefix}.street`)}
+        />
+        {getError("street") && (
+          <p className="text-sm text-red-600">{getError("street")}</p>
+        )}
+      </div>
 
-        {/* Address Line 2 */}
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-600">
-            Address Line 2 (Optional)
-          </label>
-          <Input
-            placeholder="Apt, Suite, Unit, etc."
-            {...register(`${prefix}.line2`)}
-          />
-        </div>
+      {/* Address Line 2 */}
+      <div className="space-y-1">
+        <Input
+          placeholder="Address Line 2"
+          className="h-12 rounded-lg border-slate-300 placeholder:text-slate-400 focus-visible:ring-[#2f7d4a]"
+          {...register(`${prefix}.line2`)}
+        />
+      </div>
 
-        {/* City (Dropdown) */}
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-600">City</label>
+      {/* City (Dropdown) */}
+      <div className="space-y-1">
+        <div className="relative">
           <select
-            className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-12 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f7d4a] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             {...register(`${prefix}.city`)}
             defaultValue=""
           >
-            <option value="" disabled>
-              Select a city
+            {/* 修正: ここを "Vancouver" から "City" に変更し、未選択であることを明確化 */}
+            <option value="" disabled className="text-slate-400">
+              City
             </option>
             {ALLOWED_CITIES.map((city) => (
               <option key={city} value={city}>
@@ -63,25 +62,24 @@ export default function AddressInput({ prefix = "address" }: Props) {
               </option>
             ))}
           </select>
-          {getError("city") && (
-            <p className="text-sm text-red-600">{getError("city")}</p>
-          )}
         </div>
+        {getError("city") && (
+          <p className="text-sm text-red-600">{getError("city")}</p>
+        )}
+      </div>
 
-        {/* Province / State */}
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-600">Province</label>
-          <Input
-            placeholder="BC"
-            defaultValue="BC"
-            readOnly
-            className="bg-slate-100 text-slate-500"
-            {...register(`${prefix}.province`)}
-          />
-          {getError("province") && (
-            <p className="text-sm text-red-600">{getError("province")}</p>
-          )}
-        </div>
+      {/* Province / State */}
+      <div className="space-y-1">
+        <Input
+          placeholder="British Columbia"
+          defaultValue="British Columbia"
+          readOnly
+          className="h-12 rounded-lg border-slate-300 bg-white text-slate-900 focus-visible:ring-[#2f7d4a]"
+          {...register(`${prefix}.province`)}
+        />
+        {getError("province") && (
+          <p className="text-sm text-red-600">{getError("province")}</p>
+        )}
       </div>
     </div>
   );
