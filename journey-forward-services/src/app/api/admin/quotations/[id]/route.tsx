@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import sgMail from "@sendgrid/mail";
+import crypto from "crypto";
 import { render } from "@react-email/render";
 import QuotationSentCustomer from "@/emails/QuotationSentCustomer";
-import crypto from "crypto";
+
+// [PRODUCTION] Uncomment for SendGrid
+// import sgMail from "@sendgrid/mail";
+
+// [DEMO] Keep for Gmail (Nodemailer)
+import nodemailer from "nodemailer";
 
 type RouteParams = Promise<{ id: string }>;
 
@@ -24,17 +29,13 @@ export async function POST(
 
     const body = await request.json();
     const { subtotal, sendEmail } = body;
-
-    const taxRate = 0.12;
     const subtotalNum = Number(subtotal);
+    const taxRate = 0.12;
     const taxNum = subtotalNum * taxRate;
     const totalNum = subtotalNum + taxNum;
 
     const token = crypto.randomUUID();
-
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
-    // 修正: 新しいURL構造に合わせる (/booking/[token]/confirm)
     const bookingLink = `${baseUrl}/booking/${token}/confirm`;
     const pdfLink = `${baseUrl}/api/pdf/quotations/${requestId}`;
 
@@ -70,74 +71,73 @@ export async function POST(
         throw new Error("Customer email not found");
       }
 
+      // --- PREPARE EMAIL CONTENT (Shared) ---
+      const dateStr = new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const emailItems = requestData.items.map((item) => ({
+        name: item.name,
+        size: item.size,
+        quantity: item.quantity,
+        price: 0,
+        delivery: requestData.deliveryRequired,
+      }));
+      const deliveryAddressStr = requestData.deliveryRequired
+        ? [
+            requestData.deliveryAddressLine1,
+            requestData.deliveryAddressLine2,
+            requestData.deliveryCity,
+            requestData.deliveryPostalCode,
+          ]
+            .filter(Boolean)
+            .join(", ")
+        : undefined;
+
+      const emailHtml = await render(
+        <QuotationSentCustomer
+          customer={{
+            firstName: requestData.customer.firstName,
+            lastName: requestData.customer.lastName,
+            email: requestData.customer.email,
+            phone: requestData.customer.phone || "",
+          }}
+          request={{
+            requestId: requestData.id,
+            pickupAddress: `${requestData.pickupAddressLine1} ${requestData.pickupAddressLine2 || ""} ${requestData.pickupCity}, ${requestData.pickupPostalCode}`,
+            deliveryAddress: deliveryAddressStr,
+            pickupFloor: requestData.pickupFloor ?? undefined,
+            pickupElevator: requestData.pickupElevator,
+            deliveryFloor: requestData.deliveryRequired
+              ? requestData.deliveryFloor
+              : undefined,
+            deliveryElevator: requestData.deliveryRequired
+              ? requestData.deliveryElevator
+              : undefined,
+            preferredDatetime: requestData.preferredDatetime,
+            status: requestData.status as any,
+          }}
+          quotationTotal={Number(totalNum)}
+          subTotal={Number(subtotalNum)}
+          tax={Number(taxNum)}
+          bookingLink={bookingLink}
+          pdfLink={pdfLink}
+          requestDate={dateStr}
+          items={emailItems}
+        />
+      );
+
+      // ============================================================
+      // SWITCH: Choose Email Provider
+      // ============================================================
+
+      /*
+      // [OPTION 1: PRODUCTION] SendGrid
       const apiKey = process.env.SENDGRID_API_KEY;
       const fromEmail = process.env.SENDGRID_FROM_EMAIL;
-
       if (apiKey && fromEmail) {
         sgMail.setApiKey(apiKey);
-
-        const dateStr = new Date().toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
-
-        const emailItems = requestData.items.map((item) => ({
-          name: item.name,
-          size: item.size,
-          quantity: item.quantity,
-          price: 0,
-          delivery: requestData.deliveryRequired,
-        }));
-
-        const deliveryAddressStr = requestData.deliveryRequired
-          ? [
-              requestData.deliveryAddressLine1,
-              requestData.deliveryAddressLine2,
-              requestData.deliveryCity,
-              requestData.deliveryPostalCode,
-            ]
-              .filter(Boolean)
-              .join(", ")
-          : undefined;
-
-        const emailHtml = await render(
-          <QuotationSentCustomer
-            customer={{
-              firstName: requestData.customer.firstName,
-              lastName: requestData.customer.lastName,
-              email: requestData.customer.email,
-              phone: requestData.customer.phone || "",
-            }}
-            request={{
-              requestId: requestData.id,
-              pickupAddress: `${requestData.pickupAddressLine1} ${requestData.pickupAddressLine2 || ""} ${requestData.pickupCity}, ${requestData.pickupPostalCode}`,
-
-              deliveryAddress: deliveryAddressStr,
-
-              pickupFloor: requestData.pickupFloor ?? undefined,
-              pickupElevator: requestData.pickupElevator,
-
-              deliveryFloor: requestData.deliveryRequired
-                ? requestData.deliveryFloor
-                : undefined,
-              deliveryElevator: requestData.deliveryRequired
-                ? requestData.deliveryElevator
-                : undefined,
-
-              preferredDatetime: requestData.preferredDatetime,
-              status: requestData.status as any,
-            }}
-            quotationTotal={Number(totalNum)}
-            subTotal={Number(subtotalNum)}
-            tax={Number(taxNum)}
-            bookingLink={bookingLink}
-            pdfLink={pdfLink}
-            requestDate={dateStr}
-            items={emailItems}
-          />
-        );
-
         await sgMail.send({
           to: requestData.customer.email,
           from: fromEmail,
@@ -145,6 +145,25 @@ export async function POST(
           html: emailHtml,
         });
       }
+      */
+
+      // [OPTION 2: DEMO] Nodemailer (Gmail)
+      const gmailUser = process.env.GMAIL_USER;
+      const gmailPass = process.env.GMAIL_PASS;
+      if (gmailUser && gmailPass) {
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: { user: gmailUser, pass: gmailPass },
+        });
+        await transporter.sendMail({
+          from: gmailUser,
+          to: requestData.customer.email,
+          subject: `Your Estimate is Ready! (Request #${requestId})`,
+          html: emailHtml,
+        });
+        console.log("Quotation email sent via Gmail");
+      }
+      // ============================================================
     }
 
     return NextResponse.json({ quotation }, { status: 200 });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendCancellationNotificationEmail } from "@/lib/sendgrid";
+import { sendCancellationNotificationEmail } from "@/lib/sendgrid.backup";
 
 export async function POST(req: Request) {
     try {
