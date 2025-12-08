@@ -213,6 +213,22 @@ export default function RequestDetailClient({ initialRequest }: Props) {
     request.payment && request.payment.total
       ? `$${request.payment.total}`
       : "-";
+  const paymentAmounts =
+    request.payment && request.payment.total
+      ? (() => {
+          const total = Number(request.payment!.total);
+          if (Number.isNaN(total)) return null;
+
+          const rawSubtotal = total / 1.12;
+          const rawTax = total - rawSubtotal;
+
+          // 小数の誤差を軽減（小数第3位で四捨五入）
+          const subtotal = Math.round(rawSubtotal * 100) / 100;
+          const tax = Math.round(rawTax * 100) / 100;
+
+          return { subtotal, tax, total };
+        })()
+      : null;
 
   // ボタン制御ロジック
   const canEditQuotation =
@@ -477,16 +493,39 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Final Billing
           </h2>
-          <p className="mb-4">
-            <span className="font-semibold">Final Amount: </span>
-            {finalAmount}
-          </p>
-          {request.payment?.note && (
-            <p className="mb-2 text-sm text-slate-600">
-              <span className="font-semibold">Note:</span>{" "}
-              {request.payment.note}
+
+          {paymentAmounts ? (
+            <div className="mb-6 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-600">Subtotal:</span>
+                <span className="font-medium">
+                  {formatCurrency(paymentAmounts.subtotal)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Tax (12%):</span>
+                <span className="font-medium">
+                  {formatCurrency(paymentAmounts.tax)}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-bold text-slate-900">
+                <span>Total:</span>
+                <span>{formatCurrency(paymentAmounts.total)}</span>
+              </div>
+
+              {request.payment?.note && (
+                <p className="mt-2 text-sm text-slate-600">
+                  <span className="font-semibold">Note:</span>{" "}
+                  {request.payment.note}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="mb-4 text-sm text-slate-500">
+              No final amount has been sent yet.
             </p>
           )}
+
           <button
             type="button"
             disabled={!canSendFinalAmount}
