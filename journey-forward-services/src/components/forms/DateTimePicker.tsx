@@ -13,7 +13,7 @@ type Props = {
   error?: string;
 };
 
-const HOURS = Array.from({ length: 13 }, (_, i) => 9 + i); // 9〜21
+const HOURS = Array.from({ length: 13 }, (_, i) => 9 + i); // 9:00 - 21:00
 
 function formatTime(hour: number) {
   const h12 = hour > 12 ? hour - 12 : hour;
@@ -38,7 +38,6 @@ export default function DateTimePicker({ value, onChange, error }: Props) {
     return d.getHours();
   });
 
-  // value が外から変わったときに同期
   useEffect(() => {
     if (!value) return;
     const d = new Date(value);
@@ -48,14 +47,13 @@ export default function DateTimePicker({ value, onChange, error }: Props) {
     setCurrentMonth(new Date(d.getFullYear(), d.getMonth(), 1));
   }, [value]);
 
-  // カレンダー用の日付配列
   const daysInMonth = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
 
-    const leading = firstDay.getDay(); // 0–6 (日曜始まり)
+    const leading = firstDay.getDay();
     const totalCells = leading + lastDay.getDate();
     const weeks = Math.ceil(totalCells / 7);
     const cells: (Date | null)[] = [];
@@ -74,13 +72,12 @@ export default function DateTimePicker({ value, onChange, error }: Props) {
   }, [currentMonth]);
 
   const monthLabel = useMemo(() => {
-    return currentMonth.toLocaleDateString(undefined, {
+    return currentMonth.toLocaleDateString("en-US", {
       month: "long",
-      year: "numeric",
+      // year: "numeric", // 画像では「August」だけなのでYearは隠す（必要なら戻してね）
     });
   }, [currentMonth]);
 
-  // 24時間以上先ならOK
   const isSlotDisabled = (date: Date | null, hour: number) => {
     if (!date) return true;
     const candidate = new Date(
@@ -94,6 +91,15 @@ export default function DateTimePicker({ value, onChange, error }: Props) {
     );
     const min = new Date(Date.now() + 24 * 60 * 60 * 1000);
     return candidate.getTime() < min.getTime();
+  };
+
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return (
+      date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear()
+    );
   };
 
   const handleConfirm = () => {
@@ -129,49 +135,37 @@ export default function DateTimePicker({ value, onChange, error }: Props) {
   }, [value]);
 
   return (
-    <div className="space-y-1">
-      <label className="text-sm font-medium text-slate-800">
-        Pickup Date <span className="text-red-500">*</span>
-      </label>
-
-      {/* 入力フィールド（モーダル起動） */}
+    <div className="relative">
+      {/* トリガーボタン */}
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="flex w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-800 shadow-sm hover:border-[#2f7d4a]/60 focus:outline-none focus:ring-2 focus:ring-[#2f7d4a]"
+        className={
+          "flex w-full items-center justify-between rounded-lg border bg-white px-4 py-3 text-left text-sm shadow-sm transition-all " +
+          (error
+            ? "border-red-500 focus:ring-red-500"
+            : "border-slate-300 hover:border-[#2f7d4a] focus:ring-[#2f7d4a]") +
+          " focus:outline-none focus:ring-2"
+        }
       >
-        <span className={displayValue ? "" : "text-slate-400"}>
-          {displayValue || "YYYY-MM-DD – Select time"}
+        <span className={displayValue ? "text-slate-900" : "text-slate-400"}>
+          {displayValue || "YYYY-MM-DD"}
         </span>
-        <CalendarIcon className="h-4 w-4 text-slate-500" />
+        <CalendarIcon className="h-5 w-5 text-slate-400" />
       </button>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
 
       {/* モーダル */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-2">
-          <div className="flex w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-xl max-h-[90vh]">
-            {/* ヘッダー */}
-            <div className="flex items-center justify-between border-b px-4 py-3 md:px-6">
-              <h3 className="text-base font-semibold text-slate-900">
-                Choose date &amp; time
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="rounded-full p-1 text-slate-500 hover:bg-slate-100"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* 本体：モバイルは縦並び + スクロール、デスクトップは左右並び */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-4">
+          <div className="flex w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+            {/* 本体：デスクトップはカレンダー(左)と時間(右)を分割 */}
             <div className="flex flex-1 flex-col overflow-y-auto md:flex-row">
-              {/* カレンダー部分 */}
-              <div className="w-full border-b px-4 py-4 md:w-[60%] md:border-b-0 md:border-r md:px-6 md:py-6">
-                {/* 月ナビ */}
-                <div className="mb-4 flex items-center justify-between">
+              {/* === 左側：カレンダー === */}
+              <div className="w-full px-6 py-6 md:w-[60%] md:border-r border-slate-100">
+                {/* 月ナビゲーション (画像に合わせてシンプルに) */}
+                <div className="mb-6 flex items-center justify-between px-2">
                   <button
                     type="button"
                     onClick={() =>
@@ -183,11 +177,11 @@ export default function DateTimePicker({ value, onChange, error }: Props) {
                         )
                       )
                     }
-                    className="rounded-full p-1 text-slate-600 hover:bg-slate-100"
+                    className="p-1 text-[#2f7d4a] hover:bg-slate-50 rounded-full transition-colors"
                   >
-                    <ChevronLeft className="h-5 w-5" />
+                    <ChevronLeft className="h-6 w-6 font-bold" />
                   </button>
-                  <div className="text-base font-semibold text-slate-900">
+                  <div className="text-xl font-bold text-slate-800">
                     {monthLabel}
                   </div>
                   <button
@@ -201,21 +195,21 @@ export default function DateTimePicker({ value, onChange, error }: Props) {
                         )
                       )
                     }
-                    className="rounded-full p-1 text-slate-600 hover:bg-slate-100"
+                    className="p-1 text-[#2f7d4a] hover:bg-slate-50 rounded-full transition-colors"
                   >
-                    <ChevronRight className="h-5 w-5" />
+                    <ChevronRight className="h-6 w-6 font-bold" />
                   </button>
                 </div>
 
                 {/* 曜日ヘッダー */}
-                <div className="mb-2 grid grid-cols-7 text-center text-xs font-medium text-[#2f7d4a]">
+                <div className="mb-4 grid grid-cols-7 text-center text-sm font-medium text-[#2f7d4a]">
                   {["S", "M", "T", "W", "T", "F", "S"].map((d, idx) => (
                     <div key={`weekday-${idx}`}>{d}</div>
                   ))}
                 </div>
 
                 {/* 日付グリッド */}
-                <div className="grid grid-cols-7 gap-1 text-sm">
+                <div className="grid grid-cols-7 gap-y-4 gap-x-2 text-sm">
                   {daysInMonth.map((d, idx) => {
                     if (!d) {
                       return <div key={`empty-${idx}`} />;
@@ -227,65 +221,74 @@ export default function DateTimePicker({ value, onChange, error }: Props) {
                       d.getMonth() === selectedDate.getMonth() &&
                       d.getDate() === selectedDate.getDate();
 
+                    const isTodayDate = isToday(d);
+
                     return (
-                      <button
+                      <div
                         key={d.toISOString()}
-                        type="button"
-                        onClick={() => setSelectedDate(d)}
-                        className={
-                          "flex h-9 w-9 items-center justify-center rounded-full mx-auto " +
-                          (isSelected
-                            ? "bg-[#2f7d4a] text-white"
-                            : "text-slate-800 hover:bg-slate-100")
-                        }
+                        className="flex flex-col items-center justify-center relative"
                       >
-                        {d.getDate()}
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDate(d)}
+                          className={
+                            "flex h-9 w-9 items-center justify-center rounded-full transition-all text-[15px] " +
+                            (isSelected
+                              ? "bg-[#2f7d4a] font-semibold text-white shadow-md" // 選択中: 緑丸
+                              : "text-slate-600 hover:bg-slate-100") // 通常
+                          }
+                        >
+                          {d.getDate()}
+                        </button>
+                        {/* 今日の日付なら下に緑のアンダーラインを表示 */}
+                        {!isSelected && isTodayDate && (
+                          <div className="absolute -bottom-1 h-[3px] w-4 bg-[#2f7d4a] rounded-full" />
+                        )}
+                      </div>
                     );
                   })}
                 </div>
               </div>
 
-              {/* 時間帯部分 */}
-              <div className="w-full px-4 py-4 md:w-[40%] md:px-6 md:py-6">
-                <p className="mb-3 text-sm font-semibold text-slate-900">
-                  Select a time
-                </p>
+              {/* === 右側：時間選択 === */}
+              <div className="w-full bg-slate-50/30 px-6 py-6 md:w-[40%] flex flex-col">
+                {/* 画像ではタイトルがない、またはリストだけなのでシンプルに */}
+                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="flex flex-col gap-3">
+                    {HOURS.map((h) => {
+                      const disabled = isSlotDisabled(selectedDate, h);
+                      const isSelected = selectedHour === h;
 
-                <div className="grid grid-cols-2 gap-3">
-                  {HOURS.map((h) => {
-                    const disabled = isSlotDisabled(selectedDate, h);
-                    const isSelected = selectedHour === h;
-
-                    return (
-                      <button
-                        key={h}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => !disabled && setSelectedHour(h)}
-                        className={
-                          "rounded-md border px-3 py-2 text-sm " +
-                          (disabled
-                            ? "border-slate-300 bg-slate-200 text-slate-400 cursor-not-allowed"
-                            : isSelected
-                            ? "border-[#2f7d4a] bg-[#2f7d4a] text-white"
-                            : "border-[#2f7d4a] bg-white text-[#2f7d4a] hover:bg-[#eaf5ef]")
-                        }
-                      >
-                        {formatTime(h)}
-                      </button>
-                    );
-                  })}
+                      return (
+                        <button
+                          key={h}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => !disabled && setSelectedHour(h)}
+                          className={
+                            "w-full rounded-md py-3 text-sm font-medium transition-all " +
+                            (disabled
+                              ? "cursor-not-allowed bg-slate-500 text-slate-300 opacity-80" // 無効: グレー背景+薄い文字
+                              : isSelected
+                                ? "bg-[#2f7d4a] text-white shadow-md" // 選択中: 緑背景
+                                : "border border-[#2f7d4a] bg-white text-[#2f7d4a] hover:bg-[#f0fdf4]") // 選択可能: 白背景+緑枠
+                          }
+                        >
+                          {formatTime(h)}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* フッター */}
-            <div className="flex justify-end gap-3 border-t px-4 py-3 md:px-6">
+            {/* フッター (キャンセル/決定ボタン) */}
+            <div className="flex items-center justify-center gap-6 border-t border-slate-100 p-6">
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="rounded-md border border-[#2f7d4a] px-4 py-2 text-sm font-semibold text-[#2f7d4a] hover:bg-[#e7f0eb]"
+                className="w-32 rounded-md border border-[#2f7d4a] px-4 py-2.5 text-sm font-semibold text-[#2f7d4a] hover:bg-[#f0fdf4] transition-colors"
               >
                 Cancel
               </button>
@@ -293,7 +296,7 @@ export default function DateTimePicker({ value, onChange, error }: Props) {
                 type="button"
                 disabled={!selectedDate || selectedHour === null}
                 onClick={handleConfirm}
-                className="rounded-md bg-[#2f7d4a] px-5 py-2 text-sm font-semibold text-white hover:bg-[#25633b] disabled:cursor-not-allowed disabled:opacity-40"
+                className="w-32 rounded-md bg-[#2f7d4a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#25633b] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 Confirm
               </button>

@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import React, { useState } from "react";
 import {
   Elements,
   PaymentElement,
@@ -95,77 +94,23 @@ function PaymentForm({ onSuccess, requestId }: PaymentFormProps) {
   );
 }
 
-export default function BookingConfirmationPage() {
-  const params = useParams<{ id: string }>();
-  const token = params?.id;
-  const router = useRouter();
+type Props = {
+  booking: BookingRequest;
+  token: string;
+  clientSecret: string; // ★ 追加: サーバーから受け取る
+};
 
-  const [booking, setBooking] = useState<BookingRequest | null>(null);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
+export default function BookingConfirmClient({
+  booking,
+  token,
+  clientSecret,
+}: Props) {
+  const nextLink = `/booking/${token}/dashboard`;
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!token) {
-      setLoadError("Invalid URL.");
-      setIsLoading(false);
-      return;
-    }
-
-    const loadBookingAndIntent = async () => {
-      try {
-        setIsLoading(true);
-        setLoadError(null);
-
-        const resBooking = await fetch(`/api/bookings/token/${token}`);
-        if (!resBooking.ok) {
-          setLoadError("Invalid or expired link.");
-          return;
-        }
-
-        const bookingJson = (await resBooking.json()) as {
-          data: BookingRequest;
-        };
-        const bookingData = bookingJson.data;
-
-        if (
-          bookingData.status === "CONFIRMED" ||
-          bookingData.status === "INVOICED" ||
-          bookingData.status === "PAID"
-        ) {
-          router.replace(`/booking-detail/${token}`);
-          return;
-        }
-
-        setBooking(bookingData);
-
-        const resIntent = await fetch("/api/payments/create-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            requestId: bookingData.id,
-            customerEmail: bookingData.customer.email,
-          }),
-        });
-
-        if (!resIntent.ok) {
-          setLoadError("Failed to initialize payment.");
-          return;
-        }
-
-        const intentJson = await resIntent.json();
-        setClientSecret(intentJson.clientSecret);
-      } catch (e) {
-        console.error(e);
-        setLoadError("Unexpected error occurred.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadBookingAndIntent();
-  }, [token, router]);
+  const customerName = `${booking.customer.firstName} ${booking.customer.lastName}`;
+  const pickupDateTime = new Date(booking.preferredDatetime).toLocaleString();
+  const pickupAddress = `${booking.pickupAddressLine1}, ${booking.pickupCity}`;
+  const quotation = booking.quotation;
 
   const elementsOptions = clientSecret
     ? {
@@ -174,21 +119,6 @@ export default function BookingConfirmationPage() {
         locale: "en" as const,
       }
     : undefined;
-
-  const nextLink = `/booking-detail/${token}`;
-
-  if (isLoading || !booking) {
-    return (
-      <main className="min-h-screen bg-[#f7f7f7] py-10 flex items-center justify-center">
-        <p className="text-gray-600">Loading...</p>
-      </main>
-    );
-  }
-
-  const customerName = `${booking.customer.firstName} ${booking.customer.lastName}`;
-  const pickupDateTime = new Date(booking.preferredDatetime).toLocaleString();
-  const pickupAddress = `${booking.pickupAddressLine1}, ${booking.pickupCity}`;
-  const quotation = booking.quotation;
 
   return (
     <main className="min-h-screen bg-[#f7f7f7] py-10">
@@ -242,7 +172,6 @@ export default function BookingConfirmationPage() {
               </div>
             </div>
 
-            {/* Estimate Table */}
             {quotation && (
               <div className="mt-8 border-t pt-4">
                 <h3 className="font-bold mb-3 text-gray-700">
@@ -272,6 +201,7 @@ export default function BookingConfirmationPage() {
               Credit Card Information
             </h3>
 
+            {/* クライアント側でのfetch待ちがなくなり、即座に表示される */}
             {clientSecret && elementsOptions ? (
               <Elements stripe={stripePromise} options={elementsOptions}>
                 <PaymentForm
@@ -283,7 +213,7 @@ export default function BookingConfirmationPage() {
               </Elements>
             ) : (
               <p className="text-red-500">
-                {loadError || "Initializing payment..."}
+                Failed to initialize payment system.
               </p>
             )}
           </section>

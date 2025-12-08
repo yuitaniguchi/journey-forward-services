@@ -33,42 +33,55 @@ export const BookingConfirmedCustomer: React.FC<
   const previewText =
     "Thank you for your booking with Journey Forward Services!";
 
-  const fullPickupAddress =
-    request.pickupAddress +
-    (request.deliveryAddress ? ` / ${request.deliveryAddress}` : "");
+  const getFloorDisplay = (
+    floor: string | number | null | undefined
+  ): string | null => {
+    if (floor === null || floor === undefined || floor === "") return null;
 
-  const getOrdinalFloor = (floor: number): string => {
-    const suffixes = ["th", "st", "nd", "rd"];
-    const value = floor % 100;
-    return (
-      floor +
-      (suffixes[(value - 20) % 10] || suffixes[value] || suffixes[0]) +
-      " floor"
-    );
+    const num = Number(floor);
+    if (!isNaN(num) && floor !== "") {
+      const suffixes = ["th", "st", "nd", "rd"];
+      const value = num % 100;
+      return (
+        num +
+        (suffixes[(value - 20) % 10] || suffixes[value] || suffixes[0]) +
+        " floor"
+      );
+    }
+
+    return `${floor} floor`;
   };
 
-  const pickupFloorInfo = (() => {
-    const floorText =
-      request.pickupFloor !== undefined && request.pickupFloor !== null
-        ? getOrdinalFloor(request.pickupFloor)
-        : null;
-
+  const getDetailsString = (
+    floor: string | number | null | undefined,
+    elevator?: boolean | null
+  ) => {
+    const floorText = getFloorDisplay(floor);
     const elevatorText =
-      request.pickupElevator !== undefined
-        ? request.pickupElevator
+      elevator !== undefined && elevator !== null
+        ? elevator
           ? "Elevator available"
           : "No elevator"
         : null;
 
     if (floorText && elevatorText) {
-      return `${floorText}/${elevatorText}`;
+      return `${floorText} / ${elevatorText}`;
     } else if (floorText) {
       return floorText;
     } else if (elevatorText) {
       return elevatorText;
     }
     return null;
-  })();
+  };
+
+  const pickupFloorInfo = getDetailsString(
+    request.pickupFloor,
+    request.pickupElevator
+  );
+  const deliveryFloorInfo = getDetailsString(
+    (request as any).deliveryFloor,
+    (request as any).deliveryElevator
+  );
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-CA", {
@@ -80,10 +93,15 @@ export const BookingConfirmedCustomer: React.FC<
   return (
     <Layout previewText={previewText}>
       <Section className="text-center">
-        <Img src={CONFIRM_IMAGE_URL} width="70%" alt="Booking Confirmed" />
+        <Img
+          src={CONFIRM_IMAGE_URL}
+          width="70%"
+          alt="Booking Confirmed"
+          className="mx-auto"
+        />
       </Section>
 
-      <Heading className="text-2xl font-bold text-[#367D5E] my-6">
+      <Heading className="text-2xl font-bold text-[#367D5E] my-4 text-left">
         Thank You for Booking with JFS!
       </Heading>
 
@@ -106,11 +124,23 @@ export const BookingConfirmedCustomer: React.FC<
           <span className="font-bold text-[#367D5E]">Pickup Date:</span>{" "}
           {requestDate} <br />
           <span className="font-bold text-[#367D5E]">Pickup Address:</span>{" "}
-          {fullPickupAddress} <br />
+          {request.pickupAddress} <br />
           {pickupFloorInfo && (
+            <span className="text-gray-600 text-xs pl-2">
+              └ Details: {pickupFloorInfo} <br />
+            </span>
+          )}
+          {request.deliveryAddress && (
             <>
-              <span className="font-bold text-[#367D5E]">Other:</span>{" "}
-              {pickupFloorInfo} <br />
+              <span className="font-bold text-[#367D5E]">
+                Delivery Address:
+              </span>{" "}
+              {request.deliveryAddress} <br />
+              {deliveryFloorInfo && (
+                <span className="text-gray-600 text-xs pl-2">
+                  └ Details: {deliveryFloorInfo} <br />
+                </span>
+              )}
             </>
           )}
         </Text>
@@ -129,7 +159,6 @@ export const BookingConfirmedCustomer: React.FC<
                 <th className="p-2 font-normal">Item</th>
                 <th className="p-2 font-normal text-center">Qty</th>
                 <th className="p-2 font-normal text-center">Size</th>
-                <th className="p-2 font-normal text-center">Delivery</th>
               </tr>
             </thead>
             <tbody>
@@ -143,9 +172,6 @@ export const BookingConfirmedCustomer: React.FC<
                     <td className="p-2">{item.name}</td>
                     <td className="p-2 text-center">{item.quantity}</td>
                     <td className="p-2 text-center">{item.size}</td>
-                    <td className="p-2 text-center">
-                      {request.deliveryRequired ? "Yes" : "No"}
-                    </td>
                   </tr>
                 ))
               ) : (
@@ -188,7 +214,7 @@ export const BookingConfirmedCustomer: React.FC<
         </Text>
         <Link
           href={pdfLink}
-          className="text-[16px] text-blue-600 underline font-bold flex items-center mt-[5px]"
+          className="text-[#367D5E] font-bold underline flex items-center"
         >
           ⬇ [Download Estimate PDF]
         </Link>

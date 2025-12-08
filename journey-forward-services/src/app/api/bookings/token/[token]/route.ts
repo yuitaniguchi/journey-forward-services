@@ -15,7 +15,7 @@ export async function GET(
         const quotation = await prisma.quotation.findFirst({
             where: {
                 bookingLink: {
-                    endsWith: token,
+                    contains: token,
                 },
             },
             include: {

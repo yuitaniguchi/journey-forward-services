@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import sgMail from "@sendgrid/mail";
+import crypto from "crypto";
 import { render } from "@react-email/render";
 import InvoiceSentCustomer from "@/emails/InvoiceSentCustomer";
-import crypto from "crypto";
+
+// [PRODUCTION] Uncomment for SendGrid
+// import sgMail from "@sendgrid/mail";
+
+// [DEMO] Keep for Gmail (Nodemailer)
+import nodemailer from "nodemailer";
 
 type RouteParams = Promise<{ id: string }>;
 
@@ -22,14 +27,8 @@ export async function POST(
       );
     }
 
-    // ★ note を受け取るようにする
-    const body = (await request.json()) as {
-      subtotal: number;
-      currency?: string;
-      note?: string | null;
-    };
-    const { subtotal, currency = "CAD", note } = body;
-
+    const body = await request.json();
+    const { subtotal, currency = "CAD" } = body;
     const subtotalNum = Number(subtotal);
 
     if (isNaN(subtotalNum) || subtotalNum < 0) {
@@ -39,10 +38,11 @@ export async function POST(
       );
     }
 
-    const taxRate = 0.12; // BC Tax 12%
+    const taxRate = 0.12;
     const taxNum = subtotalNum * taxRate;
     const totalNum = subtotalNum + taxNum;
 
+    // 1. Payment Record Upsert
     const payment = await prisma.payment.upsert({
       where: { requestId },
       update: {
@@ -50,7 +50,6 @@ export async function POST(
         tax: taxNum,
         total: totalNum,
         status: "PENDING",
-        note: note ?? null, // ★ 既存レコード更新時に保存
       },
       create: {
         requestId,
@@ -59,21 +58,27 @@ export async function POST(
         total: totalNum,
         status: "PENDING",
         currency,
-        note: note ?? null, // ★ 新規作成時に保存
       },
     });
 
+    // 2. Token / Link Generation
     let quotation = await prisma.quotation.findUnique({ where: { requestId } });
     let token = "";
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     if (quotation && quotation.bookingLink) {
-      token = quotation.bookingLink.split("/").pop() || "";
+      if (quotation.bookingLink.includes("/confirm")) {
+        const segments = quotation.bookingLink.split("/");
+        const confirmIndex = segments.indexOf("confirm");
+        if (confirmIndex > 0) token = segments[confirmIndex - 1];
+      } else {
+        token = quotation.bookingLink.split("/").pop() || "";
+      }
     }
 
     if (!token) {
       token = crypto.randomUUID();
-      const bookingLink = `${baseUrl}/booking/confirmation/${token}`;
+      const bookingLink = `${baseUrl}/booking/${token}/confirm`;
       await prisma.quotation.upsert({
         where: { requestId },
         update: { bookingLink },
@@ -87,35 +92,28 @@ export async function POST(
       });
     }
 
-    const paymentLink = `${baseUrl}/final-payment/${token}`;
+    const paymentLink = `${baseUrl}/booking/${token}/pay`;
     const pdfLink = `${baseUrl}/api/pdf/quotations/${requestId}`;
 
+    // 3. Status Update
     await prisma.request.update({
       where: { id: requestId },
       data: { status: "INVOICED" },
     });
 
+    // 4. Email Sending Logic
     const requestData = await prisma.request.findUnique({
       where: { id: requestId },
       include: { customer: true, items: true },
     });
 
-    if (!requestData || !requestData.customer.email) {
-      throw new Error("Customer not found");
-    }
-
-    const apiKey = process.env.SENDGRID_API_KEY;
-    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
-
-    if (apiKey && fromEmail) {
-      sgMail.setApiKey(apiKey);
-
+    if (requestData && requestData.customer.email) {
+      // --- PREPARE EMAIL CONTENT (Shared) ---
       const dateStr = requestData.createdAt.toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
         day: "numeric",
       });
-
       const emailItems = requestData.items.map((item) => ({
         name: item.name,
         size: item.size,
@@ -156,29 +154,44 @@ export async function POST(
         />
       );
 
-      await sgMail.send({
-        to: requestData.customer.email,
-        from: fromEmail,
-        subject: `Your Final Invoice is Ready (Request #${requestId})`,
-        html: emailHtml,
-      });
+      // ============================================================
+      // SWITCH: Choose Email Provider
+      // ============================================================
+
+      /* // [OPTION 1: PRODUCTION] SendGrid
+      const apiKey = process.env.SENDGRID_API_KEY;
+      const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+      if (apiKey && fromEmail) {
+        sgMail.setApiKey(apiKey);
+        await sgMail.send({
+          to: requestData.customer.email,
+          from: fromEmail,
+          subject: `Your Final Invoice is Ready (Request #${requestId})`,
+          html: emailHtml,
+        });
+      }
+      */
+
+      // [OPTION 2: DEMO] Nodemailer (Gmail)
+      const gmailUser = process.env.GMAIL_USER;
+      const gmailPass = process.env.GMAIL_PASS;
+      if (gmailUser && gmailPass) {
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: { user: gmailUser, pass: gmailPass },
+        });
+        await transporter.sendMail({
+          from: gmailUser,
+          to: requestData.customer.email,
+          subject: `Your Final Invoice is Ready (Request #${requestId})`,
+          html: emailHtml,
+        });
+        console.log("Invoice email sent via Gmail");
+      }
+      // ============================================================
     }
 
-    // ★ レスポンスに note を含める
-    return NextResponse.json(
-      {
-        payment: {
-          id: payment.id,
-          subtotal: payment.subtotal,
-          tax: payment.tax,
-          total: payment.total,
-          status: payment.status,
-          currency: payment.currency,
-          note: payment.note, // ← ここ
-        },
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({ payment }, { status: 200 });
   } catch (error) {
     console.error("Finalize API Error:", error);
     return NextResponse.json(

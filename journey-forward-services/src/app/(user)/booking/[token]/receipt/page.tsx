@@ -1,25 +1,24 @@
-// src/app/(user)/payment-confirmation/[id]/page.tsx
-"use client";
-
 import React from "react";
+import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 
-type PageParams = Promise<{ id: string }>;
-
-type PaymentConfirmationPageProps = {
-  params: PageParams;
+type PageProps = {
+  params: Promise<{ token: string }>;
 };
 
-export default function PaymentConfirmationPage({
-  params,
-}: PaymentConfirmationPageProps) {
-  // Next.js 16 で params が Promise なので、use で unwrap
-  // （クライアントコンポーネントなので React.use() 相当の use を使う）
-  // ただし "use" はまだ型に入ってないので、代わりに一旦 state に落とす形でもOK。
-  // ここではシンプルに「id は URL から来る文字列」として扱います。
-  // Booking ID を URL パラメータからそのまま表示するだけなので、
-  // 今回は Promise のまま扱わず、型エラーを避けるために any で受けます。
+export default async function BookingReceiptPage({ params }: PageProps) {
+  const { token } = await params;
 
-  const anyParams = params as any;
+  // トークンから予約情報を検索（存在確認のため）
+  const quotation = await prisma.quotation.findFirst({
+    where: { bookingLink: { contains: token } },
+    include: { request: true },
+  });
+
+  if (!quotation || !quotation.request) return notFound();
+
+  // 表示用にIDを取得
+  const bookingId = quotation.request.id;
 
   return (
     <main className="min-h-screen bg-[#f7f7f7] py-16">
@@ -43,7 +42,7 @@ export default function PaymentConfirmationPage({
           {/* Help text */}
           <p className="mx-auto max-w-xl text-xs text-gray-500 leading-relaxed">
             If you have any questions about your booking or payment, please
-            contact our support team with your Booking ID.
+            contact our support team with your Request Number: {bookingId}.
           </p>
         </section>
       </div>

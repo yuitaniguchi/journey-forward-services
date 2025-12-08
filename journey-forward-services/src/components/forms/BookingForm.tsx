@@ -18,6 +18,7 @@ import StepAddress from "./steps/StepAddress";
 import StepItems from "./steps/StepItems";
 import StepUserInfo from "./steps/StepUserInfo";
 import StepConfirmation from "./steps/StepConfirmation";
+import StepSuccess from "./steps/StepSuccess"; // ★追加: 新しいコンポーネントをインポート
 
 const STEPS = [
   "Postal Code",
@@ -78,6 +79,7 @@ export default function BookingForm() {
 
   const deliveryRequired = watch("deliveryRequired");
 
+  // 各ステップでバリデーションが必要なフィールド
   const stepFields: any[][] = [
     ["postalCode"],
     ["pickupDateTime"],
@@ -103,6 +105,7 @@ export default function BookingForm() {
       if (!ok) return;
     }
 
+    // Step 0: Postal Code Check
     if (step === 0) {
       const postal = getValues("postalCode")?.trim() ?? "";
       if (!isSupportedPostalCode(postal)) {
@@ -113,6 +116,7 @@ export default function BookingForm() {
       }
     }
 
+    // Step 3: Items Check
     if (step === 3) {
       if (items.length === 0) {
         setItemsError("Please add at least one item.");
@@ -220,35 +224,13 @@ export default function BookingForm() {
   };
 
   const renderStep = () => {
+    // 完了画面
     if (step === STEPS.length) {
-      return (
-        <div className="flex flex-col items-center py-16 text-center">
-          <div className="mb-8 flex h-16 w-16 items-center justify-center rounded-full bg-[#2f7d4a] text-white text-3xl">
-            ✓
-          </div>
-          <h2 className="mb-3 text-2xl font-semibold text-[#22503B]">
-            Your Estimate is coming!
-          </h2>
-          <p className="mb-2 text-lg font-semibold text-[#22503B]">
-            Request Number: #{submittedRequestNumber}
-          </p>
-          <p className="mb-8 max-w-xl text-sm text-slate-600">
-            Thanks for submitting the form! Our team will review your info and
-            send you a detailed quote based on your items, location, and any
-            special requests.
-          </p>
-          <Button
-            type="button"
-            onClick={() => {
-              window.location.href = "/";
-            }}
-          >
-            Go to Main Page
-          </Button>
-        </div>
-      );
+      // ★変更: 新しいコンポーネントを使用
+      return <StepSuccess requestNumber={submittedRequestNumber || "Error"} />;
     }
 
+    // 各ステップのコンポーネント
     switch (step) {
       case 0:
         return <StepPostalCode outOfArea={outOfArea} />;
@@ -287,12 +269,16 @@ export default function BookingForm() {
               e.preventDefault();
             }
           }}
-          className="rounded-xl border border-slate-200 bg-white px-6 py-8 md:px-10 md:py-10 shadow-sm"
+          className=""
         >
-          {renderStep()}
+          {/* コンテンツ部分 */}
+          <div className="rounded-xl border border-slate-200 bg-white px-6 py-8 md:px-10 md:py-10 shadow-sm">
+            {renderStep()}
+          </div>
 
+          {/* ボタン (完了画面以外で表示) */}
           {step < STEPS.length && (
-            <div className="mt-10 flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-center sm:gap-6">
+            <div className="mt-8 flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-center sm:gap-6">
               <Button
                 type="button"
                 variant="outline"

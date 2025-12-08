@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { Prisma, RequestStatus } from "@prisma/client";
-import { sendPaymentConfirmedEmail } from "@/lib/sendgrid";
+import { sendPaymentConfirmedEmail } from "@/lib/sendgrid.backup";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

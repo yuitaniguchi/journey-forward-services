@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendInvoiceSentCustomerEmail } from "@/lib/sendgrid";
+import { sendInvoiceSentCustomerEmail } from "@/lib/sendgrid.backup";
 
 export async function POST(req: Request) {
     try {

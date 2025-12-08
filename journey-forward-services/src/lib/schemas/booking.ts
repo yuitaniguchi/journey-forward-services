@@ -39,7 +39,7 @@ export const bookingSchema = z.object({
 
     // Pickup Address
     address: addressSchema,
-    floor: z.string().optional(),
+    floor: z.string().min(1, "Floor is required"),
     hasElevator: z.boolean(),
 
     // Delivery Address
@@ -55,7 +55,12 @@ export const bookingSchema = z.object({
 
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
-    email: z.string().email("Invalid email address"),
+
+    email: z
+        .string()
+        .min(1, "Email is required")
+        .email("Invalid email address"),
+
     phone: z
         .string()
         .min(1, "Phone number is required")
@@ -78,6 +83,13 @@ export const bookingSchema = z.object({
                 code: z.ZodIssueCode.custom,
                 path: ["deliveryAddress", "city"],
                 message: "City is required and must be supported",
+            });
+        }
+        if (!data.deliveryFloor) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["deliveryFloor"],
+                message: "Floor is required",
             });
         }
     }

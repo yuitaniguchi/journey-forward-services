@@ -4,21 +4,17 @@ import { prisma } from "@/lib/prisma";
 import BookingDetailClient from "./BookingDetailClient";
 import type { BookingRequest } from "@/types/booking";
 
-type PageParams = Promise<{ id: string }>;
-
-type BookingDetailPageProps = {
-  params: PageParams;
+type PageProps = {
+  params: Promise<{ token: string }>;
 };
 
-export default async function BookingDetailPage({
-  params,
-}: BookingDetailPageProps) {
-  const { id: token } = await params;
+export default async function BookingDashboardPage({ params }: PageProps) {
+  const { token } = await params;
 
   const quotation = await prisma.quotation.findFirst({
     where: {
       bookingLink: {
-        endsWith: token,
+        contains: token,
       },
     },
     include: {
@@ -50,6 +46,8 @@ export default async function BookingDetailPage({
     cancellationFee: booking.cancellationFee
       ? Number(booking.cancellationFee)
       : null,
+    pickupFloor: booking.pickupFloor,
+    deliveryFloor: booking.deliveryFloor,
 
     customer: {
       ...booking.customer,
@@ -78,6 +76,7 @@ export default async function BookingDetailPage({
   return (
     <BookingDetailClient
       requestId={booking.id.toString()}
+      token={token} // ★ 追加: トークンを渡す
       initialBooking={formattedBooking}
     />
   );

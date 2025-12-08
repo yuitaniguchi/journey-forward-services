@@ -40,7 +40,8 @@ export const QuotationSentCustomer: React.FC<ExtendedQuotationSentProps> = ({
     }).format(amount);
   };
 
-  const formatDateTime = (date: Date) => {
+  const formatDateTime = (date: Date | string) => {
+    const d = typeof date === "string" ? new Date(date) : date;
     return new Intl.DateTimeFormat("en-CA", {
       year: "numeric",
       month: "short",
@@ -48,18 +49,58 @@ export const QuotationSentCustomer: React.FC<ExtendedQuotationSentProps> = ({
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
-    }).format(date);
+    }).format(d);
   };
 
-  const otherDetails = [];
-  if (request?.pickupFloor)
-    otherDetails.push(
-      `${request.pickupFloor}${
-        ["st", "nd", "rd"][request.pickupFloor - 1] || "th"
-      } floor`
-    );
-  if (request?.pickupElevator === false) otherDetails.push("No elevator");
-  const otherText = otherDetails.length > 0 ? otherDetails.join("/") : "None";
+  const getFloorDisplay = (
+    floor: string | number | null | undefined
+  ): string | null => {
+    if (floor === null || floor === undefined || floor === "") return null;
+
+    const num = Number(floor);
+    if (!isNaN(num) && floor !== "") {
+      const suffixes = ["th", "st", "nd", "rd"];
+      const value = num % 100;
+      return (
+        num +
+        (suffixes[(value - 20) % 10] || suffixes[value] || suffixes[0]) +
+        " floor"
+      );
+    }
+
+    return `${floor} floor`;
+  };
+
+  const getDetailsString = (
+    floor: string | number | null | undefined,
+    elevator?: boolean | null
+  ) => {
+    const floorText = getFloorDisplay(floor);
+    const elevatorText =
+      elevator !== undefined && elevator !== null
+        ? elevator
+          ? "Elevator available"
+          : "No elevator"
+        : null;
+
+    if (floorText && elevatorText) {
+      return `${floorText} / ${elevatorText}`;
+    } else if (floorText) {
+      return floorText;
+    } else if (elevatorText) {
+      return elevatorText;
+    }
+    return null;
+  };
+
+  const pickupDetails = getDetailsString(
+    request?.pickupFloor,
+    request?.pickupElevator
+  );
+  const deliveryDetails = getDetailsString(
+    (request as any).deliveryFloor,
+    (request as any).deliveryElevator
+  );
 
   return (
     <Layout previewText={previewText}>
@@ -100,15 +141,36 @@ export const QuotationSentCustomer: React.FC<ExtendedQuotationSentProps> = ({
         </Heading>
         <Text className="text-base text-gray-700 m-0">
           <strong className="text-[#367D5E]">Pickup Date:</strong>{" "}
-          {formatDateTime(request?.preferredDatetime)}
+          {request?.preferredDatetime
+            ? formatDateTime(request.preferredDatetime)
+            : "-"}
         </Text>
-        <Text className="text-base text-gray-700 m-0">
+
+        {/* Pickup Info */}
+        <Text className="text-base text-gray-700 m-0 mt-1">
           <strong className="text-[#367D5E]">Pickup Address:</strong>{" "}
           {request?.pickupAddress}
         </Text>
-        <Text className="text-base text-gray-700 m-0">
-          <strong className="text-[#367D5E]">Other:</strong> {otherText}
-        </Text>
+        {pickupDetails && (
+          <Text className="text-xs text-gray-500 m-0 ml-4">
+            └ {pickupDetails}
+          </Text>
+        )}
+
+        {/* Delivery Info  */}
+        {request?.deliveryAddress && (
+          <>
+            <Text className="text-base text-gray-700 m-0 mt-2">
+              <strong className="text-[#367D5E]">Delivery Address:</strong>{" "}
+              {request.deliveryAddress}
+            </Text>
+            {deliveryDetails && (
+              <Text className="text-xs text-gray-500 m-0 ml-4">
+                └ {deliveryDetails}
+              </Text>
+            )}
+          </>
+        )}
       </Section>
 
       <Section className="mb-6">
@@ -123,7 +185,6 @@ export const QuotationSentCustomer: React.FC<ExtendedQuotationSentProps> = ({
               <th className="p-2 text-left">Item</th>
               <th className="p-2 text-center">Qty</th>
               <th className="p-2 text-center">Size</th>
-              <th className="p-2 text-center">Delivery</th>
             </tr>
           </thead>
           <tbody>
@@ -133,27 +194,24 @@ export const QuotationSentCustomer: React.FC<ExtendedQuotationSentProps> = ({
                 <td className="p-2">{item.name}</td>
                 <td className="p-2 text-center">{item.quantity}</td>
                 <td className="p-2 text-center">{item.size}</td>
-                <td className="p-2 text-center">
-                  {item.delivery ? "Yes" : "No"}
-                </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={4} className="p-2 text-right font-bold">
+              <td colSpan={3} className="p-2 text-right font-bold">
                 Sub Total:
               </td>
               <td className="p-2 text-right">{formatCAD(subTotal)}</td>
             </tr>
             <tr>
-              <td colSpan={4} className="p-2 text-right font-bold">
+              <td colSpan={3} className="p-2 text-right font-bold">
                 Tax:
               </td>
               <td className="p-2 text-right">{formatCAD(tax)}</td>
             </tr>
             <tr>
-              <td colSpan={4} className="p-2 text-right font-extrabold text-lg">
+              <td colSpan={3} className="p-2 text-right font-extrabold text-lg">
                 Total:
               </td>
               <td className="p-2 text-right font-extrabold text-lg">
@@ -172,7 +230,7 @@ export const QuotationSentCustomer: React.FC<ExtendedQuotationSentProps> = ({
           href={pdfLink}
           className="text-[#367D5E] font-bold underline flex items-center"
         >
-          ➡ [Download Estimate PDF Button or Link]
+          ⬇ [Download Estimate PDF]
         </Link>
       </Section>
 

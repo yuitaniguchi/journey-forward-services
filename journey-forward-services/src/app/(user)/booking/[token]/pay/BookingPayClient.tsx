@@ -1,68 +1,27 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { BookingRequest } from "@/types/booking";
 
-export default function FinalPaymentPage() {
-  const params = useParams<{ id: string }>();
+type Props = {
+  booking: BookingRequest;
+  token: string;
+  serverError?: string;
+};
+
+export default function BookingPayClient({
+  booking,
+  token,
+  serverError,
+}: Props) {
   const router = useRouter();
 
-  const token = params?.id;
-
-  const [booking, setBooking] = useState<BookingRequest | null>(null);
-  const [isLoadingBooking, setIsLoadingBooking] = useState(true);
-  const [isCreatingPi, setIsCreatingPi] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(
+    serverError || null
+  );
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!token) return;
-
-    const loadBookingAndPi = async () => {
-      try {
-        setIsLoadingBooking(true);
-        setErrorMessage(null);
-
-        const resBooking = await fetch(`/api/bookings/token/${token}`);
-
-        if (!resBooking.ok) {
-          console.error("Failed to fetch booking via token");
-          setErrorMessage("Invalid or expired link.");
-          return;
-        }
-
-        const json = await resBooking.json();
-        const bookingData = json.data as BookingRequest;
-        setBooking(bookingData);
-
-        setIsCreatingPi(true);
-        const resPi = await fetch("/api/payments/create-payment-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ requestId: bookingData.id }),
-        });
-
-        if (!resPi.ok) {
-          console.error("Failed to create payment intent");
-          setErrorMessage("Failed to initialize payment.");
-          return;
-        }
-
-        const piJson = await resPi.json();
-        console.log("PaymentIntent prepared:", piJson.paymentIntentId);
-      } catch (err) {
-        console.error("Unexpected error in final payment page:", err);
-        setErrorMessage("Unexpected error occurred.");
-      } finally {
-        setIsLoadingBooking(false);
-        setIsCreatingPi(false);
-      }
-    };
-
-    loadBookingAndPi();
-  }, [token]);
 
   const handleConfirmPayment = async () => {
     if (!booking) return;
@@ -84,7 +43,8 @@ export default function FinalPaymentPage() {
       }
 
       setSuccessMessage("Payment has been processed successfully.");
-      router.push(`/payment-confirmation/${booking.id}`);
+      // 新しいパス構成に合わせて遷移先を修正
+      router.push(`/booking/${token}/receipt`);
     } catch (err) {
       console.error(err);
       setErrorMessage("Unexpected error during payment.");
@@ -93,33 +53,21 @@ export default function FinalPaymentPage() {
     }
   };
 
-  if (!token) {
-    return (
-      <main className="min-h-screen bg-[#f7f7f7] py-12 px-4">
-        <p className="text-red-600">Invalid URL.</p>
-      </main>
-    );
-  }
-
-  if (isLoadingBooking || !booking) {
-    return (
-      <main className="min-h-screen bg-[#f7f7f7] py-12 px-4">
-        <p className="text-gray-700 text-center">Loading payment details...</p>
-      </main>
-    );
-  }
-
+  // UI表示用データの準備
   const fullName = `${booking.customer.firstName} ${booking.customer.lastName}`;
   const email = booking.customer.email;
   const phone = booking.customer.phone ?? "-";
   const pickupAddress = `${booking.pickupAddressLine1}, ${booking.pickupCity}`;
+  // サーバーから渡されたISO文字列をローカル日時に変換
   const preferredDatetime = new Date(
     booking.preferredDatetime
   ).toLocaleString();
 
   const payment = booking.payment;
   const finalAmount = payment?.total ?? 0;
-  const canConfirmPayment = finalAmount > 0 && !isCreatingPi && !isConfirming;
+
+  // 金額があり、処理中でなければボタンを押せる
+  const canConfirmPayment = finalAmount > 0 && !isConfirming && !errorMessage;
 
   const formatMoney = (val: number) => val.toFixed(2);
 

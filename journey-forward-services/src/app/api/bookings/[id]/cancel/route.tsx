@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
-import sgMail from "@sendgrid/mail";
+// import sgMail from "@sendgrid/mail"; // SendGridは使用しないためコメントアウト
+import nodemailer from "nodemailer";
 import { render } from "@react-email/render";
 import CancellationNotificationCustomer from "@/emails/CancellationNotificationCustomer";
 import CancellationNotificationAdmin from "@/emails/CancellationNotificationAdmin";
@@ -182,14 +183,24 @@ export async function POST(
   }
 }
 
+// --- Nodemailer (Gmail) に書き換えた関数 ---
 async function sendCancellationEmails(request: any, fee: number) {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+  const gmailUser = process.env.GMAIL_USER;
+  const gmailPass = process.env.GMAIL_PASS;
   const adminEmail = process.env.ADMIN_EMAIL;
 
-  if (!apiKey || !fromEmail || !adminEmail) return;
+  if (!gmailUser || !gmailPass || !adminEmail) {
+    console.warn("Skipping cancellation emails: Missing GMAIL env variables");
+    return;
+  }
 
-  sgMail.setApiKey(apiKey);
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: gmailUser,
+      pass: gmailPass,
+    },
+  });
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const dashboardLink = `${baseUrl}/admin/requests/${request.id}`;
@@ -239,20 +250,20 @@ async function sendCancellationEmails(request: any, fee: number) {
 
   try {
     await Promise.all([
-      sgMail.send({
+      transporter.sendMail({
+        from: gmailUser, // Gmail認証ユーザーと同じアドレス
         to: request.customer.email,
-        from: fromEmail,
         subject: `Booking Cancelled - Request #${request.id}`,
         html: customerHtml,
       }),
-      sgMail.send({
+      transporter.sendMail({
+        from: gmailUser, // Gmail認証ユーザーと同じアドレス
         to: adminEmail,
-        from: fromEmail,
         subject: `[Cancelled] Request #${request.id}`,
         html: adminHtml,
       }),
     ]);
-    console.log("[cancel] Emails sent successfully");
+    console.log("[cancel] Emails sent successfully via Gmail");
   } catch (e) {
     console.error("[cancel] Failed to send emails:", e);
   }

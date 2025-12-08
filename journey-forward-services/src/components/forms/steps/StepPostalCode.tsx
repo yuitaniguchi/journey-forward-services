@@ -32,24 +32,40 @@ export default function StepPostalCode({ outOfArea }: Props) {
   }
 
   return (
-    <div className="space-y-6">
-      <p className="font-semibold text-[#22503B]">Step 1</p>
-      <h2 className="text-xl font-semibold text-[#22503B]">
-        Where are we Picking up?
-      </h2>
-      <div className="space-y-1">
-        <label className="text-sm font-medium text-slate-800">
+    <div className="flex w-full flex-col">
+      {/* ヘッダー部分 (StepDateTimeと統一) */}
+      <div className="mb-6">
+        <p className="text-lg font-bold text-[#22503B]">Step 1</p>
+        <h2 className="mt-2 text-xl font-medium text-slate-900">
+          Where are we Picking up?
+        </h2>
+      </div>
+
+      {/* 入力エリア */}
+      <div className="w-full">
+        <label className="mb-2 block text-sm font-medium text-slate-900">
           Postal Code <span className="text-red-500">*</span>
         </label>
-        <Input placeholder="V6T 2J9" {...register("postalCode")} />
-        {errors.postalCode && (
-          <p className="text-sm text-red-600">
-            {errors.postalCode.message as string}
-          </p>
-        )}
-        <p className="text-xs text-slate-500">
-          Let&apos;s make sure you&apos;re in our pickup zone.
-        </p>
+
+        <Input
+          placeholder="V6T 2J9"
+          {...register("postalCode")}
+          // デザイン調整: 高さ、角丸、フォーカス時の色を緑系に
+          className="h-12 rounded-lg border-slate-300 text-base placeholder:text-slate-400 focus-visible:ring-[#2f7d4a]"
+        />
+
+        {/* エラーメッセージ または 補足テキスト */}
+        <div className="mt-2">
+          {errors.postalCode ? (
+            <p className="text-sm text-red-600">
+              {errors.postalCode.message as string}
+            </p>
+          ) : (
+            <p className="text-xs text-slate-400">
+              Let&apos;s make sure you&apos;re in our pickup zone
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

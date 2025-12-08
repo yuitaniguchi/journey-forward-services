@@ -10,16 +10,24 @@ export default function StepUserInfo() {
   } = useFormContext();
 
   return (
-    <div className="space-y-6">
-      <p className="font-semibold text-[#22503B]">Step 5</p>
-      <h2 className="text-xl font-semibold text-[#22503B]">Your Details</h2>
+    <div className="flex w-full flex-col">
+      {/* ヘッダー部分 */}
+      <div className="mb-6">
+        <p className="text-lg font-bold text-[#22503B]">Step 5</p>
+        <h2 className="mt-2 text-xl font-bold text-slate-900">Your Details</h2>
+      </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* 名前入力エリア (2列) */}
+      <div className="mb-4 grid gap-4 md:grid-cols-2">
         <div className="space-y-1">
-          <label className="text-sm font-medium text-slate-800">
+          <label className="mb-1 block text-sm font-medium text-slate-900">
             First Name <span className="text-red-500">*</span>
           </label>
-          <Input placeholder="First Name" {...register("firstName")} />
+          <Input
+            placeholder="First Name"
+            className="h-12 rounded-lg border-slate-300 placeholder:text-slate-400 focus-visible:ring-[#2f7d4a]"
+            {...register("firstName")}
+          />
           {errors.firstName && (
             <p className="text-sm text-red-600">
               {errors.firstName.message as string}
@@ -28,10 +36,14 @@ export default function StepUserInfo() {
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm font-medium text-slate-800">
+          <label className="mb-1 block text-sm font-medium text-slate-900">
             Last Name <span className="text-red-500">*</span>
           </label>
-          <Input placeholder="Last Name" {...register("lastName")} />
+          <Input
+            placeholder="Last Name"
+            className="h-12 rounded-lg border-slate-300 placeholder:text-slate-400 focus-visible:ring-[#2f7d4a]"
+            {...register("lastName")}
+          />
           {errors.lastName && (
             <p className="text-sm text-red-600">
               {errors.lastName.message as string}
@@ -40,12 +52,17 @@ export default function StepUserInfo() {
         </div>
       </div>
 
+      {/* 連絡先入力エリア (2列) */}
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-1">
-          <label className="text-sm font-medium text-slate-800">
+          <label className="mb-1 block text-sm font-medium text-slate-900">
             Email <span className="text-red-500">*</span>
           </label>
-          <Input placeholder="Email" {...register("email")} />
+          <Input
+            placeholder="Email"
+            className="h-12 rounded-lg border-slate-300 placeholder:text-slate-400 focus-visible:ring-[#2f7d4a]"
+            {...register("email")}
+          />
           {errors.email && (
             <p className="text-sm text-red-600">
               {errors.email.message as string}
@@ -54,10 +71,14 @@ export default function StepUserInfo() {
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm font-medium text-slate-800">
+          <label className="mb-1 block text-sm font-medium text-slate-900">
             Phone Number <span className="text-red-500">*</span>
           </label>
-          <Input placeholder="e.g. 604-123-4567" {...register("phone")} />
+          <Input
+            placeholder="Phone Number"
+            className="h-12 rounded-lg border-slate-300 placeholder:text-slate-400 focus-visible:ring-[#2f7d4a]"
+            {...register("phone")}
+          />
           {errors.phone && (
             <p className="text-sm text-red-600">
               {errors.phone.message as string}
