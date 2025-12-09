@@ -1,11 +1,7 @@
 // src/app/api/admin/users/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcrypt";
 import { getTokenFromCookies, verifyAdminJWT } from "@/lib/auth";
-
-const MIN_PASSWORD_LENGTH = 8;
-const SALT_ROUNDS = 10;
 
 function parseId(paramId: string) {
   const id = Number(paramId);
@@ -26,7 +22,7 @@ async function requireAdminSession() {
 }
 
 // --- PUT /api/admin/users/[id] ---
-// username / email / (optional) newPassword を更新
+// username / email のみを更新（パスワード変更は別エンドポイントで対応）
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -37,7 +33,6 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 👇 ここで await
     const { id } = await params;
     const adminId = parseId(id);
     if (adminId === null) {
@@ -51,16 +46,14 @@ export async function PUT(
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { username, email, newPassword } = (body ?? {}) as {
+    const { username, email } = (body ?? {}) as {
       username?: unknown;
       email?: unknown;
-      newPassword?: unknown;
     };
 
     const data: {
       username?: string;
       email?: string;
-      passwordHash?: string;
     } = {};
 
     if (typeof username === "string" && username.trim()) {
@@ -71,23 +64,7 @@ export async function PUT(
       data.email = email.trim().toLowerCase();
     }
 
-    if (typeof newPassword === "string" && newPassword.trim()) {
-      if (newPassword.length < MIN_PASSWORD_LENGTH) {
-        return NextResponse.json(
-          {
-            error: `New password must be at least ${MIN_PASSWORD_LENGTH} characters long.`,
-          },
-          { status: 400 }
-        );
-      }
-      data.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-    }
-
-    if (
-      !data.username &&
-      !data.email &&
-      typeof data.passwordHash === "undefined"
-    ) {
+    if (!data.username && !data.email) {
       return NextResponse.json(
         { error: "Nothing to update." },
         { status: 400 }
@@ -169,7 +146,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 👇 ここで params を await する
     const { id } = await params;
     const adminId = parseId(id);
     if (adminId === null) {
