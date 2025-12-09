@@ -76,7 +76,7 @@ export default async function BookingDashboardPage({ params }: PageProps) {
   return (
     <BookingDetailClient
       requestId={booking.id.toString()}
-      token={token} // ★ 追加: トークンを渡す
+      token={token}
       initialBooking={formattedBooking}
     />
   );

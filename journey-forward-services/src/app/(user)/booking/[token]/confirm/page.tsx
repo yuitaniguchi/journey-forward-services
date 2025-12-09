@@ -1,7 +1,7 @@
 import React from "react";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { stripe } from "@/lib/stripe"; // Stripeライブラリをインポート
+import { stripe } from "@/lib/stripe";
 import BookingConfirmClient from "./BookingConfirmClient";
 import type { BookingRequest } from "@/types/booking";
 
@@ -12,7 +12,6 @@ type PageProps = {
 export default async function BookingConfirmPage({ params }: PageProps) {
   const { token } = await params;
 
-  // 1. トークンで予約を取得
   const quotation = await prisma.quotation.findFirst({
     where: {
       bookingLink: {
@@ -37,7 +36,6 @@ export default async function BookingConfirmPage({ params }: PageProps) {
 
   const booking = quotation.request;
 
-  // 2. 既に確定済みならダッシュボードへリダイレクト
   if (
     booking.status === "CONFIRMED" ||
     booking.status === "INVOICED" ||
@@ -46,7 +44,6 @@ export default async function BookingConfirmPage({ params }: PageProps) {
     redirect(`/booking/${token}/dashboard`);
   }
 
-  // 3. データの整形
   const formattedBooking: BookingRequest = {
     ...booking,
     preferredDatetime: booking.preferredDatetime.toISOString(),
@@ -85,21 +82,20 @@ export default async function BookingConfirmPage({ params }: PageProps) {
       : null,
   };
 
-  // 4. Stripe SetupIntent の事前作成 (サーバーサイドで実行)
   let clientSecret = "";
   try {
-    // 4-1. Paymentレコードの確保
     let payment = await prisma.payment.findUnique({
       where: { requestId: booking.id },
     });
 
-    // Paymentがなければ作成、CustomerIdがなければStripeで作成
     if (!payment || !payment.stripeCustomerId) {
       let stripeCustomerId = payment?.stripeCustomerId;
 
       if (!stripeCustomerId) {
         const stripeCustomer = await stripe.customers.create({
           email: booking.customer.email,
+          name: `${booking.customer.firstName} ${booking.customer.lastName}`,
+          phone: booking.customer.phone || undefined,
           metadata: {
             requestId: String(booking.id),
           },
@@ -122,7 +118,6 @@ export default async function BookingConfirmPage({ params }: PageProps) {
       });
     }
 
-    // 4-2. SetupIntent 作成
     const setupIntent = await stripe.setupIntents.create({
       customer: payment.stripeCustomerId!,
       usage: "off_session",
@@ -137,11 +132,8 @@ export default async function BookingConfirmPage({ params }: PageProps) {
     }
   } catch (error) {
     console.error("Failed to setup Stripe intent on server:", error);
-    // エラー時はクライアント側でハンドリングするか、エラーページを出す
-    // 今回はclientSecretが空文字になるので、Client側でエラー表示が出る
   }
 
-  // 5. クライアントコンポーネントへ渡す
   return (
     <BookingConfirmClient
       booking={formattedBooking}
