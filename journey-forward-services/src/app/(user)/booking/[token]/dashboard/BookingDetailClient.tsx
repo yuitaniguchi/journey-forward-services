@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AlertCircle } from "lucide-react"; // アイコン用にlucide-reactを使用（なければ省略可）
 import type { BookingRequest } from "@/types/booking";
 
 type RequestStatus =
@@ -42,9 +43,7 @@ export default function BookingDetailClient({
   const isCancelDisabled = isCancelling || isPickupPassed || isAlreadyCancelled;
 
   let disabledReason: string | null = null;
-  if (isAlreadyCancelled) {
-    disabledReason = "This booking has already been cancelled.";
-  } else if (isPickupPassed) {
+  if (isPickupPassed && !isAlreadyCancelled) {
     disabledReason =
       "Cancellation is no longer available after the pickup time.";
   }
@@ -115,6 +114,11 @@ export default function BookingDetailClient({
     ? new Date(booking.freeCancellationDeadline).toLocaleString()
     : null;
 
+  // キャンセル済みの場合の日付フォーマット
+  const cancelledDate = booking.cancelledAt
+    ? new Date(booking.cancelledAt).toLocaleString()
+    : null;
+
   return (
     <main className="min-h-screen bg-white text-black">
       <section className="relative flex w-full items-center justify-center overflow-hidden border-b border-slate-100 bg-[#F5F5F5] py-10 md:py-14">
@@ -127,13 +131,38 @@ export default function BookingDetailClient({
             backgroundRepeat: "no-repeat",
           }}
         />
-        <h1 className="relative z-10 text-center text-3xl font-bold text-black md:text-5xl">
-          Booking Detail
-        </h1>
+        <div className="relative z-10 flex flex-col items-center gap-3">
+          <h1 className="text-center text-3xl font-bold text-black md:text-5xl">
+            Booking Detail
+          </h1>
+        </div>
       </section>
 
       <div className="mx-auto max-w-4xl px-4 py-10 md:px-0">
-        <div className="grid gap-8 md:grid-cols-2">
+        {/* キャンセル済みのアラートバナー */}
+        {isAlreadyCancelled && (
+          <div className="mb-8 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+            <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
+            <div>
+              <p className="font-bold">This booking has been cancelled.</p>
+              {cancelledDate && (
+                <p className="text-sm mt-1 text-red-700">
+                  Cancelled on: {cancelledDate}
+                </p>
+              )}
+              <p className="mt-2 text-sm text-red-700">
+                No further action is required. If you have questions, please
+                contact support.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* キャンセル済みの場合は全体を少し薄くして「無効感」を出す (opacity-60) */}
+        <div
+          className={`grid gap-8 md:grid-cols-2 transition-opacity duration-300 ${isAlreadyCancelled ? "opacity-60 grayscale-[30%]" : ""}`}
+        >
+          {/* 左カラム */}
           <section className="rounded-xl bg-white">
             <h2 className="mb-6 text-2xl font-bold text-[#1a7c4c]">
               Thank you for Booking!
@@ -188,6 +217,7 @@ export default function BookingDetailClient({
             </div>
           </section>
 
+          {/* 右カラム */}
           <section className="h-fit rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <h2 className="mb-6 text-xl font-bold text-[#1a7c4c]">
               Request Number: {booking.id}
@@ -224,7 +254,7 @@ export default function BookingDetailClient({
 
               {booking.deliveryRequired && (
                 <>
-                  <div className="mt-4">
+                  <div className="mt-4 border-t pt-4">
                     <span className="font-bold">Delivery Address:</span>{" "}
                     {booking.deliveryAddressLine1}, {booking.deliveryCity},{" "}
                     {booking.deliveryPostalCode}
@@ -289,6 +319,8 @@ export default function BookingDetailClient({
           </section>
         </div>
 
+        {/* キャンセルボタンエリア */}
+        {/* キャンセル済みの場合はボタン自体を表示せず、空白にするか別の要素を表示する */}
         {!isAlreadyCancelled && !isPickupPassed && (
           <div className="mt-12 text-center">
             <h3 className="mb-4 text-lg font-bold text-[#ef4444]">
@@ -315,6 +347,7 @@ export default function BookingDetailClient({
           </div>
         )}
 
+        {/* Modal (キャンセル済みの場合はそもそも開かないが念のため残す) */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
             <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-lg">
