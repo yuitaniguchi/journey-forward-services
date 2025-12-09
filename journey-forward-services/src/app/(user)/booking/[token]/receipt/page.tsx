@@ -1,6 +1,8 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import Link from "next/link";
+import { Check } from "lucide-react";
 
 type PageProps = {
   params: Promise<{ token: string }>;
@@ -9,7 +11,6 @@ type PageProps = {
 export default async function BookingReceiptPage({ params }: PageProps) {
   const { token } = await params;
 
-  // トークンから予約情報を検索（存在確認のため）
   const quotation = await prisma.quotation.findFirst({
     where: { bookingLink: { contains: token } },
     include: { request: true },
@@ -17,34 +18,45 @@ export default async function BookingReceiptPage({ params }: PageProps) {
 
   if (!quotation || !quotation.request) return notFound();
 
-  // 表示用にIDを取得
   const bookingId = quotation.request.id;
 
   return (
-    <main className="min-h-screen bg-[#f7f7f7] py-16">
-      <div className="mx-auto max-w-3xl px-4">
-        <section className="rounded-2xl bg-white px-8 py-12 shadow-sm text-center">
-          {/* Icon */}
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#e3f5eb]">
-            <span className="text-3xl text-[#1a7c4c]">✓</span>
-          </div>
+    <main className="min-h-screen bg-white flex flex-col items-center justify-center py-16">
+      <div className="mx-auto flex max-w-lg flex-col items-center px-4 text-center animate-in fade-in zoom-in-95 duration-500">
+        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br from-[#367D5E] to-[#53C090] shadow-md">
+          <Check className="h-8 w-8 text-white stroke-[3]" />
+        </div>
 
-          {/* Title */}
-          <h1 className="mb-3 text-3xl font-semibold text-[#1a7c4c]">
-            Payment Completed
-          </h1>
+        {/* Title */}
+        <h1 className="mb-3 text-2xl font-bold text-[#22503B]">
+          Payment Completed
+        </h1>
 
-          {/* Sub text */}
-          <p className="mb-10 text-sm text-gray-600">
-            Thank you! Your payment has been processed successfully.
-          </p>
+        {/* Request Number */}
+        <p className="mb-6 text-lg font-bold text-[#22503B]">
+          Request Number: <span className="text-[#22503B]">{bookingId}</span>
+        </p>
 
-          {/* Help text */}
-          <p className="mx-auto max-w-xl text-xs text-gray-500 leading-relaxed">
-            If you have any questions about your booking or payment, please
-            contact our support team with your Request Number: {bookingId}.
-          </p>
-        </section>
+        {/* Subtitle / Status Label */}
+        <p className="mb-4 text-xs font-medium text-slate-500 uppercase tracking-wide">
+          Transaction Successful
+        </p>
+
+        {/* Description */}
+        <p className="mb-10 text-sm leading-relaxed text-slate-600">
+          Thank you! Your payment has been processed successfully.
+          <br />
+          If you have any questions about your booking, please contact our
+          support team.
+        </p>
+
+        {/* Button Style Link */}
+        <Link
+          href="/"
+          className="min-w-[180px] inline-flex items-center justify-center rounded-md bg-[#367D5E] px-6 py-2 text-sm font-medium text-white hover:bg-[#2e563d] transition-all shadow-sm"
+        >
+          Go to Main Page
+        </Link>
       </div>
     </main>
   );
