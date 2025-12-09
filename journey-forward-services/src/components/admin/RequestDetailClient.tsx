@@ -243,19 +243,33 @@ export default function RequestDetailClient({ initialRequest }: Props) {
 
   return (
     <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
-      {/* タイトル＋一覧に戻るボタン */}
-      <div className="mb-8 flex items-center justify-between gap-4">
-        <h1 className="text-4xl font-extrabold text-slate-900 md:text-5xl">
-          Request Details
-        </h1>
-
+      {/* 一番上の左に戻る矢印ボタン */}
+      <div className="mb-4">
         <button
           type="button"
           onClick={() => router.push("/admin")}
-          className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
+          aria-label="Back to requests"
+          className="group inline-flex h-12 w-12 items-center justify-center rounded-full text-slate-400 transition
+                 hover:bg-slate-100 hover:text-slate-700"
         >
-          Back to requests
+          <svg
+            viewBox="0 0 24 24"
+            className="h-12 w-12 stroke-current"
+            fill="none"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M15 6 L9 12 L15 18" />
+          </svg>
         </button>
+      </div>
+
+      {/* 矢印の下にタイトル（左寄せ） */}
+      <div className="mb-8">
+        <h1 className="text-4xl font-extrabold text-slate-900 md:text-5xl">
+          Request Details
+        </h1>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
