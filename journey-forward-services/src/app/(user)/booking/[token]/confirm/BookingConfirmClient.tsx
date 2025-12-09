@@ -48,7 +48,7 @@ function ConfirmPageContent({
     postal_code: "",
   });
 
-  const nextLink = `/booking/${token}/dashboard`;
+  const nextLink = `/booking/${token}/submitted`;
 
   const customerName = `${booking.customer.firstName} ${booking.customer.lastName}`;
   const pickupDateTime = new Date(booking.preferredDatetime).toLocaleString();
