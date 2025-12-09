@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import PasswordInput from "@/components/admin/PasswordInput";
 
 export type AdminUser = {
@@ -38,6 +39,8 @@ type DeleteModalProps = {
 export default function AdminUsersClient({
   initialUsers,
 }: AdminUsersClientProps) {
+  const router = useRouter();
+
   const [users, setUsers] = useState<AdminUser[]>(initialUsers);
 
   const [showCreate, setShowCreate] = useState(false);
@@ -48,82 +51,82 @@ export default function AdminUsersClient({
 
   return (
     <div>
-      {/* ページタイトル + 新規作成ボタン */}
-      <div className="mb-8 flex items-center justify-between gap-4">
+      {/* ページタイトル + Back ボタン + 新規作成ボタン */}
+      <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">
           Admin Users
         </h1>
-        <button
-          type="button"
-          onClick={() => setShowCreate(true)}
-          className="rounded-full bg-emerald-800 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-900"
-        >
-          Create Admin User
-        </button>
+
+        <div className="flex flex-col items-stretch gap-2 md:items-end">
+          <button
+            type="button"
+            onClick={() => router.push("/admin")}
+            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
+          >
+            Back to requests
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            className="rounded-full bg-emerald-800 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-900"
+          >
+            Create Admin User
+          </button>
+        </div>
       </div>
 
-      {/* 一覧テーブル */}
-      <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <table className="min-w-full border-collapse">
-          <thead>
-            <tr className="text-left text-sm font-semibold text-slate-900 md:text-base">
-              <th className="rounded-tl-3xl px-6 py-4">ID</th>
-              <th className="px-4 py-4">Username</th>
-              <th className="px-4 py-4">Email</th>
-              <th className="px-4 py-4">Created</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* 上部のライン */}
-            <tr>
-              <td
-                colSpan={5}
-                className="border-b border-[#f6b55f] border-t-2 bg-[#f3f7fc]"
-              />
-            </tr>
+      {/* 一覧カード（レスポンシブ） */}
+      <section className="space-y-4">
+        {!hasUsers && (
+          <div className="rounded-3xl border border-slate-200 bg-white px-6 py-8 text-center text-slate-500 shadow-sm">
+            No admin users found.
+          </div>
+        )}
 
-            {!hasUsers && (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="px-6 py-10 text-center text-slate-500"
+        {hasUsers &&
+          users.map((u) => (
+            <article
+              key={u.id}
+              className="flex flex-col justify-between gap-4 rounded-3xl border border-slate-200 bg-white px-6 py-5 shadow-sm md:flex-row md:items-center"
+            >
+              {/* 左側：ユーザー情報 */}
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  #{u.id}
+                </p>
+                <p className="text-lg font-bold text-slate-900">{u.username}</p>
+                <p className="text-sm text-slate-700">{u.email}</p>
+                <p className="text-xs text-slate-500">
+                  Created:{" "}
+                  {new Date(u.createdAt).toLocaleDateString(undefined, {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </p>
+              </div>
+
+              {/* 右側：アクションボタン */}
+              <div className="flex items-center justify-end gap-2 md:self-start">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(u)}
+                  className="rounded-full border border-emerald-800 px-4 py-1.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-900 hover:text-white"
                 >
-                  No admin users found.
-                </td>
-              </tr>
-            )}
+                  Edit
+                </button>
 
-            {hasUsers &&
-              users.map((u) => (
-                <tr key={u.id} className="bg-white text-sm text-slate-900">
-                  <td className="px-6 py-3 font-semibold">#{u.id}</td>
-                  <td className="px-4 py-3">{u.username}</td>
-                  <td className="px-4 py-3">{u.email}</td>
-                  <td className="px-4 py-3">
-                    {new Date(u.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditingUser(u)}
-                        className="rounded-full border border-slate-300 px-4 py-1 text-xs font-semibold text-slate-900 hover:bg-slate-900 hover:text-white"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeletingUser(u)}
-                        className="rounded-full border border-red-500 px-4 py-1 text-xs font-semibold text-red-600 hover:bg-red-600 hover:text-white"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+                <button
+                  type="button"
+                  onClick={() => setDeletingUser(u)}
+                  className="rounded-full border border-red-500 px-4 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-600 hover:text-white"
+                >
+                  Delete
+                </button>
+              </div>
+            </article>
+          ))}
       </section>
 
       {/* Create Modal */}
@@ -290,7 +293,6 @@ function CreateUserModal({ open, onClose, onCreated }: CreateUserModalProps) {
 function EditUserModal({ open, user, onClose, onUpdated }: EditUserModalProps) {
   const [username, setUsername] = useState(user?.username ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
-  const [newPassword, setNewPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -298,7 +300,6 @@ function EditUserModal({ open, user, onClose, onUpdated }: EditUserModalProps) {
     if (open && user) {
       setUsername(user.username);
       setEmail(user.email);
-      setNewPassword("");
       setError(null);
     }
   }, [open, user]);
@@ -322,7 +323,6 @@ function EditUserModal({ open, user, onClose, onUpdated }: EditUserModalProps) {
         body: JSON.stringify({
           username,
           email,
-          newPassword: newPassword || undefined,
         }),
       });
 
@@ -386,18 +386,6 @@ function EditUserModal({ open, user, onClose, onUpdated }: EditUserModalProps) {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600"
               placeholder="Enter email"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              New password (optional)
-            </label>
-            <PasswordInput
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Leave blank to keep current password"
-              autoComplete="new-password"
             />
           </div>
 
