@@ -8,7 +8,7 @@ import QuotationSentCustomer from "@/emails/QuotationSentCustomer";
 // import sgMail from "@sendgrid/mail";
 
 // [DEMO] Keep for Gmail (Nodemailer)
-// import nodemailer from "nodemailer";
+import nodemailer from "nodemailer";
 
 type RouteParams = Promise<{ id: string }>;
 
@@ -28,7 +28,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { subtotal, sendEmail, note } = body;
+    const { subtotal, sendEmail } = body;
     const subtotalNum = Number(subtotal);
     const taxRate = 0.12;
     const taxNum = subtotalNum * taxRate;
@@ -46,7 +46,6 @@ export async function POST(
         tax: taxNum,
         total: totalNum,
         bookingLink,
-        note: note ?? null,
       },
       create: {
         requestId,
@@ -54,7 +53,6 @@ export async function POST(
         tax: taxNum,
         total: totalNum,
         bookingLink,
-        note: note ?? null,
       },
     });
 
@@ -149,23 +147,23 @@ export async function POST(
       }
       */
 
-      // // [OPTION 2: DEMO] Nodemailer (Gmail)
-      // const gmailUser = process.env.GMAIL_USER;
-      // const gmailPass = process.env.GMAIL_PASS;
-      // if (gmailUser && gmailPass) {
-      //   const transporter = nodemailer.createTransport({
-      //     service: "gmail",
-      //     auth: { user: gmailUser, pass: gmailPass },
-      //   });
-      //   await transporter.sendMail({
-      //     from: gmailUser,
-      //     to: requestData.customer.email,
-      //     subject: `Your Estimate is Ready! (Request #${requestId})`,
-      //     html: emailHtml,
-      //   });
-      //   console.log("Quotation email sent via Gmail");
-      // }
-      // // ============================================================
+      // [OPTION 2: DEMO] Nodemailer (Gmail)
+      const gmailUser = process.env.GMAIL_USER;
+      const gmailPass = process.env.GMAIL_PASS;
+      if (gmailUser && gmailPass) {
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: { user: gmailUser, pass: gmailPass },
+        });
+        await transporter.sendMail({
+          from: gmailUser,
+          to: requestData.customer.email,
+          subject: `Your Estimate is Ready! (Request #${requestId})`,
+          html: emailHtml,
+        });
+        console.log("Quotation email sent via Gmail");
+      }
+      // ============================================================
     }
 
     return NextResponse.json({ quotation }, { status: 200 });

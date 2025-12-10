@@ -51,41 +51,29 @@ export default function AdminUsersClient({
 
   return (
     <div>
-      {/* ← 一番上の左に戻るボタン */}
-      <div className="mb-4">
-        <button
-          type="button"
-          onClick={() => router.push("/admin")}
-          aria-label="Back to requests"
-          className="group inline-flex h-12 w-12 items-center justify-center rounded-full text-slate-400 transition
-                 hover:bg-slate-100 hover:text-slate-700"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            className="h-12 w-12 stroke-current"
-            fill="none"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M15 6 L9 12 L15 18" />
-          </svg>
-        </button>
-      </div>
-
-      {/* ページタイトル + 新規作成ボタン */}
+      {/* ページタイトル + Back ボタン + 新規作成ボタン */}
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">
           Admin Users
         </h1>
 
-        <button
-          type="button"
-          onClick={() => setShowCreate(true)}
-          className="rounded-full bg-emerald-800 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-900"
-        >
-          Create Admin User
-        </button>
+        <div className="flex flex-col items-stretch gap-2 md:items-end">
+          <button
+            type="button"
+            onClick={() => router.push("/admin")}
+            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
+          >
+            Back to requests
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            className="rounded-full bg-emerald-800 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-900"
+          >
+            Create Admin User
+          </button>
+        </div>
       </div>
 
       {/* 一覧カード（レスポンシブ） */}
