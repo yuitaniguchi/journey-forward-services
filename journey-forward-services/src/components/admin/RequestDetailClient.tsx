@@ -458,7 +458,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           {request.items.length > 0 && (
             <>
               <ul className="space-y-4">
-                {itemsToShow.map((item) => (
+                {itemsToShow.map((item, index) => (
                   <li key={item.id} className="flex items-start gap-4">
                     {item.photoUrl && (
                       <button
@@ -476,8 +476,10 @@ export default function RequestDetailClient({ initialRequest }: Props) {
 
                     {/* 👇 ここに min-w-0 を追加 */}
                     <div className="min-w-0">
+                      {/* ← ここで番号を表示 */}
                       <p className="font-semibold">
-                        {item.name} - {item.size} (x{item.quantity})
+                        {index + 1}. {item.name} - {item.size} (x{item.quantity}
+                        )
                       </p>
                       {item.description && (
                         <p className="text-sm text-slate-600 whitespace-pre-wrap break-words">
