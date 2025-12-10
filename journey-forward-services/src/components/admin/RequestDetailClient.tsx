@@ -473,7 +473,9 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                         />
                       </button>
                     )}
-                    <div>
+
+                    {/* 👇 ここに min-w-0 を追加 */}
+                    <div className="min-w-0">
                       <p className="font-semibold">
                         {item.name} - {item.size} (x{item.quantity})
                       </p>
