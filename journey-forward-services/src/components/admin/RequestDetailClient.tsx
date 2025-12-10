@@ -234,8 +234,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
   const canEditQuotation =
     request.status === "RECEIVED" || request.status === "QUOTED";
 
-  const canSendFinalAmount =
-    request.status !== "PAID" && request.status !== "CANCELLED";
+  // Send Final Amount は CONFIRMED のときだけ有効
+  const canSendFinalAmount = request.status === "CONFIRMED";
 
   // Items & Photos 表示件数制御
   const itemsToShow = showAllItems ? request.items : request.items.slice(0, 3);
@@ -243,19 +243,37 @@ export default function RequestDetailClient({ initialRequest }: Props) {
 
   return (
     <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
-      {/* タイトル＋一覧に戻るボタン */}
-      <div className="mb-8 flex items-center justify-between gap-4">
-        <h1 className="text-4xl font-extrabold text-slate-900 md:text-5xl">
-          Request Details
-        </h1>
-
+      {/* 一番上の左に戻る矢印ボタン */}
+      <div className="mb-4">
         <button
           type="button"
           onClick={() => router.push("/admin")}
-          className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
+          aria-label="Back to requests"
+          className="group inline-flex h-12 w-12 items-center justify-center rounded-full text-slate-400 transition
+                 hover:bg-slate-100 hover:text-slate-700"
         >
-          Back to requests
+          <svg
+            viewBox="0 0 24 24"
+            className="h-12 w-12 stroke-current"
+            fill="none"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M15 6 L9 12 L15 18" />
+          </svg>
         </button>
+      </div>
+
+      {/* 矢印の下にタイトル（左寄せ） */}
+      <div className="mb-8">
+        <h1 className="text-4xl font-extrabold text-slate-900 md:text-5xl">
+          Request Details
+        </h1>
+        <p className="mt-2 text-lg font-semibold text-slate-600">
+          Request No.:{" "}
+          <span className="font-bold text-slate-900">{request.id}</span>
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -401,7 +419,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                 <span>{formatCurrency(request.quotation.total)}</span>
               </div>
               {request.quotation.note && (
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-slate-600 whitespace-pre-wrap break-words">
                   <span className="font-semibold">Note:</span>{" "}
                   {request.quotation.note}
                 </p>
@@ -444,7 +462,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           {request.items.length > 0 && (
             <>
               <ul className="space-y-4">
-                {itemsToShow.map((item) => (
+                {itemsToShow.map((item, index) => (
                   <li key={item.id} className="flex items-start gap-4">
                     {item.photoUrl && (
                       <button
@@ -459,12 +477,16 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                         />
                       </button>
                     )}
-                    <div>
+
+                    {/* 👇 ここに min-w-0 を追加 */}
+                    <div className="min-w-0">
+                      {/* ← ここで番号を表示 */}
                       <p className="font-semibold">
-                        {item.name} - {item.size} (x{item.quantity})
+                        {index + 1}. {item.name} - {item.size} (x{item.quantity}
+                        )
                       </p>
                       {item.description && (
-                        <p className="text-sm text-slate-600">
+                        <p className="text-sm text-slate-600 whitespace-pre-wrap break-words">
                           {item.description}
                         </p>
                       )}
@@ -514,7 +536,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
               </div>
 
               {request.payment?.note && (
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-slate-600 whitespace-pre-wrap break-words">
                   <span className="font-semibold">Note:</span>{" "}
                   {request.payment.note}
                 </p>
