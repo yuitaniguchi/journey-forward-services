@@ -17,25 +17,16 @@ export default function AdminHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
+    <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3 md:px-12">
-        {/* 左：ロゴ（クリックで常にリクエスト一覧へ） */}
-        <Link
-          href="/admin"
-          className="text-base font-semibold text-slate-900 transition-colors hover:text-slate-950 md:text-lg"
-        >
+        {/* 左：タイトル（+必要ならロゴ） */}
+        <h1 className="text-base font-semibold text-slate-900 md:text-lg">
           Journey Forward Admin
-        </Link>
+        </h1>
 
         {/* 右：PCナビ（md以上） */}
         {!isLoginPage && (
           <nav className="hidden items-center gap-4 md:flex">
-            <Link
-              href="/admin"
-              className="text-sm font-semibold text-slate-700 hover:text-slate-900"
-            >
-              Request
-            </Link>
             <Link
               href="/admin/users"
               className="text-sm font-semibold text-slate-700 hover:text-slate-900"
@@ -74,13 +65,6 @@ export default function AdminHeader() {
       {!isLoginPage && menuOpen && (
         <nav className="border-t border-slate-200 bg-white md:hidden">
           <div className="space-y-1 px-6 py-3">
-            <Link
-              href="/admin"
-              onClick={() => setMenuOpen(false)}
-              className="block rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-            >
-              Request
-            </Link>
             <Link
               href="/admin/users"
               onClick={() => setMenuOpen(false)}
