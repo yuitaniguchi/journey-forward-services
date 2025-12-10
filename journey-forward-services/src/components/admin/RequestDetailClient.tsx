@@ -270,6 +270,10 @@ export default function RequestDetailClient({ initialRequest }: Props) {
         <h1 className="text-4xl font-extrabold text-slate-900 md:text-5xl">
           Request Details
         </h1>
+        <p className="mt-2 text-lg font-semibold text-slate-600">
+          Request No.:{" "}
+          <span className="font-bold text-slate-900">{request.id}</span>
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
