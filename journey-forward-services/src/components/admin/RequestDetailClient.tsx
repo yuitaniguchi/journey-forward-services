@@ -234,8 +234,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
   const canEditQuotation =
     request.status === "RECEIVED" || request.status === "QUOTED";
 
-  const canSendFinalAmount =
-    request.status !== "PAID" && request.status !== "CANCELLED";
+  // Send Final Amount は CONFIRMED のときだけ有効
+  const canSendFinalAmount = request.status === "CONFIRMED";
 
   // Items & Photos 表示件数制御
   const itemsToShow = showAllItems ? request.items : request.items.slice(0, 3);
