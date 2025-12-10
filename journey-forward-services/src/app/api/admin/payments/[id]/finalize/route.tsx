@@ -7,8 +7,8 @@ import InvoiceSentCustomer from "@/emails/InvoiceSentCustomer";
 // [PRODUCTION] Uncomment for SendGrid
 // import sgMail from "@sendgrid/mail";
 
-// [DEMO] Keep for Gmail (Nodemailer)
-import nodemailer from "nodemailer";
+// // [DEMO] Keep for Gmail (Nodemailer)
+// import nodemailer from "nodemailer";
 
 type RouteParams = Promise<{ id: string }>;
 
@@ -28,7 +28,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { subtotal, currency = "CAD" } = body;
+    const { subtotal, currency = "CAD", note } = body;
     const subtotalNum = Number(subtotal);
 
     if (isNaN(subtotalNum) || subtotalNum < 0) {
@@ -50,6 +50,7 @@ export async function POST(
         tax: taxNum,
         total: totalNum,
         status: "PENDING",
+        note: note ?? null,
       },
       create: {
         requestId,
@@ -58,6 +59,7 @@ export async function POST(
         total: totalNum,
         status: "PENDING",
         currency,
+        note: note ?? null,
       },
     });
 
@@ -172,23 +174,23 @@ export async function POST(
       }
       */
 
-      // [OPTION 2: DEMO] Nodemailer (Gmail)
-      const gmailUser = process.env.GMAIL_USER;
-      const gmailPass = process.env.GMAIL_PASS;
-      if (gmailUser && gmailPass) {
-        const transporter = nodemailer.createTransport({
-          service: "gmail",
-          auth: { user: gmailUser, pass: gmailPass },
-        });
-        await transporter.sendMail({
-          from: gmailUser,
-          to: requestData.customer.email,
-          subject: `Your Final Invoice is Ready (Request #${requestId})`,
-          html: emailHtml,
-        });
-        console.log("Invoice email sent via Gmail");
-      }
-      // ============================================================
+      // // [OPTION 2: DEMO] Nodemailer (Gmail)
+      // const gmailUser = process.env.GMAIL_USER;
+      // const gmailPass = process.env.GMAIL_PASS;
+      // if (gmailUser && gmailPass) {
+      //   const transporter = nodemailer.createTransport({
+      //     service: "gmail",
+      //     auth: { user: gmailUser, pass: gmailPass },
+      //   });
+      //   await transporter.sendMail({
+      //     from: gmailUser,
+      //     to: requestData.customer.email,
+      //     subject: `Your Final Invoice is Ready (Request #${requestId})`,
+      //     html: emailHtml,
+      //   });
+      //   console.log("Invoice email sent via Gmail");
+      // }
+      // // ============================================================
     }
 
     return NextResponse.json({ payment }, { status: 200 });

@@ -415,7 +415,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                 <span>{formatCurrency(request.quotation.total)}</span>
               </div>
               {request.quotation.note && (
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-slate-600 whitespace-pre-wrap break-words">
                   <span className="font-semibold">Note:</span>{" "}
                   {request.quotation.note}
                 </p>
@@ -478,7 +478,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                         {item.name} - {item.size} (x{item.quantity})
                       </p>
                       {item.description && (
-                        <p className="text-sm text-slate-600">
+                        <p className="text-sm text-slate-600 whitespace-pre-wrap break-words">
                           {item.description}
                         </p>
                       )}
@@ -528,7 +528,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
               </div>
 
               {request.payment?.note && (
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-slate-600 whitespace-pre-wrap break-words">
                   <span className="font-semibold">Note:</span>{" "}
                   {request.payment.note}
                 </p>
