@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import Image from "next/image";
-import { Phone, Mail } from "lucide-react";
+import Link from 'next/link';
+import Image from 'next/image';
+import { Phone, Mail } from 'lucide-react';
 
 export default function Footer() {
   return (
     <footer className="bg-linear-to-bl from-[#317255] via-[#295E46] to-[#204A37] text-white pt-16 pb-8">
-      {" "}
+      {' '}
       <div className="section-inner container mx-auto px-6">
         <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
           {/* Left Column: Brand & Contact */}

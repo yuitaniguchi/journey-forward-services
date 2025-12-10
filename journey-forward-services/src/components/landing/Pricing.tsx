@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 
@@ -39,33 +41,36 @@ const tiers = [
 export default function Pricing() {
   return (
     <>
-      {/* 1) TRUCK + COPY (white background, like Figma) */}
-      <section className="section bg-white">
-        <div className="section-inner grid gap-10 md:grid-cols-[1.1fr,1.1fr] md:items-center">
-          {/* Truck image */}
-          <div className="relative h-56 md:h-72 lg:h-80">
-            <img
-              src="/ruck-hero.webp"
-              alt="Truck"
-              className="h-full w-full object-contain"
-            />
+      {/* 1) ABOUT SECTION */}
+      <section className="bg-white py-16 md:py-20">
+        <div className="section-inner grid gap-10 lg:grid-cols-2 lg:items-center">
+          <div className="flex justify-center lg:justify-start">
+            <div className="relative w-full max-w-[520px]">
+              <Image
+                src="/ruck-hero.webp"
+                alt="Journey Forward truck"
+                width={800}
+                height={480}
+                className="h-auto w-full object-contain"
+                priority
+              />
+            </div>
           </div>
 
-          {/* Text content */}
-          <div className="space-y-4">
-            <h2 className="text-2xl md:text-3xl font-semibold text-slate-900">
+          <div className="max-w-xl lg:ml-auto space-y-5">
+            <h2 className="text-2xl md:text-3xl font-semibold text-slate-900 leading-snug">
               Enjoy a better way
               <br />
               to <span className="text-brand">clear out clutter</span>
             </h2>
 
-            <p className="text-sm text-slate-600">
+            <p className="text-sm md:text-[15px] text-slate-600 leading-relaxed">
               We make your space shine! Professional and reliable pick-up
-              service company providing top-notch solutions for homes and
-              businesses. Satisfaction guaranteed.
+              service providing top-notch solutions for homes and businesses.
+              Satisfaction guaranteed.
             </p>
 
-            <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-xs text-slate-700">
+            <div className="grid grid-cols-2 gap-y-2 gap-x-10 text-sm text-slate-700">
               <div>• No hidden fee</div>
               <div>• Expert agent</div>
               <div>• Partner perks</div>
@@ -74,15 +79,17 @@ export default function Pricing() {
               <div>• Affordable prices</div>
             </div>
 
-            <Button className="mt-3 rounded-full bg-brand px-6 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
-              Book Now
-            </Button>
+            <Link href="/booking">
+              <Button className="mt-4 bg-brand px-7 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark ">
+                Book Now
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* 2) GREEN PRICING BAND (cards on white, like Figma bottom) */}
-      <section className="section bg-brand-dark/90 text-white">
+      {/* 2) PRICING SECTION */}
+      <section className="bg-brand-dark/90 py-16 text-white">
         <div className="section-inner space-y-8">
           <h3 className="text-center text-xl md:text-2xl font-semibold">
             We price based on volume
@@ -94,16 +101,20 @@ export default function Pricing() {
                 key={tier.label}
                 className="card-elevated border-none bg-white text-slate-900 rounded-3xl"
               >
-                <CardContent className="space-y-3 p-6">
-                  <p className="inline-block rounded-full border border-brand/15 bg-brand-light/40 px-3 py-1 text-[11px] font-medium text-brand">
+                <CardContent className="space-y-4 p-6">
+                  <p className="inline-block rounded-full border border-brand/15 bg-brand/5 px-3 py-1 text-[11px] font-medium text-brand">
                     {tier.label}
                   </p>
 
-                  <div className="h-24 w-full bg-slate-100 rounded-2xl overflow-hidden">
-                    <img
+                  {/* FIXED IMAGE WRAPPER */}
+                  <div className="flex justify-center items-center h-28 rounded-xl overflow-hidden">
+                    <Image
                       src={tier.img}
                       alt={tier.label}
-                      className="h-full w-full object-contain"
+                      width={300}
+                      height={150}
+                      className="object-contain max-h-full"
+                      draggable="false"
                     />
                   </div>
 
@@ -115,9 +126,11 @@ export default function Pricing() {
                 </CardContent>
 
                 <CardFooter className="p-6 pt-0">
-                  <Button className="w-full rounded-full bg-brand text-sm font-semibold text-white hover:bg-brand-dark">
-                    Get an Estimate
-                  </Button>
+                  <Link href="/booking" className="w-full">
+                    <Button className="w-full bg-brand text-sm font-semibold text-white hover:bg-brand-dark ">
+                      Get an Estimate
+                    </Button>
+                  </Link>
                 </CardFooter>
               </Card>
             ))}

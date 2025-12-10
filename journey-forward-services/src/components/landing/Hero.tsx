@@ -1,9 +1,34 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { MapPin } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
+import { validatePostalCode } from '@/lib/availability';
 
 export default function Hero() {
+  const router = useRouter();
+  const [postalCode, setPostalCode] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleCheckAvailability = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    const normalized = postalCode.trim().toUpperCase();
+    const result = validatePostalCode(normalized);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+
+    setLoading(true);
+    router.push(`/booking?postalCode=${encodeURIComponent(result.value)}`);
+  };
+
   return (
     <section
       id="home"
@@ -12,22 +37,21 @@ export default function Hero() {
       {/* Background image */}
       <div className="absolute inset-0 -z-10">
         <Image
-          src="/hero-van.webp" // image in /public
+          src="/hero-van.webp"
           alt="Journey Forward crew"
           fill
           priority
           className="object-cover"
         />
-        {/* White gradient overlay to match Figma */}
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-white/10" />
       </div>
 
-      {/* Content on top of image */}
+      {/* Content */}
       <div className="section-inner relative z-10">
-        <div className="max-w-xl space-y-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <div className="max-w-[640px] space-y-6">
+          {/* <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
             JOURNEY FORWARD SERVICES
-          </p>
+          </p> */}
 
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight">
             <span className="text-brand">Quickly</span> book and
@@ -39,26 +63,89 @@ export default function Hero() {
             Book your junk removal or delivery service in minutes.
           </p>
 
-          {/* Postal code card (white card over image) */}
-          <div className="mt-4 bg-white/95 backdrop-blur-sm shadow-lg border border-slate-200 rounded-2xl p-4 flex flex-col gap-3 md:flex-row md:items-center md:p-5">
-            <div className="flex-1">
-              <label
-                htmlFor="postal-code"
-                className="block text-xs font-medium text-slate-500 mb-1"
+          {/* === POSTAL CARD – match Figma geometry === */}
+          <form onSubmit={handleCheckAvailability} className="mt-6">
+            <div
+              className="flex items-center border border-slate-200 bg-white/95 shadow-md"
+              style={{
+                width: '600px', // total width
+                height: '60px', // total height
+                borderRadius: '8px',
+                padding: '12px 12px 12px 32px', // top/right/bottom/left
+              }}
+            >
+              {/* Left: icon + texts (403 x 37, gap 16) */}
+              <div
+                className="flex items-center"
+                style={{ width: '403px', gap: '16px' }}
               >
-                Postal code
-              </label>
-              <input
-                id="postal-code"
-                placeholder="Check if your location is available"
-                className="w-full rounded-full border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+                {/* Pin icon circle */}
+                <div
+                  className="flex items-center justify-center border border-slate-200 bg-white"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '16px',
+                  }}
+                >
+                  <MapPin className="h-4 w-4 text-slate-500" />
+                </div>
+
+                {/* Text block */}
+                <div
+                  className="flex flex-col justify-center"
+                  style={{ height: '37px' }}
+                >
+                  <label
+                    htmlFor="postal-code"
+                    className="text-m text-slate-900 leading-tight"
+                  >
+                    Postal code
+                  </label>
+
+                  <input
+                    id="postal-code"
+                    value={postalCode}
+                    onChange={(e) => {
+                      setPostalCode(e.target.value);
+                      if (error) setError('');
+                    }}
+                    className="mt-1 w-full border-none bg-transparent p-0 text-sm text-slate-700 focus:outline-none focus:ring-0"
+                  />
+
+                  <span className="mt-0.5 text-xs text-slate-400 leading-none">
+                    Check if your location is available
+                  </span>
+                </div>
+              </div>
+
+              {/* Divider: same height as text block */}
+              <div
+                className="bg-slate-200"
+                style={{ width: '1px', height: '37px', marginInline: '24px' }}
               />
+
+              {/* Button – same vertical rhythm */}
+              <Button
+                type="submit"
+                disabled={loading}
+                className="border border-brand bg-white text-brand hover:bg-brand/10"
+                style={{
+                  borderRadius: 'px',
+                  height: '35px',
+                  paddingInline: '24px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                }}
+              >
+                {loading ? 'Checking…' : 'Check Availability'}
+              </Button>
             </div>
 
-            <Button className="w-full md:w-auto rounded-full bg-brand px-8 py-2.5 text-sm font-medium text-white hover:bg-brand-dark">
-              Check Availability
-            </Button>
-          </div>
+            {error && (
+              <p className="mt-2 text-xs text-red-500 font-medium">{error}</p>
+            )}
+          </form>
 
           <p className="text-[11px] text-slate-400">
             *We currently serve the Greater Vancouver area only.

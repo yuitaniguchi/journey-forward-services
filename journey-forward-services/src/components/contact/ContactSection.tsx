@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,9 +55,7 @@ export default function ContactSection({
       });
 
       if (res.ok) {
-        // optional: clear the form
         form.reset();
-        // go to the success page we created
         router.push('/contact/success');
       } else {
         setStatus('error');
@@ -100,7 +99,7 @@ export default function ContactSection({
               {contactInfo.map((item) => (
                 <div
                   key={item.title}
-                  className="flex items-center gap-4 rounded-2xl bg-gray-50 p-5 shadow-sm"
+                  className="flex items-center gap-4  bg-gray-50 p-5 shadow-sm"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-white">
                     <item.icon size={20} />
@@ -115,9 +114,12 @@ export default function ContactSection({
               ))}
             </div>
 
-            <Button className="mt-2 inline-flex rounded-full bg-brand px-6 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
-              Get an Estimate
-            </Button>
+            {/* Same style + functionality as navbar "Get an Estimate" */}
+            <Link href="/booking">
+              <Button className="mt-2  bg-brand px-6 py-5 text-md font-semibold text-white shadow-sm hover:bg-brand-dark">
+                Get an Estimate
+              </Button>
+            </Link>
           </div>
 
           {/* RIGHT: form */}
@@ -130,7 +132,6 @@ export default function ContactSection({
               receive the assistance you need in a timely manner.
             </p>
 
-            {/* error message */}
             {status === 'error' && (
               <p className="mb-4 text-xs text-red-500">
                 Something went wrong sending your message. Please try again or
@@ -148,7 +149,7 @@ export default function ContactSection({
                   name="name"
                   placeholder="John"
                   required
-                  className="rounded-lg border-gray-200 bg-white"
+                  className=" border-gray-200 bg-white"
                 />
               </div>
 
@@ -162,7 +163,7 @@ export default function ContactSection({
                   type="email"
                   placeholder="john@gmail.com"
                   required
-                  className="rounded-lg border-gray-200 bg-white"
+                  className=" border-gray-200 bg-white"
                 />
               </div>
 
@@ -175,14 +176,14 @@ export default function ContactSection({
                   name="message"
                   placeholder="Message"
                   required
-                  className="min-h-[120px] rounded-lg border-gray-200 bg-white"
+                  className="min-h-[120px]  border-gray-200 bg-white"
                 />
               </div>
 
               <Button
                 type="submit"
                 disabled={status === 'submitting'}
-                className="mt-2 w-32 rounded-full bg-brand text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
+                className="mt-2 w-32  bg-brand text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
               >
                 {status === 'submitting' ? 'Sending...' : 'Submit'}
               </Button>
