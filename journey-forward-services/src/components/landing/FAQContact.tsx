@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
-import Link from "next/link";
+import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -111,7 +111,7 @@ export function FAQContact() {
             <Link href="/faq">
               <Button
                 variant="outline"
-                className="mt-4 rounded-full border-brand-dark px-6 py-2 text-sm font-medium text-brand-dark hover:bg-brand/5"
+                className="mt-4 border-brand-dark px-6 py-2 text-sm font-medium text-brand-dark hover:bg-brand/5"
               >
                 Learn More
               </Button>
@@ -128,7 +128,7 @@ export function FAQContact() {
                 >
                   <AccordionTrigger className="group card-elevated flex w-full items-center justify-between rounded-2xl px-5 py-3 text-left text-sm font-medium text-gray-800 shadow-sm hover:no-underline">
                     <span className="flex items-center gap-3">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-yellow text-xs font-bold text-brand-dark">
+                      <span className="flex h-6 w-6 items-center justify-center  bg-brand-yellow text-xs font-bold text-brand-dark">
                         !
                       </span>
                       {item.question}
@@ -160,7 +160,7 @@ export function FAQContact() {
               {contactInfo.map((item) => (
                 <div
                   key={item.title}
-                  className="card-elevated flex items-center gap-4 rounded-2xl bg-gray-50 p-4"
+                  className="card-elevated flex items-center gap-4  bg-gray-50 p-4"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-white">
                     <item.icon size={20} />
@@ -175,9 +175,12 @@ export function FAQContact() {
               ))}
             </div>
 
-            <Button className="mt-4 inline-flex rounded-full bg-brand px-6 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
-              Get an Estimate
-            </Button>
+            {/* Get an Estimate – same shape as navbar button */}
+            <Link href="/booking">
+              <Button className="mt-4 rounded-md bg-brand px-6 py-5 text-md font-semibold text-white shadow-sm hover:bg-brand-dark">
+                Get an Estimate
+              </Button>
+            </Link>
           </div>
 
           {/* Right Side: Form */}
@@ -220,7 +223,7 @@ export function FAQContact() {
                   type="email"
                   placeholder="Email"
                   required
-                  className="rounded-lg border-gray-200 bg-white"
+                  className=" border-gray-200 bg-white"
                 />
               </div>
               <div className="space-y-1 text-sm">
@@ -232,13 +235,13 @@ export function FAQContact() {
                   name="message"
                   placeholder="Message"
                   required
-                  className="min-h-[120px] rounded-lg border-gray-200 bg-white"
+                  className="min-h-[120px]  border-gray-200 bg-white"
                 />
               </div>
               <Button
                 type="submit"
                 disabled={status === 'submitting'}
-                className="mt-2 w-32 rounded-full bg-brand text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
+                className="mt-2 w-32  bg-brand text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
               >
                 {status === 'submitting' ? 'Sending...' : 'Submit'}
               </Button>
