@@ -408,7 +408,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                 <span>{formatCurrency(request.quotation.total)}</span>
               </div>
               {request.quotation.note && (
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-slate-600 break-all whitespace-pre-wrap">
                   <span className="font-semibold">Note:</span>{" "}
                   {request.quotation.note}
                 </p>
@@ -526,7 +526,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
               </div>
 
               {request.payment?.note && (
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-slate-600 break-all whitespace-pre-wrap">
                   <span className="font-semibold">Note:</span>{" "}
                   {request.payment.note}
                 </p>
@@ -737,7 +737,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
         initialSubtotal={request.quotation?.subtotal ?? 0}
         initialNote={request.payment?.note ?? ""}
         onClose={() => setShowFinalAmountModal(false)}
-        onSend={async ({ subtotal, note }) => {
+        onSend={async ({ subtotal, note, sendEmail }) => {
           if (subtotal < 0) {
             alert("Final amount must be a non-negative number.");
             throw new Error("Invalid final amount");
@@ -752,6 +752,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                 body: JSON.stringify({
                   subtotal,
                   note,
+                  sendEmail,
                 }),
               }
             );

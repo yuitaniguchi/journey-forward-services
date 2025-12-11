@@ -28,7 +28,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { subtotal, sendEmail } = body;
+    const { subtotal, sendEmail, note } = body;
     const subtotalNum = Number(subtotal);
     const taxRate = 0.12;
     const taxNum = subtotalNum * taxRate;
@@ -46,6 +46,7 @@ export async function POST(
         tax: taxNum,
         total: totalNum,
         bookingLink,
+        note: note,
       },
       create: {
         requestId,
@@ -53,6 +54,7 @@ export async function POST(
         tax: taxNum,
         total: totalNum,
         bookingLink,
+        note: note,
       },
     });
 
