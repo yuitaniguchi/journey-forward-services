@@ -1,4 +1,5 @@
 import Hero from "../components/landing/Hero";
+import AvailabilityCheckSection from "../components/landing/AvailabilityCheckSection";
 import { HowItWorks } from "../components/landing/HowItWorks";
 import Features from "../components/landing/Features";
 import Pricing from "../components/landing/Pricing";
@@ -9,6 +10,7 @@ export default function Home() {
     <main className="flex min-h-screen flex-col antialiased">
       <Hero />
       <HowItWorks />
+      <AvailabilityCheckSection />
       <Pricing />
       <Features />
 

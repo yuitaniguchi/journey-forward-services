@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Item } from "./ItemList";
@@ -34,11 +35,14 @@ type Props = {
 };
 
 export default function BookingForm({ onComplete }: Props) {
+  const searchParams = useSearchParams();
+  const queryPostalCode = searchParams.get("postalCode") || "";
+
   const methods = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
     mode: "onTouched",
     defaultValues: {
-      postalCode: "",
+      postalCode: queryPostalCode,
       pickupDateTime: "",
       deliveryRequired: false,
       address: {
@@ -50,6 +54,7 @@ export default function BookingForm({ onComplete }: Props) {
       floor: "",
       hasElevator: false,
       deliveryAddress: {
+        postalCode: "",
         street: "",
         line2: "",
         city: "",
@@ -72,7 +77,13 @@ export default function BookingForm({ onComplete }: Props) {
     formState: { errors },
   } = methods;
 
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => {
+    if (queryPostalCode && isSupportedPostalCode(queryPostalCode)) {
+      return 1;
+    }
+    return 0;
+  });
+
   const [items, setItems] = useState<Item[]>([]);
   const [itemsError, setItemsError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,6 +91,14 @@ export default function BookingForm({ onComplete }: Props) {
     string | null
   >(null);
   const [outOfArea, setOutOfArea] = useState(false);
+
+  const [hasReachedConfirmation, setHasReachedConfirmation] = useState(false);
+
+  useEffect(() => {
+    if (step === 5) {
+      setHasReachedConfirmation(true);
+    }
+  }, [step]);
 
   const deliveryRequired = watch("deliveryRequired");
 
@@ -91,6 +110,7 @@ export default function BookingForm({ onComplete }: Props) {
           "address.street",
           "address.city",
           "floor",
+          "deliveryAddress.postalCode",
           "deliveryAddress.street",
           "deliveryAddress.city",
           "deliveryFloor",
@@ -118,6 +138,13 @@ export default function BookingForm({ onComplete }: Props) {
       }
     }
 
+    if (step === 2 && deliveryRequired) {
+      const dPostal = getValues("deliveryAddress.postalCode")?.trim() ?? "";
+      if (!isSupportedPostalCode(dPostal)) {
+        return;
+      }
+    }
+
     if (step === 3) {
       if (items.length === 0) {
         setItemsError("Please add at least one item.");
@@ -128,6 +155,31 @@ export default function BookingForm({ onComplete }: Props) {
 
     setStep((prev) => Math.min(prev + 1, STEPS.length - 1));
     window.scrollTo(0, 0);
+  };
+
+  const handleJumpToConfirmation = async () => {
+    const currentFields = stepFields[step];
+    if (currentFields.length > 0) {
+      const currentOk = await trigger(currentFields as any);
+      if (!currentOk) return;
+    }
+
+    if (step === 3) {
+      if (items.length === 0) {
+        setItemsError("Please add at least one item.");
+        return;
+      }
+      setItemsError("");
+    }
+
+    const allValid = await trigger();
+
+    if (allValid) {
+      setStep(5);
+      window.scrollTo(0, 0);
+    } else {
+      handleNext();
+    }
   };
 
   const handleBack = () => {
@@ -176,7 +228,7 @@ export default function BookingForm({ onComplete }: Props) {
 
         ...(data.deliveryRequired && data.deliveryAddress
           ? {
-              deliveryPostalCode: data.postalCode,
+              deliveryPostalCode: data.deliveryAddress.postalCode,
               deliveryAddressLine1: data.deliveryAddress.street,
               deliveryAddressLine2: data.deliveryAddress.line2 || null,
               deliveryCity: data.deliveryAddress.city,
@@ -300,16 +352,28 @@ export default function BookingForm({ onComplete }: Props) {
 
               {!(step === 0 && outOfArea) && (
                 <>
-                  {step <= 4 && (
+                  {hasReachedConfirmation && step < 5 ? (
                     <Button
                       type="button"
-                      onClick={handleNext}
-                      className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#3F7253] text-white hover:bg-[#315e45] sm:w-40"
+                      onClick={handleJumpToConfirmation}
+                      className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#3F7253] text-white hover:bg-[#315e45] sm:w-auto sm:px-8"
                     >
-                      <span>Next</span>
-                      <ArrowRight className="h-4 w-4" />
+                      <span>Save & Review</span>
+                      <CheckCircle2 className="h-4 w-4" />
                     </Button>
+                  ) : (
+                    step <= 4 && (
+                      <Button
+                        type="button"
+                        onClick={handleNext}
+                        className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#3F7253] text-white hover:bg-[#315e45] sm:w-40"
+                      >
+                        <span>Next</span>
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    )
                   )}
+
                   {step === 5 && (
                     <Button
                       type="submit"

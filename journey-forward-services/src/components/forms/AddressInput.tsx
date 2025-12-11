@@ -27,6 +27,7 @@ export default function AddressInput({ prefix = "address" }: Props) {
       <div className="space-y-1">
         <Input
           placeholder="Street Address"
+          autoComplete={`section-${prefix} address-line1`}
           className="h-12 rounded-lg border-slate-300 placeholder:text-slate-400 focus-visible:ring-[#2f7d4a]"
           {...register(`${prefix}.street`)}
         />
@@ -39,6 +40,7 @@ export default function AddressInput({ prefix = "address" }: Props) {
       <div className="space-y-1">
         <Input
           placeholder="Address Line 2"
+          autoComplete={`section-${prefix} address-line2`}
           className="h-12 rounded-lg border-slate-300 placeholder:text-slate-400 focus-visible:ring-[#2f7d4a]"
           {...register(`${prefix}.line2`)}
         />
@@ -50,9 +52,9 @@ export default function AddressInput({ prefix = "address" }: Props) {
           <select
             className="flex h-12 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f7d4a] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             {...register(`${prefix}.city`)}
+            autoComplete={`section-${prefix} address-level2`}
             defaultValue=""
           >
-            {/* 修正: ここを "Vancouver" から "City" に変更し、未選択であることを明確化 */}
             <option value="" disabled className="text-slate-400">
               City
             </option>
@@ -74,6 +76,7 @@ export default function AddressInput({ prefix = "address" }: Props) {
           placeholder="British Columbia"
           defaultValue="British Columbia"
           readOnly
+          autoComplete={`section-${prefix} address-level1`}
           className="h-12 rounded-lg border-slate-300 bg-white text-slate-900 focus-visible:ring-[#2f7d4a]"
           {...register(`${prefix}.province`)}
         />

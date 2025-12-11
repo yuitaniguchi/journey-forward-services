@@ -44,6 +44,7 @@ export const bookingSchema = z.object({
 
     // Delivery Address
     deliveryAddress: z.object({
+        postalCode: z.string().optional(), // 追加
         street: z.string().optional(),
         line2: z.string().optional(),
         city: z.string().optional(),
@@ -71,6 +72,21 @@ export const bookingSchema = z.object({
         }, "Phone number must have at least 10 digits"),
 }).superRefine((data, ctx) => {
     if (data.deliveryRequired) {
+        // Delivery Postal Code Check
+        if (!data.deliveryAddress?.postalCode) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["deliveryAddress", "postalCode"],
+                message: "Postal code is required",
+            });
+        } else if (!POSTAL_CODE_REGEX.test(data.deliveryAddress.postalCode)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["deliveryAddress", "postalCode"],
+                message: "Invalid postal code format",
+            });
+        }
+
         if (!data.deliveryAddress?.street) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
