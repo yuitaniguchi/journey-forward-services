@@ -17,7 +17,7 @@ export type RequestDetail = {
   pickupAddressLine2?: string | null;
   pickupCity: string;
   pickupState: string;
-  pickupFloor?: string | null; // ← DB が String? なので string に寄せる
+  pickupFloor?: string | null;
   pickupElevator?: boolean | null;
 
   deliveryPostalCode?: string | null;
@@ -25,7 +25,7 @@ export type RequestDetail = {
   deliveryAddressLine2?: string | null;
   deliveryCity?: string | null;
   deliveryState?: string | null;
-  deliveryFloor?: string | null; // ← 同上
+  deliveryFloor?: string | null;
   deliveryElevator?: boolean | null;
 
   customer: {
@@ -49,14 +49,14 @@ export type RequestDetail = {
     subtotal: number;
     tax: number;
     total: number;
-    note?: string | null; // ★ Quotation note
+    note?: string | null;
   } | null;
 
   payment: {
     id: number;
     total: string;
     status: string;
-    note?: string | null; // ★ Payment note
+    note?: string | null;
   } | null;
 };
 
@@ -113,7 +113,6 @@ export default function RequestDetailClient({ initialRequest }: Props) {
   const [confirmingStatus, setConfirmingStatus] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
-  // 🔍 ライトボックス用 state
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
   const [photoItems, setPhotoItems] = useState<RequestDetail["items"]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
@@ -129,7 +128,6 @@ export default function RequestDetailClient({ initialRequest }: Props) {
     );
   }
 
-  // ---- ステータス更新 ----
   async function handleStatusChange(next: RequestStatus): Promise<boolean> {
     if (!request) return false;
     if (next === request.status) return true;
@@ -178,7 +176,6 @@ export default function RequestDetailClient({ initialRequest }: Props) {
     setPendingStatus(null);
   }
 
-  // 🔁 ライトボックスの前後ナビゲーション
   function goPrevPhoto() {
     setCurrentPhotoIndex((i) =>
       photoItems.length === 0
@@ -193,7 +190,6 @@ export default function RequestDetailClient({ initialRequest }: Props) {
     );
   }
 
-  // 🔍 サムネイルクリック時のハンドラ
   function handlePhotoClick(itemId: number) {
     const itemsWithPhotos = request?.items.filter((i) => i.photoUrl) ?? [];
     if (itemsWithPhotos.length === 0) return;
@@ -206,7 +202,6 @@ export default function RequestDetailClient({ initialRequest }: Props) {
     setPhotoViewerOpen(true);
   }
 
-  // ---- 派生値 ----
   const customerName = `${request.customer.firstName} ${request.customer.lastName}`;
   const pickupDate = formatDate(request.preferredDatetime);
   const finalAmount =
@@ -222,7 +217,6 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           const rawSubtotal = total / 1.12;
           const rawTax = total - rawSubtotal;
 
-          // 小数の誤差を軽減（小数第3位で四捨五入）
           const subtotal = Math.round(rawSubtotal * 100) / 100;
           const tax = Math.round(rawTax * 100) / 100;
 
@@ -230,32 +224,45 @@ export default function RequestDetailClient({ initialRequest }: Props) {
         })()
       : null;
 
-  // ボタン制御ロジック
   const canEditQuotation =
     request.status === "RECEIVED" || request.status === "QUOTED";
 
   const canSendFinalAmount =
-    request.status !== "PAID" && request.status !== "CANCELLED";
+    request.status === "CONFIRMED" || request.status === "INVOICED";
 
-  // Items & Photos 表示件数制御
   const itemsToShow = showAllItems ? request.items : request.items.slice(0, 3);
   const hasMoreItems = request.items.length > 3;
 
   return (
     <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
-      {/* タイトル＋一覧に戻るボタン */}
-      <div className="mb-8 flex items-center justify-between gap-4">
-        <h1 className="text-4xl font-extrabold text-slate-900 md:text-5xl">
-          Request Details
-        </h1>
-
+      <div className="mb-4">
         <button
           type="button"
           onClick={() => router.push("/admin")}
-          className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
+          className="flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors"
         >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2.5}
+            stroke="currentColor"
+            className="w-4 h-4"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15.75 19.5L8.25 12l7.5-7.5"
+            />
+          </svg>
           Back to requests
         </button>
+      </div>
+
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <h1 className="text-4xl font-extrabold text-slate-900 md:text-5xl">
+          Request #{request.id}
+        </h1>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -444,8 +451,23 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           {request.items.length > 0 && (
             <>
               <ul className="space-y-4">
-                {itemsToShow.map((item) => (
-                  <li key={item.id} className="flex items-start gap-4">
+                {itemsToShow.map((item, index) => (
+                  <li
+                    key={item.id}
+                    className="flex items-start justify-between gap-4"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold">
+                        {index + 1}. {item.name} - {item.size} (x
+                        {item.quantity})
+                      </p>
+                      {item.description && (
+                        <p className="text-sm text-slate-600 whitespace-pre-wrap break-all">
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
+
                     {item.photoUrl && (
                       <button
                         type="button"
@@ -459,16 +481,6 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                         />
                       </button>
                     )}
-                    <div>
-                      <p className="font-semibold">
-                        {item.name} - {item.size} (x{item.quantity})
-                      </p>
-                      {item.description && (
-                        <p className="text-sm text-slate-600">
-                          {item.description}
-                        </p>
-                      )}
-                    </div>
                   </li>
                 ))}
               </ul>
@@ -673,7 +685,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
       <QuotationModal
         open={showQuotationModal}
         initialSubtotal={request.quotation?.subtotal ?? 0}
-        initialNote={request.quotation?.note ?? ""} // ★ 追加
+        initialNote={request.quotation?.note ?? ""}
         onClose={() => setShowQuotationModal(false)}
         onSave={async ({ subtotal, sendEmail, note }) => {
           try {
@@ -723,7 +735,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
       <FinalAmountModal
         open={showFinalAmountModal}
         initialSubtotal={request.quotation?.subtotal ?? 0}
-        initialNote={request.payment?.note ?? ""} // ★ 追加
+        initialNote={request.payment?.note ?? ""}
         onClose={() => setShowFinalAmountModal(false)}
         onSend={async ({ subtotal, note }) => {
           if (subtotal < 0) {
