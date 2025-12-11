@@ -28,7 +28,7 @@ export const CancellationNotificationCustomer: React.FC<
 
   const feeMessage = isFree
     ? "No cancellation fee was applied."
-    : `In accordance with our cancellation policy, a cancellation fee of ${formattedFee} will be charged. You will receive a separate invoice shortly.`;
+    : `In accordance with our cancellation policy, a cancellation fee of ${formattedFee} has been charged to your registered card.`;
 
   return (
     <Layout previewText={previewText}>
@@ -58,8 +58,8 @@ export const CancellationNotificationCustomer: React.FC<
       </Section>
 
       <Text className="text-sm text-gray-600 mt-6">
-        For details regarding our cancellation policy, please refer to your
-        original booking documentation.
+        For full details regarding our cancellation policy, please check your
+        booking confirmation email or visit our website.
       </Text>
     </Layout>
   );

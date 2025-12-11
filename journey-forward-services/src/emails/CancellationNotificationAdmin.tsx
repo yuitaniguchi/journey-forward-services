@@ -43,12 +43,6 @@ export const CancellationNotificationAdmin: React.FC<
             ? "Free Cancellation (No Charge)"
             : `Fee Applied: ${formattedFee}`}
         </Text>
-        {!isFree && (
-          <Text className="text-sm text-red-700 mt-2">
-            Action Required: Please process the cancellation charge in the
-            dashboard.
-          </Text>
-        )}
       </Section>
 
       <Section className="mt-6">
