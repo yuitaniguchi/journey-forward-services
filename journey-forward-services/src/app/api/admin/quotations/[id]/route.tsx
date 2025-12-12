@@ -3,12 +3,9 @@ import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { render } from "@react-email/render";
 import QuotationSentCustomer from "@/emails/QuotationSentCustomer";
-
-// [PRODUCTION] Uncomment for SendGrid
-// import sgMail from "@sendgrid/mail";
-
-// [DEMO] Keep for Gmail (Nodemailer)
 import nodemailer from "nodemailer";
+
+// import sgMail from "@sendgrid/mail";
 
 type RouteParams = Promise<{ id: string }>;
 
@@ -34,9 +31,18 @@ export async function POST(
     const taxNum = subtotalNum * taxRate;
     const totalNum = subtotalNum + taxNum;
 
-    const token = crypto.randomUUID();
+    const existingQuotation = await prisma.quotation.findUnique({
+      where: { requestId },
+    });
+
+    let bookingLink = existingQuotation?.bookingLink;
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const bookingLink = `${baseUrl}/booking/${token}/confirm`;
+
+    if (!bookingLink) {
+      const token = crypto.randomUUID();
+      bookingLink = `${baseUrl}/booking/${token}/confirm`;
+    }
+
     const pdfLink = `${baseUrl}/api/pdf/quotations/${requestId}`;
 
     const quotation = await prisma.quotation.upsert({
@@ -47,6 +53,7 @@ export async function POST(
         total: totalNum,
         bookingLink,
         note: note,
+        sentAt: sendEmail ? new Date() : undefined,
       },
       create: {
         requestId,
@@ -55,6 +62,7 @@ export async function POST(
         total: totalNum,
         bookingLink,
         note: note,
+        sentAt: sendEmail ? new Date() : null,
       },
     });
 
@@ -73,7 +81,6 @@ export async function POST(
         throw new Error("Customer email not found");
       }
 
-      // --- PREPARE EMAIL CONTENT (Shared) ---
       const dateStr = new Date().toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",

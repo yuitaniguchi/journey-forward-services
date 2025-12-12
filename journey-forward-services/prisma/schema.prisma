@@ -82,6 +82,7 @@ model Quotation {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
   note        String?  @map("note")
+  sentAt      DateTime? @map("sent_at")
   request     Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   @@map("quotations")
@@ -101,6 +102,7 @@ model Payment {
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
   note                  String? @map("note")
+  sentAt                DateTime? @map("sent_at")
   request               Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   @@index([stripePaymentIntentId])

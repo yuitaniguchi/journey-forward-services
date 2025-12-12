@@ -51,6 +51,7 @@ export async function POST(
         total: totalNum,
         status: "PENDING",
         note: note,
+        sentAt: sendEmail ? new Date() : undefined,
       },
       create: {
         requestId,
@@ -60,6 +61,7 @@ export async function POST(
         status: "PENDING",
         currency,
         note: note,
+        sentAt: sendEmail ? new Date() : undefined,
       },
     });
 

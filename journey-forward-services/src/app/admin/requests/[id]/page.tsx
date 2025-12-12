@@ -1,5 +1,3 @@
-// ❌ "use client" は削除！（サーバコンポーネントになる）
-
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import type { RequestStatus } from "@prisma/client";
@@ -78,6 +76,10 @@ export default async function RequestDetailPage({ params }: PageProps) {
           tax: Number(data.quotation.tax),
           total: Number(data.quotation.total),
           note: data.quotation.note ?? null,
+          sentAt: data.quotation.sentAt
+            ? data.quotation.sentAt.toISOString()
+            : null,
+          updatedAt: data.quotation.updatedAt.toISOString(),
         }
       : null,
 
@@ -87,10 +89,13 @@ export default async function RequestDetailPage({ params }: PageProps) {
           total: data.payment.total.toString(),
           status: data.payment.status,
           note: data.payment.note ?? null,
+          sentAt: data.payment.sentAt
+            ? data.payment.sentAt.toISOString()
+            : null,
+          updatedAt: data.payment.updatedAt.toISOString(),
         }
       : null,
   };
 
-  // クライアントコンポーネントに初期データを渡して描画
   return <RequestDetailClient initialRequest={request} />;
 }

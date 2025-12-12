@@ -109,25 +109,29 @@ export default function FinalAmountModal({
 
         {/* Note (optional) */}
         <div className="mb-6">
-          <label className="mb-1 block text-sm font-medium text-slate-700">
-            Note (optional)
+          <label className="mb-1 block text-sm font-bold text-slate-900">
+            Internal Note
+            <span className="ml-2 font-normal text-slate-500">
+              (Not visible to customer)
+            </span>
           </label>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Add a note (internal use only)"
+            placeholder="Write internal memo here. This will NOT be sent in the email."
             rows={4}
             className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
           />
         </div>
 
-        <p className="mb-6 text-sm text-slate-700">
-          Sending will email the invoice to the customer and update status to{" "}
-          <strong>Invoiced</strong>.
+        <p className="mb-4 text-sm font-semibold text-slate-900">
+          Send invoice email to the customer?
         </p>
 
+        {/* Buttons */}
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-3 md:flex-row">
+            {/* 1. Save only */}
             <button
               type="button"
               disabled={sending}
@@ -137,6 +141,7 @@ export default function FinalAmountModal({
               Save only
             </button>
 
+            {/* 2. Save & Send */}
             <button
               type="button"
               disabled={sending}
@@ -147,6 +152,7 @@ export default function FinalAmountModal({
             </button>
           </div>
 
+          {/* 3. Cancel */}
           <button
             type="button"
             onClick={onClose}

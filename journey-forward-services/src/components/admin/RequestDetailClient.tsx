@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { RequestStatus } from "@prisma/client";
 import QuotationModal from "@/components/admin/QuotationModal";
 import FinalAmountModal from "@/components/admin/FinalAmountModal";
+import { Check, FileText, AlertCircle } from "lucide-react";
 
 export type RequestDetail = {
   id: number;
@@ -50,6 +51,8 @@ export type RequestDetail = {
     tax: number;
     total: number;
     note?: string | null;
+    sentAt?: string | null;
+    updatedAt: string;
   } | null;
 
   payment: {
@@ -57,6 +60,8 @@ export type RequestDetail = {
     total: string;
     status: string;
     note?: string | null;
+    sentAt?: string | null;
+    updatedAt: string;
   } | null;
 };
 
@@ -95,6 +100,20 @@ const formatCurrency = (val: number) =>
     style: "currency",
     currency: "CAD",
   }).format(val);
+
+function getBadgeStatus(sentAt?: string | null, updatedAt?: string) {
+  if (!sentAt) return "DRAFT";
+  if (!updatedAt) return "SENT";
+
+  const sentTime = new Date(sentAt).getTime();
+  const updatedTime = new Date(updatedAt).getTime();
+
+  if (updatedTime > sentTime + 2000) {
+    return "UNSYNCED";
+  }
+
+  return "SENT";
+}
 
 export default function RequestDetailClient({ initialRequest }: Props) {
   const router = useRouter();
@@ -204,15 +223,15 @@ export default function RequestDetailClient({ initialRequest }: Props) {
 
   const customerName = `${request.customer.firstName} ${request.customer.lastName}`;
   const pickupDate = formatDate(request.preferredDatetime);
-  const finalAmount =
-    request.payment && request.payment.total
-      ? `$${request.payment.total}`
-      : "-";
   const paymentAmounts =
     request.payment && request.payment.total
       ? (() => {
           const total = Number(request.payment!.total);
           if (Number.isNaN(total)) return null;
+
+          if (!request.payment!.sentAt && total === 0) {
+            return null;
+          }
 
           const rawSubtotal = total / 1.12;
           const rawTax = total - rawSubtotal;
@@ -385,9 +404,40 @@ export default function RequestDetailClient({ initialRequest }: Props) {
 
         {/* 4. Quotation */}
         <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
-          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
-            Quotation
-          </h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-2xl font-semibold text-slate-900">Quotation</h2>
+
+            {request.quotation &&
+              (() => {
+                const status = getBadgeStatus(
+                  request.quotation.sentAt,
+                  request.quotation.updatedAt
+                );
+
+                if (status === "SENT") {
+                  return (
+                    <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
+                      <Check className="h-3.5 w-3.5" />
+                      Sent: {formatDate(request.quotation.sentAt!)}
+                    </span>
+                  );
+                } else if (status === "UNSYNCED") {
+                  return (
+                    <span className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      Unsent Changes
+                    </span>
+                  );
+                } else {
+                  return (
+                    <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                      <FileText className="h-3.5 w-3.5" />
+                      Draft (Unsent)
+                    </span>
+                  );
+                }
+              })()}
+          </div>
 
           {request.quotation ? (
             <div className="mb-6 space-y-2 text-sm">
@@ -502,9 +552,43 @@ export default function RequestDetailClient({ initialRequest }: Props) {
 
         {/* 6. Final Billing */}
         <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
-          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
-            Final Billing
-          </h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-2xl font-semibold text-slate-900">
+              Final Billing
+            </h2>
+
+            {paymentAmounts &&
+              request.payment &&
+              (() => {
+                const status = getBadgeStatus(
+                  request.payment.sentAt,
+                  request.payment.updatedAt
+                );
+
+                if (status === "SENT") {
+                  return (
+                    <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
+                      <Check className="h-3.5 w-3.5" />
+                      Sent: {formatDate(request.payment.sentAt!)}
+                    </span>
+                  );
+                } else if (status === "UNSYNCED") {
+                  return (
+                    <span className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      Unsent Changes
+                    </span>
+                  );
+                } else {
+                  return (
+                    <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                      <FileText className="h-3.5 w-3.5" />
+                      Draft (Unsent)
+                    </span>
+                  );
+                }
+              })()}
+          </div>
 
           {paymentAmounts ? (
             <div className="mb-6 space-y-2 text-sm">
@@ -534,7 +618,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
             </div>
           ) : (
             <p className="mb-4 text-sm text-slate-500">
-              No final amount has been sent yet.
+              No invoice created yet.
             </p>
           )}
 
@@ -716,6 +800,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                       tax: Number(json.quotation.tax),
                       total: Number(json.quotation.total),
                       note: json.quotation.note ?? null,
+                      sentAt: json.quotation.sentAt ?? null,
+                      updatedAt: json.quotation.updatedAt,
                     },
                     status:
                       prev.status === "RECEIVED" || prev.status === "QUOTED"
@@ -734,7 +820,9 @@ export default function RequestDetailClient({ initialRequest }: Props) {
       {/* Final Amount Modal */}
       <FinalAmountModal
         open={showFinalAmountModal}
-        initialSubtotal={request.quotation?.subtotal ?? 0}
+        initialSubtotal={
+          paymentAmounts?.subtotal ?? request.quotation?.subtotal ?? 0
+        }
         initialNote={request.payment?.note ?? ""}
         onClose={() => setShowFinalAmountModal(false)}
         onSend={async ({ subtotal, note, sendEmail }) => {
@@ -776,6 +864,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                       total: payment.total,
                       status: payment.status,
                       note: payment.note ?? null,
+                      sentAt: payment.sentAt ?? null,
+                      updatedAt: payment.updatedAt,
                     },
                     status: "INVOICED",
                   }
