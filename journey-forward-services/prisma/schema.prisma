@@ -75,7 +75,12 @@ model Item {
 model Quotation {
   id          Int      @id @default(autoincrement()) @map("quotation_id")
   requestId   Int      @unique @map("request_id")
+  originalSubtotal     Float     @default(0)
+  originalTax          Float     @default(0) 
+  originalTotal        Float     @default(0)
   subtotal    Decimal  @db.Decimal(10, 2)
+  discountAmount Decimal?      @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  discountCodeId Int?          @map("discount_code_id")
   tax         Decimal  @db.Decimal(10, 2)
   total       Decimal  @db.Decimal(10, 2)
   bookingLink String   @unique @map("booking_link")
@@ -84,6 +89,7 @@ model Quotation {
   note        String?  @map("note")
   sentAt      DateTime? @map("sent_at")
   request     Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  discountCode   DiscountCode? @relation(fields: [discountCodeId], references: [id])
 
   @@map("quotations")
 }
@@ -92,6 +98,8 @@ model Payment {
   id                    Int      @id @default(autoincrement()) @map("payment_id")
   requestId             Int      @unique @map("request_id")
   subtotal              Decimal  @db.Decimal(10, 2)
+  discountAmount        Decimal?      @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  discountCodeId        Int?          @map("discount_code_id")
   tax                   Decimal  @db.Decimal(10, 2)
   total                 Decimal  @db.Decimal(10, 2)
   currency              String   @default("CAD")
@@ -104,7 +112,8 @@ model Payment {
   note                  String? @map("note")
   sentAt                DateTime? @map("sent_at")
   request               Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
-
+  discountCode          DiscountCode? @relation(fields: [discountCodeId], references: [id])
+  
   @@index([stripePaymentIntentId])
   @@map("payments")
 }
@@ -120,6 +129,35 @@ model Admin {
   @@map("admin")
 }
 
+model DiscountCode {
+  id          Int          @id @default(autoincrement()) @map("discount_code_id")
+  code        String       @unique
+  description String?
+  type        DiscountType
+  value       Decimal      @db.Decimal(10, 2)
+  isActive    Boolean      @default(true) @map("is_active")
+  startsAt    DateTime     @default(now()) @map("starts_at")
+  expiresAt   DateTime?    @map("expires_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  quotations  Quotation[]
+  payments    Payment[]
+
+  @@map("discount_codes")
+}
+
+model BlockedSchedule {
+  id        Int       @id @default(autoincrement()) @map("blocked_schedule_id")
+  date      DateTime  @db.Date
+  startTime DateTime? @map("start_time")
+  endTime   DateTime? @map("end_time")
+  reason    String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("blocked_schedules")
+}
+
 /// ===== Enums =====
 enum ServiceType {
   PICKUP
@@ -133,4 +171,9 @@ enum RequestStatus {
   INVOICED
   PAID
   CANCELLED
+}
+
+enum DiscountType {
+  FIXED_AMOUNT
+  PERCENTAGE
 }

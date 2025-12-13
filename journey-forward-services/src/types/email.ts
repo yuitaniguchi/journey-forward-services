@@ -41,6 +41,7 @@ export interface QuotationSentProps extends BookingReceivedProps {
     bookingLink: string;
     subTotal: number;
     tax: number;
+    discountAmount?: number;
     pdfLink: string;
     items: (ItemData & { price: number; delivery: boolean })[];
 }
@@ -51,6 +52,7 @@ export interface BookingConfirmedProps extends BookingReceivedProps {
         subtotal: number;
         tax: number;
         total: number;
+        discountAmount?: number;
     };
     pdfLink?: string;
     manageLink?: string;
@@ -59,5 +61,21 @@ export interface BookingConfirmedProps extends BookingReceivedProps {
 export interface AdminBookingConfirmedProps extends BookingReceivedProps {
     customerPhone: string;
     quotationTotal: number;
+    subTotal?: number;
+    discountAmount?: number;
     dashboardLink?: string;
+}
+
+export interface PaymentConfirmedCustomerProps extends BookingReceivedProps {
+    finalTotal: number;
+    subTotal?: number;
+    tax?: number;
+    discountAmount?: number;
+}
+
+export interface PaymentConfirmedAdminProps extends BookingReceivedProps {
+    finalTotal: number;
+    dashboardLink: string;
+    subTotal?: number;
+    discountAmount?: number;
 }

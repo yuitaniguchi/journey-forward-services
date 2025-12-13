@@ -38,15 +38,42 @@ export async function POST(
       );
     }
 
+    const existingQuotation = await prisma.quotation.findUnique({
+      where: { requestId },
+      include: { discountCode: true },
+    });
+
+    let discountAmount = 0;
+    let discountCodeId: number | null = null;
+
+    if (existingQuotation?.discountCode) {
+      discountCodeId = existingQuotation.discountCode.id;
+      const dc = existingQuotation.discountCode;
+
+      if (dc.type === "FIXED_AMOUNT") {
+        discountAmount = Number(dc.value);
+      } else if (dc.type === "PERCENTAGE") {
+        discountAmount = subtotalNum * (Number(dc.value) / 100);
+      }
+
+      if (discountAmount > subtotalNum) {
+        discountAmount = subtotalNum;
+      }
+    }
+
+    const taxableSubtotal = subtotalNum - discountAmount;
+
     const taxRate = 0.12;
-    const taxNum = subtotalNum * taxRate;
-    const totalNum = subtotalNum + taxNum;
+    const taxNum = taxableSubtotal * taxRate;
+    const totalNum = taxableSubtotal + taxNum;
 
     // 1. Payment Record Upsert
     const payment = await prisma.payment.upsert({
       where: { requestId },
       update: {
         subtotal: subtotalNum,
+        discountAmount: discountAmount,
+        discountCodeId: discountCodeId,
         tax: taxNum,
         total: totalNum,
         status: "PENDING",
@@ -56,6 +83,8 @@ export async function POST(
       create: {
         requestId,
         subtotal: subtotalNum,
+        discountAmount: discountAmount,
+        discountCodeId: discountCodeId,
         tax: taxNum,
         total: totalNum,
         status: "PENDING",
@@ -66,7 +95,7 @@ export async function POST(
     });
 
     // 2. Token / Link Generation
-    let quotation = await prisma.quotation.findUnique({ where: { requestId } });
+    let quotation = existingQuotation;
     let token = "";
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -149,6 +178,7 @@ export async function POST(
             }}
             quotationTotal={Number(totalNum)}
             subTotal={Number(subtotalNum)}
+            discountAmount={Number(discountAmount)}
             tax={Number(taxNum)}
             finalTotal={Number(totalNum)}
             paymentLink={paymentLink}

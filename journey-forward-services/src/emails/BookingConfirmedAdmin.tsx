@@ -6,6 +6,8 @@ import { AdminBookingConfirmedProps } from "../types/email";
 interface ExtendedAdminBookingConfirmedProps
   extends AdminBookingConfirmedProps {
   dashboardLink: string;
+  subTotal?: number;
+  discountAmount?: number;
 }
 
 export const BookingConfirmedAdmin: React.FC<
@@ -17,6 +19,7 @@ export const BookingConfirmedAdmin: React.FC<
   quotationTotal,
   customerPhone,
   dashboardLink,
+  discountAmount,
 }) => {
   const previewText = `Booking Confirmed – Request #${request.requestId} from ${customer.lastName}`;
   const formattedTotal = new Intl.NumberFormat("en-CA", {
@@ -56,8 +59,19 @@ export const BookingConfirmedAdmin: React.FC<
           <span className="font-semibold">Service Date & Time:</span>{" "}
           {requestDate}
           <br />
+          <br />
           <span className="font-semibold">Estimated Total:</span>{" "}
           {formattedTotal}
+          {discountAmount !== undefined && discountAmount > 0 && (
+            <span className="text-red-600 font-semibold ml-2">
+              (Includes discount: -
+              {new Intl.NumberFormat("en-CA", {
+                style: "currency",
+                currency: "CAD",
+              }).format(discountAmount)}
+              )
+            </span>
+          )}
         </Text>
       </Section>
 

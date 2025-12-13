@@ -2,10 +2,17 @@
 
 import { useEffect, useState } from "react";
 
+type DiscountRule = {
+  type: "FIXED_AMOUNT" | "PERCENTAGE";
+  value: number;
+};
+
 type Props = {
   open: boolean;
   initialSubtotal?: number;
   initialNote?: string;
+  initialDiscountAmount?: number;
+  discountRule: DiscountRule | null;
   onClose: () => void;
   onSend: (payload: {
     subtotal: number;
@@ -18,6 +25,8 @@ export default function FinalAmountModal({
   open,
   initialSubtotal = 0,
   initialNote,
+  initialDiscountAmount = 0,
+  discountRule,
   onClose,
   onSend,
 }: Props) {
@@ -33,8 +42,26 @@ export default function FinalAmountModal({
   }, [open, initialSubtotal, initialNote]);
 
   const subtotal = parseFloat(subtotalStr) || 0;
-  const tax = subtotal * 0.12; // BC Tax 12%
-  const total = subtotal + tax;
+
+  let discount = 0;
+
+  if (discountRule) {
+    if (discountRule.type === "FIXED_AMOUNT") {
+      discount = discountRule.value;
+    } else if (discountRule.type === "PERCENTAGE") {
+      discount = subtotal * (discountRule.value / 100);
+    }
+  } else {
+    discount = initialDiscountAmount;
+  }
+
+  if (discount > subtotal) {
+    discount = subtotal;
+  }
+
+  const taxableSubtotal = subtotal - discount;
+  const tax = taxableSubtotal * 0.12; // BC Tax 12%
+  const total = taxableSubtotal + tax;
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat("en-CA", {
@@ -97,6 +124,21 @@ export default function FinalAmountModal({
             <span>Subtotal:</span>
             <span>{formatCurrency(subtotal)}</span>
           </div>
+
+          {/* Discount */}
+          {discount > 0 && (
+            <div className="flex justify-between text-red-600 font-medium">
+              <span>
+                Discount
+                {discountRule?.type === "PERCENTAGE"
+                  ? ` (${discountRule.value}%)`
+                  : ""}
+                :
+              </span>
+              <span>-{formatCurrency(discount)}</span>
+            </div>
+          )}
+
           <div className="flex justify-between text-slate-500">
             <span>Tax (12%):</span>
             <span>{formatCurrency(tax)}</span>

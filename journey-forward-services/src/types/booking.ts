@@ -1,5 +1,5 @@
-// src/types/booking.ts
 import type { RequestStatus } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 
 export type BookingCustomer = {
   id: number;
@@ -24,6 +24,8 @@ export type BookingQuotation = {
   tax: number;
   total: number;
   bookingLink: string;
+  discountAmount?: Decimal | number | null;
+  discountCodeId?: number | null;
 };
 
 export type BookingPayment = {
@@ -33,6 +35,8 @@ export type BookingPayment = {
   total: number;
   currency: string;
   status: string;
+  discountAmount?: Decimal | number | null;
+  discountCodeId?: number | null;
 };
 
 export type BookingRequest = {
@@ -56,7 +60,7 @@ export type BookingRequest = {
   deliveryFloor: string | null;
   deliveryElevator: boolean | null;
 
-  preferredDatetime: string; // ISO 文字列
+  preferredDatetime: string;
   status: RequestStatus;
 
   freeCancellationDeadline: string;

@@ -23,7 +23,11 @@ export default async function BookingConfirmPage({ params }: PageProps) {
         include: {
           customer: true,
           items: true,
-          quotation: true,
+          quotation: {
+            include: {
+              discountCode: true,
+            },
+          },
           payment: true,
         },
       },
@@ -71,6 +75,9 @@ export default async function BookingConfirmPage({ params }: PageProps) {
       subtotal: Number(booking.quotation!.subtotal),
       tax: Number(booking.quotation!.tax),
       total: Number(booking.quotation!.total),
+      discountAmount: booking.quotation!.discountAmount
+        ? Number(booking.quotation!.discountAmount)
+        : null,
     },
     payment: booking.payment
       ? {

@@ -8,15 +8,24 @@ const HERO_IMAGE_URL =
 
 interface PaymentConfirmedCustomerProps extends BookingReceivedProps {
   finalTotal: number;
+  subTotal?: number;
+  tax?: number;
+  discountAmount?: number;
 }
 
 export const PaymentConfirmedCustomer: React.FC<
   PaymentConfirmedCustomerProps
-> = ({ customer, request, finalTotal }) => {
+> = ({ customer, request, finalTotal, subTotal, tax, discountAmount }) => {
   const formattedTotal = new Intl.NumberFormat("en-CA", {
     style: "currency",
     currency: "CAD",
   }).format(finalTotal);
+
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat("en-CA", {
+      style: "currency",
+      currency: "CAD",
+    }).format(val);
 
   const previewText = "【Journey Forward Services】Payment Confirmed";
 
@@ -40,6 +49,26 @@ export const PaymentConfirmedCustomer: React.FC<
       </Text>
 
       <Section className="bg-green-50 p-4 mt-6 border border-solid border-green-200 rounded-md text-center">
+        {(subTotal !== undefined || (discountAmount && discountAmount > 0)) && (
+          <Section className="mb-4 border-b border-green-200 pb-2">
+            {subTotal !== undefined && (
+              <Text className="text-sm text-gray-600 m-0">
+                Subtotal: {formatCurrency(subTotal)}
+              </Text>
+            )}
+            {discountAmount !== undefined && discountAmount > 0 && (
+              <Text className="text-sm text-red-600 m-0">
+                Discount: -{formatCurrency(discountAmount)}
+              </Text>
+            )}
+            {tax !== undefined && (
+              <Text className="text-sm text-gray-600 m-0">
+                Tax: {formatCurrency(tax)}
+              </Text>
+            )}
+          </Section>
+        )}
+
         <Text className="text-sm font-semibold text-gray-700 m-0">
           Total Paid
         </Text>

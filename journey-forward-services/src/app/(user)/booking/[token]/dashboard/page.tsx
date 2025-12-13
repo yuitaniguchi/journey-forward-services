@@ -59,9 +59,17 @@ export default async function BookingDashboardPage({ params }: PageProps) {
     })),
     quotation: {
       ...booking.quotation!,
-      subtotal: Number(booking.quotation!.subtotal),
+      subtotal:
+        Number(booking.quotation!.originalSubtotal) > 0
+          ? Number(booking.quotation!.originalSubtotal)
+          : Number(booking.quotation!.subtotal),
+
       tax: Number(booking.quotation!.tax),
       total: Number(booking.quotation!.total),
+
+      discountAmount: booking.quotation!.discountAmount
+        ? Number(booking.quotation!.discountAmount)
+        : 0,
     },
     payment: booking.payment
       ? {
@@ -69,6 +77,9 @@ export default async function BookingDashboardPage({ params }: PageProps) {
           subtotal: Number(booking.payment.subtotal),
           tax: Number(booking.payment.tax),
           total: Number(booking.payment.total),
+          discountAmount: booking.payment.discountAmount
+            ? Number(booking.payment.discountAmount)
+            : 0,
         }
       : null,
   };

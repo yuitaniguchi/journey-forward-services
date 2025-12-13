@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { render } from "@react-email/render";
@@ -11,147 +11,134 @@ import PaymentConfirmedAdmin from "@/emails/PaymentConfirmedAdmin";
 // [DEMO] Keep for Gmail (Nodemailer)
 import nodemailer from "nodemailer";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { requestId } = await req.json();
-    const numericRequestId = Number(requestId);
+    const body = await req.json();
+    const { requestId } = body;
 
-    if (!requestId || Number.isNaN(numericRequestId) || numericRequestId <= 0) {
+    const payment = await prisma.payment.findUnique({
+      where: { requestId: Number(requestId) },
+      include: {
+        request: {
+          include: { customer: true },
+        },
+      },
+    });
+
+    if (!payment || !payment.stripePaymentIntentId) {
       return NextResponse.json(
-        { error: "requestId must be a positive number" },
+        { error: "Payment not found or not ready" },
         { status: 400 }
       );
     }
 
-    const payment = await prisma.payment.findUnique({
-      where: { requestId: numericRequestId },
-      include: { request: { include: { customer: true, items: true } } },
-    });
+    const paymentIntent = await stripe.paymentIntents.confirm(
+      payment.stripePaymentIntentId,
+      {
+        payment_method: payment.paymentMethod!,
+      }
+    );
 
-    if (!payment || !payment.request || !payment.stripePaymentIntentId) {
+    if (
+      paymentIntent.status !== "succeeded" &&
+      paymentIntent.status !== "processing"
+    ) {
       return NextResponse.json(
-        { error: "Record invalid or not found" },
-        { status: 404 }
+        { error: `Payment failed: ${paymentIntent.status}` },
+        { status: 400 }
       );
     }
 
-    const paymentIntent = await stripe.paymentIntents.confirm(
-      payment.stripePaymentIntentId
-    );
-
-    await prisma.$transaction([
-      prisma.payment.update({
-        where: { requestId: numericRequestId },
-        data: { status: paymentIntent.status.toUpperCase() },
-      }),
-      prisma.request.update({
-        where: { id: numericRequestId },
-        data: { status: "PAID" },
-      }),
-    ]);
-
-    // --- PREPARE EMAIL CONTENT (Shared) ---
-    const requestData = payment.request;
-    const customerData = requestData.customer;
-    const dateStr = requestData.createdAt.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: "PAID", updatedAt: new Date() },
     });
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const dashboardLink = `${baseUrl}/admin/requests/${requestData.id}`;
+    await prisma.request.update({
+      where: { id: payment.requestId },
+      data: { status: "PAID" },
+    });
 
-    const commonProps = {
-      customer: {
-        firstName: customerData.firstName,
-        lastName: customerData.lastName,
-        email: customerData.email,
-        phone: customerData.phone || "",
-      },
-      request: {
-        requestId: requestData.id,
-        pickupAddress: `${requestData.pickupAddressLine1} ${requestData.pickupCity}`,
-        deliveryAddress: requestData.deliveryRequired ? "Delivery" : undefined,
-        pickupFloor: requestData.pickupFloor ?? undefined,
-        pickupElevator: requestData.pickupElevator,
-        items: requestData.items.map((i) => ({
-          name: i.name,
-          size: i.size,
-          quantity: i.quantity,
-        })),
-        preferredDatetime: requestData.preferredDatetime,
-        status: "PAID" as const,
-      },
-      requestDate: dateStr,
-      finalTotal: Number(payment.total),
-    };
+    const customer = payment.request.customer;
+    const dateStr = new Date().toLocaleDateString("en-US");
+    const dashboardLink = `${process.env.NEXT_PUBLIC_APP_URL}/admin/requests/${requestId}`;
+
+    const discountAmount = payment.discountAmount
+      ? Number(payment.discountAmount)
+      : 0;
+    const subTotal = Number(payment.subtotal);
+    const tax = Number(payment.tax);
+    const total = Number(payment.total);
 
     const customerHtml = await render(
-      <PaymentConfirmedCustomer {...commonProps} />
+      <PaymentConfirmedCustomer
+        customer={{
+          firstName: customer.firstName,
+          lastName: customer.lastName,
+          email: customer.email,
+          phone: customer.phone || "",
+        }}
+        request={{
+          requestId: payment.requestId,
+          preferredDatetime: "",
+          pickupAddress: "",
+          status: "PAID",
+        }}
+        requestDate={dateStr}
+        finalTotal={total}
+        subTotal={subTotal}
+        tax={tax}
+        discountAmount={discountAmount}
+      />
     );
+
     const adminHtml = await render(
-      <PaymentConfirmedAdmin {...commonProps} dashboardLink={dashboardLink} />
+      <PaymentConfirmedAdmin
+        customer={{
+          firstName: customer.firstName,
+          lastName: customer.lastName,
+          email: customer.email,
+          phone: customer.phone || "",
+        }}
+        request={{
+          requestId: payment.requestId,
+          preferredDatetime: "",
+          pickupAddress: "",
+          status: "PAID",
+        }}
+        requestDate={dateStr}
+        finalTotal={total}
+        subTotal={subTotal}
+        discountAmount={discountAmount}
+        dashboardLink={dashboardLink}
+      />
     );
 
-    // ============================================================
-    // SWITCH: Choose Email Provider
-    // ============================================================
-
-    /*
-    // [OPTION 1: PRODUCTION] SendGrid
-    const apiKey = process.env.SENDGRID_API_KEY;
-    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
-    const adminEmail = process.env.ADMIN_EMAIL;
-
-    if (apiKey && fromEmail && adminEmail) {
-      sgMail.setApiKey(apiKey);
-      await Promise.all([
-        sgMail.send({ to: customerData.email, from: fromEmail, subject: `Payment Confirmed - Request #${requestData.id}`, html: customerHtml }),
-        sgMail.send({ to: adminEmail, from: fromEmail, subject: `[Payment Received] Request #${requestData.id}`, html: adminHtml }),
-      ]);
-    }
-    */
-
-    // [OPTION 2: DEMO] Nodemailer (Gmail)
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailPass = process.env.GMAIL_PASS;
-    const adminEmail = process.env.ADMIN_EMAIL;
-
-    if (gmailUser && gmailPass && adminEmail) {
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user: gmailUser, pass: gmailPass },
-      });
-      await Promise.all([
-        transporter.sendMail({
-          from: gmailUser,
-          to: customerData.email,
-          subject: `Payment Confirmed - Request #${requestData.id}`,
-          html: customerHtml,
-        }),
-        transporter.sendMail({
-          from: gmailUser,
-          to: adminEmail,
-          subject: `[Payment Received] Request #${requestData.id}`,
-          html: adminHtml,
-        }),
-      ]);
-      console.log("Payment Confirmed emails sent via Gmail");
-    }
-    // ============================================================
-
-    return NextResponse.json(
-      { paymentIntentId: paymentIntent.id, status: paymentIntent.status },
-      { status: 200 }
+    await sendEmail(customer.email, "Payment Confirmed", customerHtml);
+    const adminEmail = process.env.ADMIN_EMAIL || "admin@example.com";
+    await sendEmail(
+      adminEmail,
+      `[Admin] Payment Received #${requestId}`,
+      adminHtml
     );
+
+    return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("[confirm-payment] error:", error);
+    console.error("Confirm Payment Error:", error);
     return NextResponse.json(
-      { error: error.message || "Error" },
+      { error: error.message || "Payment confirmation failed" },
       { status: 500 }
     );
+  }
+}
+
+async function sendEmail(to: string, subject: string, html: string) {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_PASS;
+  if (user && pass) {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user, pass },
+    });
+    await transporter.sendMail({ from: user, to, subject, html });
   }
 }

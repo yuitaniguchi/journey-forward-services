@@ -7,9 +7,11 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import type { StripeElementsOptions } from "@stripe/stripe-js";
 import { stripePromise } from "@/lib/stripeClient";
 import type { BookingRequest } from "@/types/booking";
+import DiscountForm, {
+  ClientQuotation,
+} from "@/components/booking/DiscountForm";
 
 const CardBrandIcons = () => (
   <div className="mb-6">
@@ -27,18 +29,46 @@ type Props = {
   clientSecret: string;
 };
 
+const mapToClientQuotation = (quotation: any): ClientQuotation | null => {
+  if (!quotation) return null;
+  return {
+    id: quotation.id,
+    subtotal: Number(quotation.subtotal),
+    tax: Number(quotation.tax),
+    total: Number(quotation.total),
+    discountAmount: quotation.discountAmount
+      ? Number(quotation.discountAmount)
+      : null,
+    discountCodeId: quotation.discountCodeId,
+    discountCode: quotation.discountCode?.code ?? null,
+    originalSubtotal:
+      Number(quotation.originalSubtotal) || Number(quotation.subtotal),
+    originalTax: Number(quotation.originalTax) || Number(quotation.tax),
+    originalTotal: Number(quotation.originalTotal) || Number(quotation.total),
+  };
+};
+
 function ConfirmPageContent({
   booking,
   token,
+  clientSecret,
 }: {
   booking: BookingRequest;
   token: string;
+  clientSecret: string;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
+
+  const [appliedDiscountCode, setAppliedDiscountCode] = useState<string | null>(
+    (booking.quotation as any)?.discountCode?.code ?? null
+  );
+
+  const [currentQuotation, setCurrentQuotation] =
+    useState<ClientQuotation | null>(mapToClientQuotation(booking.quotation));
 
   const [billingAddress, setBillingAddress] = useState({
     line1: "",
@@ -53,7 +83,18 @@ function ConfirmPageContent({
   const customerName = `${booking.customer.firstName} ${booking.customer.lastName}`;
   const pickupDateTime = new Date(booking.preferredDatetime).toLocaleString();
   const pickupAddress = `${booking.pickupAddressLine1}, ${booking.pickupCity}`;
-  const quotation = booking.quotation;
+
+  const quotation = currentQuotation;
+
+  const handleQuotationUpdate = (
+    newQuotation: ClientQuotation | null,
+    successMessage: string | null,
+    code: string | null
+  ) => {
+    setCurrentQuotation(newQuotation);
+    setAppliedDiscountCode(code);
+    setMessage(null);
+  };
 
   const handleConfirm = async () => {
     if (!stripe || !elements) return;
@@ -77,61 +118,73 @@ function ConfirmPageContent({
     setIsProcessing(true);
     setMessage(null);
 
-    const { error: submitError } = await elements.submit();
-    if (submitError) {
-      setMessage(submitError.message ?? "Validation failed.");
-      setIsProcessing(false);
-      return;
-    }
+    try {
+      const { setupIntent: retrievedIntent } =
+        await stripe.retrieveSetupIntent(clientSecret);
 
-    const { error, setupIntent } = await stripe.confirmSetup({
-      elements,
-      redirect: "if_required",
-      confirmParams: {
-        return_url: window.location.href,
-        payment_method_data: {
-          billing_details: {
-            name: customerName,
-            address: {
-              line1: billingAddress.line1,
-              line2: billingAddress.line2 || undefined,
-              city: billingAddress.city,
-              state: billingAddress.state,
-              postal_code: billingAddress.postal_code,
-              country: "CA",
+      let paymentMethodId = "";
+
+      if (retrievedIntent && retrievedIntent.status === "succeeded") {
+        paymentMethodId =
+          typeof retrievedIntent.payment_method === "string"
+            ? retrievedIntent.payment_method
+            : retrievedIntent.payment_method?.id || "";
+      } else {
+        const { error: submitError } = await elements.submit();
+        if (submitError) {
+          throw new Error(submitError.message ?? "Validation failed.");
+        }
+
+        const { error, setupIntent } = await stripe.confirmSetup({
+          elements,
+          redirect: "if_required",
+          confirmParams: {
+            return_url: window.location.href,
+            payment_method_data: {
+              billing_details: {
+                name: customerName,
+                address: {
+                  line1: billingAddress.line1,
+                  line2: billingAddress.line2 || undefined,
+                  city: billingAddress.city,
+                  state: billingAddress.state,
+                  postal_code: billingAddress.postal_code,
+                  country: "CA",
+                },
+              },
             },
           },
-        },
-      },
-    });
+        });
 
-    if (error) {
-      console.error("confirmSetup error:", error);
-      setMessage(error.message ?? "Something went wrong.");
-      setIsProcessing(false);
-      return;
-    }
+        if (error) {
+          throw error;
+        }
 
-    console.log("Setup succeeded ✅", setupIntent?.id);
+        paymentMethodId =
+          typeof setupIntent.payment_method === "string"
+            ? setupIntent.payment_method
+            : setupIntent.payment_method?.id || "";
+      }
 
-    const paymentMethodId =
-      typeof setupIntent.payment_method === "string"
-        ? setupIntent.payment_method
-        : setupIntent.payment_method?.id;
-
-    try {
-      await fetch("/api/bookings/confirm", {
+      const res = await fetch("/api/bookings/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           requestId: booking.id,
           paymentMethodId,
+          discountCode: appliedDiscountCode,
         }),
       });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to confirm booking.");
+      }
+
       window.location.href = nextLink;
-    } catch (e) {
-      console.error("Failed to confirm booking or send email", e);
-      setMessage("Failed to update booking status via server.");
+    } catch (e: any) {
+      setMessage(e.message || "Something went wrong. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -183,20 +236,12 @@ function ConfirmPageContent({
               <div>
                 <span className="font-bold">Pickup Address:</span>{" "}
                 {pickupAddress}
-                <div className="ml-4 text-sm text-black mt-1">
-                  (Floor: {booking.pickupFloor || "N/A"}, Elevator:{" "}
-                  {booking.pickupElevator ? "Yes" : "No"})
-                </div>
               </div>
 
               {booking.deliveryRequired && (
                 <div>
                   <span className="font-bold">Delivery Address:</span>{" "}
                   {booking.deliveryAddressLine1}, {booking.deliveryCity}
-                  <div className="ml-4 text-sm text-black mt-1">
-                    (Floor: {booking.deliveryFloor || "N/A"}, Elevator:{" "}
-                    {booking.deliveryElevator ? "Yes" : "No"})
-                  </div>
                 </div>
               )}
             </div>
@@ -237,19 +282,35 @@ function ConfirmPageContent({
                 <div className="w-full ml-auto md:w-64 space-y-2 text-right text-base">
                   <div className="flex justify-between font-bold text-black">
                     <span>Sub Total</span>
-                    <span>${Number(quotation.subtotal).toFixed(2)}</span>
+                    <span>${quotation.subtotal.toFixed(2)}</span>
                   </div>
+
+                  {(quotation.discountAmount ?? 0) > 0 && (
+                    <div className="flex justify-between font-bold text-[#FF4D4F]">
+                      <span>Discount:</span>
+                      <span>
+                        -${(quotation.discountAmount ?? 0).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between font-bold text-black">
                     <span>Tax</span>
-                    <span>${Number(quotation.tax).toFixed(2)}</span>
+                    <span>${quotation.tax.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between border-t border-gray-300 pt-2 text-lg font-black text-black">
                     <span>Total:</span>
-                    <span>${Number(quotation.total).toFixed(2)}</span>
+                    <span>${quotation.total.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
             )}
+
+            <DiscountForm
+              requestId={booking.id}
+              currentQuotation={quotation}
+              onUpdateQuotation={handleQuotationUpdate}
+            />
           </section>
 
           <section className="h-fit rounded-xl border-0 md:border md:border-gray-200 bg-white p-6 shadow-none md:shadow-sm md:p-8">
@@ -382,8 +443,7 @@ function ConfirmPageContent({
                 className="mt-1 h-5 w-5 rounded border-[#367D5E] text-[#367D5E] focus:ring-[#367D5E] accent-[#367D5E]"
               />
               <span className="text-base text-black font-medium">
-                I have read and agree to the cancellation policy, including any
-                applicable cancellation fees for late cancellations.
+                I have read and agree to the cancellation policy.
               </span>
             </label>
           </div>
@@ -448,7 +508,11 @@ export default function BookingConfirmClient({
     <main className="min-h-screen bg-white">
       {clientSecret && elementsOptions ? (
         <Elements stripe={stripePromise} options={elementsOptions}>
-          <ConfirmPageContent booking={booking} token={token} />
+          <ConfirmPageContent
+            booking={booking}
+            token={token}
+            clientSecret={clientSecret}
+          />
         </Elements>
       ) : (
         <div className="flex h-[50vh] items-center justify-center">

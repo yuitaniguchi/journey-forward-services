@@ -51,6 +51,12 @@ export default function AdminHeader() {
                   Users
                 </Link>
                 <Link
+                  href="/admin/discounts"
+                  className="transition-colors hover:text-brand"
+                >
+                  Discounts
+                </Link>
+                <Link
                   href="/admin/profile"
                   className="transition-colors hover:text-brand"
                 >
@@ -118,6 +124,13 @@ export default function AdminHeader() {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Users
+            </Link>
+            <Link
+              href="/admin/discounts"
+              className="block transition-colors hover:text-brand"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Discounts
             </Link>
             <Link
               href="/admin/profile"

@@ -48,8 +48,14 @@ export type RequestDetail = {
   quotation: {
     id: number;
     subtotal: number;
+    originalSubtotal?: number;
     tax: number;
     total: number;
+    discountAmount?: number | null;
+    discountRule?: {
+      type: "FIXED_AMOUNT" | "PERCENTAGE";
+      value: number;
+    } | null;
     note?: string | null;
     sentAt?: string | null;
     updatedAt: string;
@@ -58,6 +64,9 @@ export type RequestDetail = {
   payment: {
     id: number;
     total: string;
+    subtotal?: string | number | null;
+    tax?: string | number | null;
+    discountAmount?: string | number | null;
     status: string;
     note?: string | null;
     sentAt?: string | null;
@@ -101,9 +110,17 @@ const formatCurrency = (val: number) =>
     currency: "CAD",
   }).format(val);
 
-function getBadgeStatus(sentAt?: string | null, updatedAt?: string) {
+function getBadgeStatus(
+  sentAt: string | null | undefined,
+  updatedAt: string | undefined,
+  currentStatus: RequestStatus
+) {
   if (!sentAt) return "DRAFT";
   if (!updatedAt) return "SENT";
+
+  if (["CONFIRMED", "INVOICED", "PAID", "CANCELLED"].includes(currentStatus)) {
+    return "SENT";
+  }
 
   const sentTime = new Date(sentAt).getTime();
   const updatedTime = new Date(updatedAt).getTime();
@@ -223,23 +240,33 @@ export default function RequestDetailClient({ initialRequest }: Props) {
 
   const customerName = `${request.customer.firstName} ${request.customer.lastName}`;
   const pickupDate = formatDate(request.preferredDatetime);
+
   const paymentAmounts =
     request.payment && request.payment.total
       ? (() => {
           const total = Number(request.payment!.total);
+
+          if (request.payment!.status === "Authorized") {
+            return null;
+          }
+
+          const subtotal = request.payment.subtotal
+            ? Number(request.payment.subtotal)
+            : total / 1.12;
+          const tax = request.payment.tax
+            ? Number(request.payment.tax)
+            : total - subtotal;
+          const discount = request.payment.discountAmount
+            ? Number(request.payment.discountAmount)
+            : 0;
+
           if (Number.isNaN(total)) return null;
 
           if (!request.payment!.sentAt && total === 0) {
             return null;
           }
 
-          const rawSubtotal = total / 1.12;
-          const rawTax = total - rawSubtotal;
-
-          const subtotal = Math.round(rawSubtotal * 100) / 100;
-          const tax = Math.round(rawTax * 100) / 100;
-
-          return { subtotal, tax, total };
+          return { subtotal, tax, total, discount };
         })()
       : null;
 
@@ -411,7 +438,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
               (() => {
                 const status = getBadgeStatus(
                   request.quotation.sentAt,
-                  request.quotation.updatedAt
+                  request.quotation.updatedAt,
+                  request.status
                 );
 
                 if (status === "SENT") {
@@ -444,9 +472,25 @@ export default function RequestDetailClient({ initialRequest }: Props) {
               <div className="flex justify-between">
                 <span className="text-slate-600">Subtotal:</span>
                 <span className="font-medium">
-                  {formatCurrency(request.quotation.subtotal)}
+                  {formatCurrency(
+                    request.quotation.originalSubtotal &&
+                      request.quotation.originalSubtotal > 0
+                      ? request.quotation.originalSubtotal
+                      : request.quotation.subtotal
+                  )}
                 </span>
               </div>
+
+              {request.quotation.discountAmount &&
+              Number(request.quotation.discountAmount) > 0 ? (
+                <div className="flex justify-between font-medium text-red-600">
+                  <span>Discount:</span>
+                  <span>
+                    -{formatCurrency(request.quotation.discountAmount)}
+                  </span>
+                </div>
+              ) : null}
+
               <div className="flex justify-between">
                 <span className="text-slate-600">Tax (12%):</span>
                 <span className="font-medium">
@@ -562,7 +606,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
               (() => {
                 const status = getBadgeStatus(
                   request.payment.sentAt,
-                  request.payment.updatedAt
+                  request.payment.updatedAt,
+                  request.status
                 );
 
                 if (status === "SENT") {
@@ -598,6 +643,14 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                   {formatCurrency(paymentAmounts.subtotal)}
                 </span>
               </div>
+
+              {paymentAmounts.discount > 0 && (
+                <div className="flex justify-between font-medium text-red-600">
+                  <span>Discount:</span>
+                  <span>-{formatCurrency(paymentAmounts.discount)}</span>
+                </div>
+              )}
+
               <div className="flex justify-between">
                 <span className="text-slate-600">Tax (12%):</span>
                 <span className="font-medium">
@@ -799,6 +852,9 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                       subtotal: Number(json.quotation.subtotal),
                       tax: Number(json.quotation.tax),
                       total: Number(json.quotation.total),
+                      discountAmount: json.quotation.discountAmount
+                        ? Number(json.quotation.discountAmount)
+                        : null,
                       note: json.quotation.note ?? null,
                       sentAt: json.quotation.sentAt ?? null,
                       updatedAt: json.quotation.updatedAt,
@@ -821,9 +877,18 @@ export default function RequestDetailClient({ initialRequest }: Props) {
       <FinalAmountModal
         open={showFinalAmountModal}
         initialSubtotal={
-          paymentAmounts?.subtotal ?? request.quotation?.subtotal ?? 0
+          paymentAmounts?.subtotal ??
+          (request.quotation?.originalSubtotal &&
+          request.quotation.originalSubtotal > 0
+            ? request.quotation.originalSubtotal
+            : request.quotation?.subtotal) ??
+          0
         }
         initialNote={request.payment?.note ?? ""}
+        initialDiscountAmount={
+          paymentAmounts?.discount ?? request.quotation?.discountAmount ?? 0
+        }
+        discountRule={request.quotation?.discountRule ?? null}
         onClose={() => setShowFinalAmountModal(false)}
         onSend={async ({ subtotal, note, sendEmail }) => {
           if (subtotal < 0) {
@@ -861,6 +926,9 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                     ...prev,
                     payment: {
                       id: payment.id,
+                      subtotal: payment.subtotal,
+                      discountAmount: payment.discountAmount,
+                      tax: payment.tax,
                       total: payment.total,
                       status: payment.status,
                       note: payment.note ?? null,
