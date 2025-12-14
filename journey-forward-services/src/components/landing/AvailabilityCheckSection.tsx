@@ -46,7 +46,7 @@ export default function AvailabilityCheckSection() {
   };
 
   return (
-    <section className="bg-white py-16 md:py-24 px-4 md:px-0">
+    <section className="bg-white py-16 px-4 md:px-0">
       <div className="section-inner flex flex-col items-center text-center space-y-8">
         <div className="space-y-4 max-w-2xl">
           <h2 className="text-3xl font-semibold text-slate-900">
