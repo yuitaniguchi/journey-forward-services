@@ -3,7 +3,8 @@ import AvailabilityCheckSection from "../components/landing/AvailabilityCheckSec
 import { HowItWorks } from "../components/landing/HowItWorks";
 import Testimonials from "../components/landing/Testimonials";
 import Pricing from "../components/landing/Pricing";
-import { FAQContact } from "../components/landing/FAQContact";
+import FAQ from "../components/landing/FAQ";
+import Contact from "@/components/contact/ContactSection";
 import About from "@/components/landing/About";
 
 export default function Home() {
@@ -15,7 +16,8 @@ export default function Home() {
       <About />
       <Testimonials />
       <Pricing />
-      <FAQContact />
+      <FAQ />
+      <Contact />
     </main>
   );
 }
