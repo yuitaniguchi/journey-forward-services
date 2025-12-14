@@ -3,28 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-
-function CheckIcon() {
-  return (
-    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#FFC107]">
-      <svg
-        width="12"
-        height="12"
-        viewBox="0 0 12 12"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M10 3L4.5 8.5L2 6"
-          stroke="white"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </div>
-  );
-}
+import { Check } from "lucide-react";
 
 const features = [
   "No hidden fee",
@@ -74,7 +53,9 @@ export default function About() {
                 key={feature}
                 className="flex items-center gap-3 bg-gray-100 rounded-lg px-4 py-3 text-left"
               >
-                <CheckIcon />
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#F9B301]">
+                  <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                </div>
                 <span className="leading-tight">{feature}</span>
               </div>
             ))}

@@ -25,7 +25,7 @@ function StarRating() {
   return (
     <div className="flex gap-1 mb-3">
       {[...Array(5)].map((_, i) => (
-        <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+        <Star key={i} className="w-4 h-4 fill-[#F9B301] text-[#F9B301]" />
       ))}
     </div>
   );
@@ -79,7 +79,7 @@ export default function Features() {
                     {t.name}
                   </h4>
                   <StarRating />
-                  <p className="text-sm text-slate-500 leading-relaxed">
+                  <p className="text-sm md:text-lg text-slate-500 leading-relaxed">
                     He is an expert cleaning staff member who provides thorough
                     cleaning with precision.
                   </p>
