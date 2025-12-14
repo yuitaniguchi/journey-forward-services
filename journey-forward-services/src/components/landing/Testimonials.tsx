@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { Star } from "lucide-react";
 
 const testimonials = [
   {
@@ -20,37 +21,52 @@ const testimonials = [
   },
 ];
 
+function StarRating() {
+  return (
+    <div className="flex gap-1 mb-3">
+      {[...Array(5)].map((_, i) => (
+        <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+      ))}
+    </div>
+  );
+}
+
 export default function Features() {
   return (
     <>
-      {/* ✅ TESTIMONIALS SECTION ONLY — CLEAN & CORRECT */}
-      <section className="section bg-neutralBg">
+      <section className="section bg-white">
         <div className="section-inner space-y-8">
           {/* Header */}
-          <div className="flex flex-col gap-4 md:flex-row md:justify-between">
+          <div className="flex flex-col md:flex-row justify-center md:justify-between mb-8 gap-6 text-center md:text-left">
             <div>
-              <p className="text-sm font-semibold text-brand">People Love</p>
-              <h2 className="text-2xl md:text-3xl font-semibold">
+              <h2 className="text-3xl md:text-4xl font-bold text-black">
+                <span className="text-[#22503B] mb-1">People Love</span>
+                <br />
                 Working With Us
               </h2>
             </div>
-            <div className="max-w-md text-sm text-slate-600">
-              <h3 className="mb-1 font-semibold">Testimonials</h3>
-              <p>
+
+            <div className="max-w-sm mx-auto md:ml-auto md:mr-0 text-black">
+              <h3 className="font-bold text-md md:text-lg mb-2">
+                Testimonials
+              </h3>
+              <p className="text-sm md:text-base text-[#666666]">
                 We’ve had the pleasure of helping many satisfied customers, and
                 their positive feedback keeps us going.
               </p>
             </div>
           </div>
 
+          <hr />
+
           {/* Testimonials Grid */}
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="flex flex-wrap justify-center gap-6">
             {testimonials.map((t, idx) => (
               <Card
                 key={idx}
-                className="overflow-hidden border-none shadow-card rounded-3xl"
+                className="w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.33%-16px)] overflow-hidden border border-slate-200 shadow-sm rounded-lg"
               >
-                <div className="h-40 w-full bg-slate-200">
+                <div className="relative aspect-square w-full bg-slate-200">
                   <img
                     src={t.img}
                     alt={t.name}
@@ -58,9 +74,12 @@ export default function Features() {
                   />
                 </div>
 
-                <CardContent className="space-y-3 p-5">
-                  <h4 className="text-sm font-semibold">{t.name}</h4>
-                  <p className="text-xs text-slate-600">
+                <CardContent className="p-6">
+                  <h4 className="text-xl font-bold text-slate-900 mb-1">
+                    {t.name}
+                  </h4>
+                  <StarRating />
+                  <p className="text-sm text-slate-500 leading-relaxed">
                     He is an expert cleaning staff member who provides thorough
                     cleaning with precision.
                   </p>
