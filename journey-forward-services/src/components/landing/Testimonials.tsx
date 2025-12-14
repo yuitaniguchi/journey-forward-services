@@ -1,22 +1,22 @@
-'use client';
+"use client";
 
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from "@/components/ui/card";
 
 const testimonials = [
   {
-    name: 'Erick Reynolds',
-    role: '',
-    img: '/testimonial-1.webp',
+    name: "Erick Reynolds",
+    role: "",
+    img: "/testimonial-1.webp",
   },
   {
-    name: 'Erick Reynolds',
-    role: '',
-    img: '/testimonial-2.webp',
+    name: "Erick Reynolds",
+    role: "",
+    img: "/testimonial-2.webp",
   },
   {
-    name: 'Erick Reynolds',
-    role: '',
-    img: '/testimonial-3.webp',
+    name: "Erick Reynolds",
+    role: "",
+    img: "/testimonial-3.webp",
   },
 ];
 

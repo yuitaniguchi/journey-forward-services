@@ -1,9 +1,10 @@
 import Hero from "../components/landing/Hero";
 import AvailabilityCheckSection from "../components/landing/AvailabilityCheckSection";
 import { HowItWorks } from "../components/landing/HowItWorks";
-import Features from "../components/landing/Features";
+import Testimonials from "../components/landing/Testimonials";
 import Pricing from "../components/landing/Pricing";
 import { FAQContact } from "../components/landing/FAQContact";
+import About from "@/components/landing/About";
 
 export default function Home() {
   return (
@@ -11,9 +12,9 @@ export default function Home() {
       <Hero />
       <HowItWorks />
       <AvailabilityCheckSection />
+      <About />
+      <Testimonials />
       <Pricing />
-      <Features />
-
       <FAQContact />
     </main>
   );
