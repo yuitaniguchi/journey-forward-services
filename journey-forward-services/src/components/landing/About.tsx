@@ -22,7 +22,7 @@ export default function About() {
         <div className="flex justify-center lg:justify-start">
           <div className="relative w-full max-w-[520px]">
             <Image
-              src="/ruck-hero.png"
+              src="/home/ruck-hero.png"
               alt="Journey Forward truck"
               width={800}
               height={480}

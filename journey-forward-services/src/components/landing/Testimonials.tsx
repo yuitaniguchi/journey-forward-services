@@ -7,17 +7,17 @@ const testimonials = [
   {
     name: "Erick Reynolds",
     role: "",
-    img: "/testimonial-1.webp",
+    img: "/home/testimonial-1.webp",
   },
   {
     name: "Erick Reynolds",
     role: "",
-    img: "/testimonial-2.webp",
+    img: "/home/testimonial-2.webp",
   },
   {
     name: "Erick Reynolds",
     role: "",
-    img: "/testimonial-3.webp",
+    img: "/home/testimonial-3.webp",
   },
 ];
 

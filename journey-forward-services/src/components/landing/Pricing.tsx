@@ -15,7 +15,7 @@ const tiers = [
       "Any size mattress",
       "Any furniture",
     ],
-    img: "/price-minimum.webp",
+    img: "/home/price-minimum.webp",
   },
   {
     label: "Half truckload",
@@ -25,7 +25,7 @@ const tiers = [
       "Great for garage cleanouts",
       "Any furniture",
     ],
-    img: "/price-minimum-3.webp",
+    img: "/home/price-minimum-3.webp",
   },
   {
     label: "Full truckload",
@@ -35,7 +35,7 @@ const tiers = [
       "Great for garage cleanouts",
       "Any furniture",
     ],
-    img: "/price-half-2.webp",
+    img: "/home/price-half-2.webp",
   },
 ];
 
@@ -48,7 +48,7 @@ export default function Pricing() {
 
       <div className="absolute inset-0 hidden lg:block opacity-[0.15] -z-10 pointer-events-none">
         <Image
-          src="/bg-price.jpg"
+          src="/home/bg-price.jpg"
           alt="Background Pattern"
           fill
           className="object-cover"

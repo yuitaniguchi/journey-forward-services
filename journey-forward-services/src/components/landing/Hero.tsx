@@ -10,7 +10,7 @@ export default function Hero() {
     >
       <div className="absolute inset-0 -z-10">
         <Image
-          src="/hero-iamge.svg"
+          src="/home/hero-iamge.png"
           alt="Journey Forward crew"
           fill
           priority
@@ -25,7 +25,7 @@ export default function Hero() {
             <span className="relative inline-block text-[#22503B]">
               Quickly
               <Image
-                src="/hero-underline.svg"
+                src="/home/hero-underline.svg"
                 alt=""
                 width={200}
                 height={20}
