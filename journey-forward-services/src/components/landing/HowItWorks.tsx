@@ -48,9 +48,12 @@ export function HowItWorks() {
         <hr />
 
         {/* Steps Grid */}
-        <div className="grid md:grid-cols-3 gap-8 mt-8">
+        <div className="flex flex-wrap justify-center gap-8 mt-8">
           {steps.map((step) => (
-            <div key={step.title}>
+            <div
+              key={step.title}
+              className="w-full sm:w-[calc(50%-1rem)] lg:w-[calc(33.33%-1.34rem)]"
+            >
               <div className="relative aspect-4/3 overflow-hidden">
                 <Image
                   src={step.image}
