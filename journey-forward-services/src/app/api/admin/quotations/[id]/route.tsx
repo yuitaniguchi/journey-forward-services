@@ -84,11 +84,12 @@ export async function POST(
       },
     });
 
-    await prisma.request.update({
-      where: { id: requestId },
-      data: { status: "QUOTED" },
-    });
-
+    if (sendEmail) {
+      await prisma.request.update({
+        where: { id: requestId },
+        data: { status: "QUOTED" },
+      });
+    }
     if (sendEmail) {
       const requestData = await prisma.request.findUnique({
         where: { id: requestId },

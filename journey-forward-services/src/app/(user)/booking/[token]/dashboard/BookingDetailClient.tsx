@@ -111,7 +111,15 @@ export default function BookingDetailClient({
   );
 
   const freeCancellationDeadline = booking.freeCancellationDeadline
-    ? new Date(booking.freeCancellationDeadline).toLocaleString()
+    ? new Date(booking.freeCancellationDeadline).toLocaleString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "America/Vancouver",
+      })
     : null;
 
   const cancelledDate = booking.cancelledAt
@@ -378,7 +386,7 @@ export default function BookingDetailClient({
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
-                  className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="rounded-full bg-[#1a7c4c] px-4 py-2 text-sm font-semibold text-white hover:bg-[#15603a] disabled:cursor-not-allowed disabled:bg-gray-300"
                   onClick={() => setIsModalOpen(false)}
                   disabled={isCancelling}
                 >
@@ -386,7 +394,7 @@ export default function BookingDetailClient({
                 </button>
                 <button
                   type="button"
-                  className="rounded-full bg-[#1a7c4c] px-4 py-2 text-sm font-semibold text-white hover:bg-[#15603a] disabled:cursor-not-allowed disabled:bg-gray-300"
+                  className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                   onClick={handleConfirmCancel}
                   disabled={isCancelling}
                 >

@@ -191,7 +191,7 @@ function ConfirmPageContent({
   };
 
   const inputClassName =
-    "w-full rounded-md border-0 md:border md:border-gray-300 px-3 py-2 text-base text-black focus:border-[#1a7c4c] focus:outline-none focus:ring-1 focus:ring-[#1a7c4c]";
+    "w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black focus:border-[#1a7c4c] focus:outline-none focus:ring-1 focus:ring-[#1a7c4c]";
 
   return (
     <div className="min-h-screen bg-white text-black">

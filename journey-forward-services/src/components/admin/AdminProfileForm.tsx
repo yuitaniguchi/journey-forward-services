@@ -1,4 +1,3 @@
-// src/components/admin/AdminProfileForm.tsx
 "use client";
 
 import { useState } from "react";
@@ -65,18 +64,6 @@ export default function AdminProfileForm() {
 
   return (
     <div className="px-4 py-6 md:px-12 md:py-10">
-      {/* 🔙 画面右上・カードの外の Back ボタン */}
-      <div className="mx-auto mb-4 flex max-w-5xl justify-end">
-        <button
-          type="button"
-          onClick={() => router.push("/admin")}
-          className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
-        >
-          Back to requests
-        </button>
-      </div>
-
-      {/* ここから下が、中央の Change Password カード */}
       <AdminFormCard
         title="Change Password"
         subtitle="Update your admin password. Make sure to choose a strong password that you don't use elsewhere."

@@ -1,6 +1,3 @@
-// src/app/admin/users/page.tsx
-// ❌ "use client" は削除（ここはサーバーコンポーネント）
-
 import { prisma } from "@/lib/prisma";
 import AdminUsersClient, {
   AdminUser,

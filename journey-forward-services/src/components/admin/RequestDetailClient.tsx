@@ -246,7 +246,10 @@ export default function RequestDetailClient({ initialRequest }: Props) {
       ? (() => {
           const total = Number(request.payment!.total);
 
-          if (request.payment!.status === "Authorized") {
+          if (
+            request.payment!.status === "Authorized" ||
+            request.payment!.status === "CANCELLATION_FEE_CHARGED"
+          ) {
             return null;
           }
 
@@ -285,7 +288,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
         <button
           type="button"
           onClick={() => router.push("/admin")}
-          className="flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+          className="flex items-center gap-1 text-lg font-semibold text-slate-500 hover:text-slate-800 transition-colors"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -293,7 +296,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
             viewBox="0 0 24 24"
             strokeWidth={2.5}
             stroke="currentColor"
-            className="w-4 h-4"
+            className="w-6 h-6"
           >
             <path
               strokeLinecap="round"
@@ -301,7 +304,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
               d="M15.75 19.5L8.25 12l7.5-7.5"
             />
           </svg>
-          Back to requests
+          Back to Requests
         </button>
       </div>
 
@@ -312,8 +315,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* 1. Customer */}
-        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+        {/* 1. Customer (Order 1) */}
+        <section className="order-1 rounded-3xl border border-slate-300 bg-white px-8 py-6">
           <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Customer
           </h2>
@@ -331,8 +334,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           </p>
         </section>
 
-        {/* 2. Status Management */}
-        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+        {/* 2. Status Management (Order 2) */}
+        <section className="order-2 rounded-3xl border border-slate-300 bg-white px-8 py-6">
           <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Status Management
           </h2>
@@ -374,8 +377,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           </p>
         </section>
 
-        {/* 3. Booking */}
-        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+        {/* 3. Booking (Order 3) */}
+        <section className="order-3 rounded-3xl border border-slate-300 bg-white px-8 py-6">
           <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Booking
           </h2>
@@ -429,8 +432,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           )}
         </section>
 
-        {/* 4. Quotation */}
-        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+        {/* 4. Quotation (Order: 5 on Mobile, 4 on Desktop) */}
+        <section className="order-5 lg:order-4 rounded-3xl border border-slate-300 bg-white px-8 py-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-2xl font-semibold text-slate-900">Quotation</h2>
 
@@ -532,8 +535,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           </button>
         </section>
 
-        {/* 5. Items & Photos */}
-        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+        {/* 5. Items & Photos (Order: 4 on Mobile, 5 on Desktop) */}
+        <section className="order-4 lg:order-5 rounded-3xl border border-slate-300 bg-white px-8 py-6">
           <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Items &amp; Photos
           </h2>
@@ -594,8 +597,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           )}
         </section>
 
-        {/* 6. Final Billing */}
-        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+        {/* 6. Final Billing (Order 6) */}
+        <section className="order-6 rounded-3xl border border-slate-300 bg-white px-8 py-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-2xl font-semibold text-slate-900">
               Final Billing
@@ -860,7 +863,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                       updatedAt: json.quotation.updatedAt,
                     },
                     status:
-                      prev.status === "RECEIVED" || prev.status === "QUOTED"
+                      sendEmail &&
+                      (prev.status === "RECEIVED" || prev.status === "QUOTED")
                         ? "QUOTED"
                         : prev.status,
                   }
@@ -935,7 +939,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                       sentAt: payment.sentAt ?? null,
                       updatedAt: payment.updatedAt,
                     },
-                    status: "INVOICED",
+                    status: sendEmail ? "INVOICED" : prev.status,
                   }
                 : prev
             );

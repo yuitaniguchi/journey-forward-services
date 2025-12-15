@@ -1,4 +1,3 @@
-// src/components/admin/AdminUsersClient.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -51,21 +50,12 @@ export default function AdminUsersClient({
 
   return (
     <div>
-      {/* ページタイトル + Back ボタン + 新規作成ボタン */}
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">
           Admin Users
         </h1>
 
         <div className="flex flex-col items-stretch gap-2 md:items-end">
-          <button
-            type="button"
-            onClick={() => router.push("/admin")}
-            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
-          >
-            Back to requests
-          </button>
-
           <button
             type="button"
             onClick={() => setShowCreate(true)}
@@ -76,7 +66,6 @@ export default function AdminUsersClient({
         </div>
       </div>
 
-      {/* 一覧カード（レスポンシブ） */}
       <section className="space-y-4">
         {!hasUsers && (
           <div className="rounded-3xl border border-slate-200 bg-white px-6 py-8 text-center text-slate-500 shadow-sm">
@@ -90,7 +79,6 @@ export default function AdminUsersClient({
               key={u.id}
               className="flex flex-col justify-between gap-4 rounded-3xl border border-slate-200 bg-white px-6 py-5 shadow-sm md:flex-row md:items-center"
             >
-              {/* 左側：ユーザー情報 */}
               <div className="space-y-1">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   #{u.id}
@@ -107,7 +95,6 @@ export default function AdminUsersClient({
                 </p>
               </div>
 
-              {/* 右側：アクションボタン */}
               <div className="flex items-center justify-end gap-2 md:self-start">
                 <button
                   type="button"

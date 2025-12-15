@@ -129,10 +129,12 @@ export async function POST(
     const pdfLink = `${baseUrl}/api/pdf/quotations/${requestId}`;
 
     // 3. Status Update
-    await prisma.request.update({
-      where: { id: requestId },
-      data: { status: "INVOICED" },
-    });
+    if (sendEmail) {
+      await prisma.request.update({
+        where: { id: requestId },
+        data: { status: "INVOICED" },
+      });
+    }
 
     // 4. Email Sending Logic
     if (sendEmail) {
