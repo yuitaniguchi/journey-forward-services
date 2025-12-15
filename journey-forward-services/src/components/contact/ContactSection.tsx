@@ -1,82 +1,99 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Phone, Mail, Clock } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Phone, Mail, Clock } from "lucide-react";
+
+import { contactSchema, ContactFormValues } from "@/lib/schemas/contact";
 
 const contactInfo = [
   {
     icon: Phone,
-    title: 'Call Us',
-    text: '+(03) 255 201 888',
+    title: "Call Us",
+    text: "+(03) 255 201 888",
   },
   {
     icon: Mail,
-    title: 'Email Now',
-    text: 'Hello@procleaning.com',
+    title: "Email Now",
+    text: "Hello@procleaning.com",
   },
   {
     icon: Clock,
-    title: 'Hours',
-    text: 'Mon–Friday 10:00AM – 7:00PM',
+    title: "Hours",
+    text: "Mon–Friday 10:00AM – 7:00PM",
   },
 ];
 
 type ContactSectionProps = {
   showPageHeading?: boolean;
+  showWatermark?: boolean;
 };
 
 export default function ContactSection({
   showPageHeading = false,
+  showWatermark = false,
 }: ContactSectionProps) {
   const router = useRouter();
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
+  const [status, setStatus] = useState<"idle" | "submitting" | "error">("idle");
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setStatus('submitting');
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<ContactFormValues>({
+    resolver: zodResolver(contactSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      message: "",
+    },
+  });
 
-    const form = e.currentTarget;
-    const formData = new FormData(form);
+  async function onSubmit(data: ContactFormValues) {
+    setStatus("submitting");
 
     try {
-      const res = await fetch('https://formspree.io/f/mnnevkyj', {
-        method: 'POST',
-        body: formData,
+      const res = await fetch("https://formspree.io/f/mnnevkyj", {
+        method: "POST",
+        body: JSON.stringify(data),
         headers: {
-          Accept: 'application/json',
+          Accept: "application/json",
+          "Content-Type": "application/json",
         },
       });
 
       if (res.ok) {
-        form.reset();
-        router.push('/contact/success');
+        reset();
+        router.push("/contact/success");
       } else {
-        setStatus('error');
+        setStatus("error");
       }
     } catch (err) {
-      setStatus('error');
+      setStatus("error");
     } finally {
-      setStatus((prev) => (prev === 'submitting' ? 'idle' : prev));
+      setStatus((prev) => (prev === "submitting" ? "idle" : prev));
     }
   }
 
   return (
-    <section className="bg-white py-24">
+    <section className="overflow-hidden bg-white py-24">
       <div className="mx-auto w-full max-w-6xl px-4">
         {/* Page heading */}
         {showPageHeading && (
-          <div className="mb-12 text-center space-y-2">
+          <div className="mb-12 space-y-2 text-center">
             <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gray-400">
               Contact
             </p>
-            <h1 className="text-2xl md:text-3xl font-semibold text-slate-900">
+            <h1 className="text-2xl font-semibold text-slate-900 md:text-3xl">
               Let&apos;s talk with us
             </h1>
           </div>
@@ -85,109 +102,163 @@ export default function ContactSection({
         {/* Two-column layout */}
         <div className="grid gap-16 lg:grid-cols-2">
           {/* LEFT: info cards */}
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-semibold text-brand-dark mb-2">
+          <div className="flex h-full flex-col justify-between space-y-8">
+            <div className="text-center lg:text-left">
+              <h2 className="mb-2 text-4xl font-bold text-slate-900 lg:text-5xl">
                 Get in touch
               </h2>
-              <p className="text-sm text-gray-600">
-                Want to book a pick up? Please get an estimate first.
-              </p>
             </div>
 
             <div className="space-y-4">
               {contactInfo.map((item) => (
                 <div
                   key={item.title}
-                  className="flex items-center gap-4  bg-gray-50 p-5 shadow-sm"
+                  className="flex h-20 items-center gap-5 rounded-lg border border-[#F3F3F3] bg-[#FBFBFB] px-4"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-white">
+                  <div
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, #367D5E 0%, #479670 50%, #7ABF9D 100%)",
+                    }}
+                  >
                     <item.icon size={20} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-brand-dark">
+                    <h4 className="text-lg font-bold text-slate-900">
                       {item.title}
                     </h4>
-                    <p className="text-xs text-gray-500">{item.text}</p>
+                    <p className="text-sm text-gray-500">{item.text}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Same style + functionality as navbar "Get an Estimate" */}
-            <Link href="/booking">
-              <Button className="mt-2  bg-brand px-6 py-5 text-md font-semibold text-white shadow-sm hover:bg-brand-dark">
-                Get an Estimate
-              </Button>
-            </Link>
+            <div className="pt-2 text-center lg:text-left">
+              <p className="mb-4 text-sm text-gray-600 lg:text-lg">
+                Want to book a pick up? Please get an estimate first.
+              </p>
+              <Link href="/booking">
+                <Button className="h-auto bg-brand px-8 py-3 text-base font-medium text-white shadow-sm hover:bg-[#367D5E]">
+                  Get an Estimate
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* RIGHT: form */}
-          <div>
-            <h2 className="text-2xl md:text-3xl font-semibold text-brand-dark mb-2">
-              Talk to us
-            </h2>
-            <p className="mb-4 text-sm text-gray-500 max-w-md">
-              We prioritize responding to your inquiries promptly to ensure you
-              receive the assistance you need in a timely manner.
-            </p>
-
-            {status === 'error' && (
-              <p className="mb-4 text-xs text-red-500">
-                Something went wrong sending your message. Please try again or
-                email us directly.
-              </p>
+          <div className="relative">
+            {showWatermark && (
+              <span className="hidden lg:block pointer-events-none absolute -top-20 left-0 select-none text-[100px] font-bold leading-none text-[#479670]/10 md:-top-24 md:text-[130px]">
+                CONTACT
+              </span>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1 text-sm">
-                <Label htmlFor="name">
-                  Name <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="name"
-                  name="name"
-                  placeholder="John"
-                  required
-                  className=" border-gray-200 bg-white"
-                />
+            <div className="relative z-10">
+              <div className="mb-6 text-center lg:text-left">
+                <h2 className="mb-2 text-4xl font-bold text-slate-900 lg:text-5xl">
+                  Talk to us
+                </h2>
+                <p className="mx-auto max-w-lg text-sm text-gray-500 lg:mx-0 lg:text-lg">
+                  We prioritize responding to your inquiries promptly to ensure
+                  you receive the assistance you need in a timely manner
+                </p>
               </div>
 
-              <div className="space-y-1 text-sm">
-                <Label htmlFor="email">
-                  Email <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="john@gmail.com"
-                  required
-                  className=" border-gray-200 bg-white"
-                />
-              </div>
+              {status === "error" && (
+                <p className="mb-4 text-xs text-red-500">
+                  Something went wrong sending your message. Please try again or
+                  email us directly.
+                </p>
+              )}
 
-              <div className="space-y-1 text-sm">
-                <Label htmlFor="message">
-                  Message <span className="text-red-500">*</span>
-                </Label>
-                <Textarea
-                  id="message"
-                  name="message"
-                  placeholder="Message"
-                  required
-                  className="min-h-[120px]  border-gray-200 bg-white"
-                />
-              </div>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                {/* Name Field */}
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="name"
+                    className="text-sm font-semibold text-slate-900"
+                  >
+                    Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="name"
+                    placeholder="Name"
+                    {...register("name")}
+                    className={`border-gray-200 bg-white py-6 ${
+                      errors.name
+                        ? "border-red-500 focus-visible:ring-red-500"
+                        : ""
+                    }`}
+                  />
+                  {errors.name && (
+                    <p className="text-sm text-red-500">
+                      {errors.name.message}
+                    </p>
+                  )}
+                </div>
 
-              <Button
-                type="submit"
-                disabled={status === 'submitting'}
-                className="mt-2 w-32  bg-brand text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
-              >
-                {status === 'submitting' ? 'Sending...' : 'Submit'}
-              </Button>
-            </form>
+                {/* Email Field */}
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="email"
+                    className="text-sm font-semibold text-slate-900"
+                  >
+                    Email <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Email"
+                    {...register("email")}
+                    className={`border-gray-200 bg-white py-6 ${
+                      errors.email
+                        ? "border-red-500 focus-visible:ring-red-500"
+                        : ""
+                    }`}
+                  />
+                  {errors.email && (
+                    <p className="text-sm text-red-500">
+                      {errors.email.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Message Field */}
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="message"
+                    className="text-sm font-semibold text-slate-900"
+                  >
+                    Message <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    id="message"
+                    placeholder="Message"
+                    {...register("message")}
+                    className={`min-h-[120px] border-gray-200 bg-white ${
+                      errors.message
+                        ? "border-red-500 focus-visible:ring-red-500"
+                        : ""
+                    }`}
+                  />
+                  {errors.message && (
+                    <p className="text-sm text-red-500">
+                      {errors.message.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Button */}
+                <Button
+                  type="submit"
+                  disabled={status === "submitting"}
+                  className="mt-2 flex h-auto w-full max-w-40 items-center justify-center mx-auto lg:mx-0 border border-brand bg-white px-8 py-3 text-base font-medium text-brand hover:bg-gray-50 disabled:opacity-60"
+                >
+                  {status === "submitting" ? "Sending..." : "Submit"}
+                </Button>
+              </form>
+            </div>
           </div>
         </div>
       </div>

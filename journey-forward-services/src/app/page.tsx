@@ -17,7 +17,7 @@ export default function Home() {
       <Testimonials />
       <Pricing />
       <FAQ />
-      <Contact />
+      <Contact showWatermark />
     </main>
   );
 }
