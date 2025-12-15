@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 export default function AboutIntro() {
   return (
@@ -43,9 +43,9 @@ export default function AboutIntro() {
         <div className="mt-10 flex-1 md:mt-0 flex justify-end">
           <div className="relative w-full max-w-[560px] h-[260px] md:h-[300px] lg:h-[320px]  overflow-hidden shadow-[0_18px_60px_rgba(15,23,42,0.18)]">
             <img
-              src="/street.webp" // your real image
+              src="/about/street.webp"
               alt="Street scene in Vancouver"
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover rounded-md"
             />
           </div>
         </div>

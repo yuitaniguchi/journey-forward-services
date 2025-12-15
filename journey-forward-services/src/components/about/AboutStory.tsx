@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 export default function AboutStory() {
   return (
@@ -8,9 +8,9 @@ export default function AboutStory() {
         <div className="flex-1 flex justify-start">
           <div className="relative w-full max-w-[560px] h-[260px] md:h-[300px] lg:h-[320px] overflow-hidden shadow-[0_18px_60px_rgba(15,23,42,0.18)]">
             <img
-              src="/friends.webp"
+              src="/about/friends.webp"
               alt="Two friends smiling"
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover rounded-md"
             />
           </div>
         </div>
