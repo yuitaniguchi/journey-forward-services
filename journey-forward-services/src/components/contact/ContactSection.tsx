@@ -33,12 +33,10 @@ const contactInfo = [
 ];
 
 type ContactSectionProps = {
-  showPageHeading?: boolean;
   showWatermark?: boolean;
 };
 
 export default function ContactSection({
-  showPageHeading = false,
   showWatermark = false,
 }: ContactSectionProps) {
   const router = useRouter();
@@ -87,18 +85,6 @@ export default function ContactSection({
   return (
     <section className="overflow-hidden bg-white py-24">
       <div className="mx-auto w-full max-w-6xl px-4">
-        {/* Page heading */}
-        {showPageHeading && (
-          <div className="mb-12 space-y-2 text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gray-400">
-              Contact
-            </p>
-            <h1 className="text-2xl font-semibold text-slate-900 md:text-3xl">
-              Let&apos;s talk with us
-            </h1>
-          </div>
-        )}
-
         {/* Two-column layout */}
         <div className="grid gap-16 lg:grid-cols-2">
           {/* LEFT: info cards */}
