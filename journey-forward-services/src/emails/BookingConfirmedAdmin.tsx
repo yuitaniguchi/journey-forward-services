@@ -5,7 +5,7 @@ import { AdminBookingConfirmedProps } from "../types/email";
 
 interface ExtendedAdminBookingConfirmedProps
   extends AdminBookingConfirmedProps {
-  dashboardLink: string;
+  dashboardLink?: string;
   subTotal?: number;
   discountAmount?: number;
 }
