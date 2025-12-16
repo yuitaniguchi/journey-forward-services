@@ -118,10 +118,6 @@ function getBadgeStatus(
   if (!sentAt) return "DRAFT";
   if (!updatedAt) return "SENT";
 
-  if (["CONFIRMED", "INVOICED", "PAID", "CANCELLED"].includes(currentStatus)) {
-    return "SENT";
-  }
-
   const sentTime = new Date(sentAt).getTime();
   const updatedTime = new Date(updatedAt).getTime();
 
@@ -283,7 +279,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
   const hasMoreItems = request.items.length > 3;
 
   return (
-    <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
+    <main className="min-h-screen bg-[#f8faf9] py-8 md:px-12 md:py-10">
       <div className="mb-4">
         <button
           type="button"
@@ -434,7 +430,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
 
         {/* 4. Quotation (Order: 5 on Mobile, 4 on Desktop) */}
         <section className="order-5 lg:order-4 rounded-3xl border border-slate-300 bg-white px-8 py-6">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-2xl font-semibold text-slate-900">Quotation</h2>
 
             {request.quotation &&
@@ -599,7 +595,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
 
         {/* 6. Final Billing (Order 6) */}
         <section className="order-6 rounded-3xl border border-slate-300 bg-white px-8 py-6">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-2xl font-semibold text-slate-900">
               Final Billing
             </h2>
