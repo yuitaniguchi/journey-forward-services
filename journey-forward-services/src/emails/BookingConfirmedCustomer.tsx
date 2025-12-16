@@ -15,7 +15,7 @@ const CONFIRM_IMAGE_URL =
   "https://res.cloudinary.com/doh9afvyd/image/upload/v1764549569/booking-confirmed_hopufe.png";
 
 interface ExtendedBookingConfirmedProps extends BookingConfirmedProps {
-  pdfLink: string;
+  pdfLink?: string;
   manageLink: string;
 }
 
