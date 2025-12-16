@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Plus, Minus } from 'lucide-react';
+import React, { useState } from "react";
+import { Plus, Minus } from "lucide-react";
 
 type FaqItem = {
   question: string;
@@ -26,8 +26,8 @@ export default function FaqAccordion({ items }: Props) {
         return (
           <div
             key={index}
-            className={`overflow-hidden  border bg-white transition-colors duration-300 ${
-              isOpen ? 'border-[#367D5E]' : 'border-gray-200'
+            className={`overflow-hidden rounded-lg border bg-white transition-colors duration-300 ${
+              isOpen ? "border-[#367D5E]" : "border-gray-200"
             }`}
           >
             <button
@@ -36,8 +36,8 @@ export default function FaqAccordion({ items }: Props) {
             >
               {/* Icon */}
               <div
-                className={`flex h-6 w-6 shrink-0 items-center justify-center  transition-colors ${
-                  isOpen ? 'bg-[#367D5E] text-white' : 'bg-[#367D5E] text-white'
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors ${
+                  isOpen ? "bg-[#367D5E] text-white" : "bg-[#367D5E] text-white"
                 }`}
               >
                 {isOpen ? (
@@ -55,7 +55,7 @@ export default function FaqAccordion({ items }: Props) {
             {/* Answer Area */}
             <div
               className={`transition-all duration-300 ease-in-out ${
-                isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+                isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
               }`}
             >
               <div className="pl-13 pr-5 pb-5 text-sm leading-relaxed text-[#2F2F2F]">

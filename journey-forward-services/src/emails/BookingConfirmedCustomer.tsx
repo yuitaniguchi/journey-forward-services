@@ -90,6 +90,10 @@ export const BookingConfirmedCustomer: React.FC<
     }).format(amount);
   };
 
+  const discountAmount = (quotation as any).discountAmount
+    ? Number((quotation as any).discountAmount)
+    : 0;
+
   return (
     <Layout previewText={previewText}>
       <Section className="text-center">
@@ -190,6 +194,9 @@ export const BookingConfirmedCustomer: React.FC<
             <Column className="w-2/3"></Column>
             <Column>
               <Text className="m-0 font-bold">Sub Total:</Text>
+              {discountAmount > 0 && (
+                <Text className="m-0 font-bold text-[#E04F4F]">Discount:</Text>
+              )}
               <Text className="m-0 font-bold">Tax:</Text>
               <Text className="m-0 font-bold text-[18px]">Total:</Text>
             </Column>
@@ -197,6 +204,13 @@ export const BookingConfirmedCustomer: React.FC<
               <Text className="m-0 font-bold">
                 {formatCurrency(quotation.subtotal)}
               </Text>
+
+              {discountAmount > 0 && (
+                <Text className="m-0 font-bold text-[#E04F4F]">
+                  -{formatCurrency(discountAmount)}
+                </Text>
+              )}
+
               <Text className="m-0 font-bold">
                 {formatCurrency(quotation.tax)}
               </Text>

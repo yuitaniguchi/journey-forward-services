@@ -14,6 +14,8 @@ import { BookingReceivedProps } from "../types/email";
 interface PaymentConfirmedAdminProps extends BookingReceivedProps {
   finalTotal: number;
   dashboardLink: string;
+  subTotal?: number;
+  discountAmount?: number;
 }
 
 export const PaymentConfirmedAdmin: React.FC<PaymentConfirmedAdminProps> = ({
@@ -22,6 +24,8 @@ export const PaymentConfirmedAdmin: React.FC<PaymentConfirmedAdminProps> = ({
   finalTotal,
   dashboardLink,
   requestDate,
+  subTotal,
+  discountAmount,
 }) => {
   const formattedTotal = new Intl.NumberFormat("en-CA", {
     style: "currency",
@@ -53,6 +57,17 @@ export const PaymentConfirmedAdmin: React.FC<PaymentConfirmedAdminProps> = ({
             <Text className="text-lg font-bold text-green-600 m-0">
               {formattedTotal}
             </Text>
+
+            {discountAmount !== undefined && discountAmount > 0 && (
+              <Text className="text-xs text-red-600 m-0 mt-1">
+                (Includes discount: -
+                {new Intl.NumberFormat("en-CA", {
+                  style: "currency",
+                  currency: "CAD",
+                }).format(discountAmount)}
+                )
+              </Text>
+            )}
           </Column>
         </Row>
       </Section>

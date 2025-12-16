@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import AddressInput from "../AddressInput";
 import { Input } from "@/components/ui/input";
+import { isSupportedPostalCode, POSTAL_CODE_REGEX } from "@/lib/postalCodes";
 
 export default function StepAddress() {
   const {
@@ -11,20 +12,44 @@ export default function StepAddress() {
     watch,
     setValue,
     formState: { errors },
+    trigger,
   } = useFormContext();
 
-  // フォームの値監視
   const deliveryRequired = watch("deliveryRequired");
   const hasElevator = watch("hasElevator");
   const deliveryElevator = watch("deliveryElevator");
+  const deliveryPostalCode = watch("deliveryAddress.postalCode");
 
-  // カスタムラジオボタンコンポーネント（Pickup/Delivery両方で使うため共通化）
+  const [deliveryAreaError, setDeliveryAreaError] = useState("");
+
+  const handleDeliveryPostalChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const val = e.target.value.toUpperCase();
+    setValue("deliveryAddress.postalCode", val, { shouldValidate: true });
+
+    if (!val) {
+      setDeliveryAreaError("");
+      return;
+    }
+
+    if (!POSTAL_CODE_REGEX.test(val)) {
+      setDeliveryAreaError("");
+      return;
+    }
+
+    if (!isSupportedPostalCode(val)) {
+      setDeliveryAreaError("Sorry, we do not service this area yet.");
+    } else {
+      setDeliveryAreaError("");
+    }
+  };
+
   const renderRadioGroup = (
     fieldName: string,
     currentValue: boolean | undefined | null
   ) => (
     <div className="flex items-center gap-6 h-12">
-      {/* Yes */}
       <label className="flex cursor-pointer items-center gap-2">
         <div className="relative flex items-center">
           <input
@@ -39,7 +64,6 @@ export default function StepAddress() {
         <span className="text-slate-700">Yes</span>
       </label>
 
-      {/* No */}
       <label className="flex cursor-pointer items-center gap-2">
         <div className="relative flex items-center">
           <input
@@ -58,9 +82,11 @@ export default function StepAddress() {
     </div>
   );
 
+  const deliveryAddressErrors = errors.deliveryAddress as any;
+  const deliveryPostalCodeError = deliveryAddressErrors?.postalCode?.message;
+
   return (
     <div className="flex w-full flex-col">
-      {/* ヘッダー部分 */}
       <div className="mb-6">
         <p className="text-lg font-bold text-[#22503B]">Step 3</p>
       </div>
@@ -73,14 +99,13 @@ export default function StepAddress() {
         <AddressInput prefix="address" />
       </div>
 
-      {/* Pickup Floor & Elevator */}
       <div className="grid gap-8 md:grid-cols-2 mb-8">
         <div className="space-y-3">
           <label className="block text-sm font-medium text-slate-900">
             Which floor is it? <span className="text-red-500">*</span>
           </label>
           <Input
-            placeholder="Floor"
+            placeholder="B1, 1, 2, etc."
             className="h-12 rounded-lg border-slate-300 placeholder:text-slate-400 focus-visible:ring-[#2f7d4a]"
             {...register("floor")}
           />
@@ -102,9 +127,30 @@ export default function StepAddress() {
         </div>
       </div>
 
-      {/* ================= Delivery Section (条件付き表示) ================= */}
+      {/* ================= Delivery Section ================= */}
       {deliveryRequired && (
         <div className="border-t border-slate-200 pt-8 animate-in fade-in slide-in-from-top-2">
+          <div className="mb-8">
+            <label className="mb-3 block text-sm font-medium text-slate-900">
+              Delivery Postal Code <span className="text-red-500">*</span>
+            </label>
+            <Input
+              placeholder="V6B 1A1"
+              autoComplete="section-deliveryAddress postal-code"
+              className="h-12 rounded-lg border-slate-300 placeholder:text-slate-400 focus-visible:ring-[#2f7d4a]"
+              value={deliveryPostalCode || ""}
+              onChange={handleDeliveryPostalChange}
+            />
+            {deliveryPostalCodeError && (
+              <p className="text-sm text-red-600 mt-1">
+                {deliveryPostalCodeError}
+              </p>
+            )}
+            {!deliveryPostalCodeError && deliveryAreaError && (
+              <p className="text-sm text-red-600 mt-1">{deliveryAreaError}</p>
+            )}
+          </div>
+
           <div className="mb-8">
             <label className="mb-3 block text-sm font-medium text-slate-900">
               Delivery Address <span className="text-red-500">*</span>
@@ -112,14 +158,13 @@ export default function StepAddress() {
             <AddressInput prefix="deliveryAddress" />
           </div>
 
-          {/* Delivery Floor & Elevator */}
           <div className="grid gap-8 md:grid-cols-2">
             <div className="space-y-3">
               <label className="block text-sm font-medium text-slate-900">
                 Which floor is it? <span className="text-red-500">*</span>
               </label>
               <Input
-                placeholder="Floor"
+                placeholder="B1, 1, 2, etc."
                 className="h-12 rounded-lg border-slate-300 placeholder:text-slate-400 focus-visible:ring-[#2f7d4a]"
                 {...register("deliveryFloor")}
               />
@@ -135,7 +180,6 @@ export default function StepAddress() {
                 Is there an elevator? <span className="text-red-500">*</span>
               </label>
               {renderRadioGroup("deliveryElevator", deliveryElevator)}
-              {/* バリデーションエラーが必要ならここにも追加 */}
             </div>
           </div>
         </div>

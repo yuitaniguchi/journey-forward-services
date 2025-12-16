@@ -5,6 +5,8 @@ import {
   Button,
   Hr,
   Img,
+  Row,
+  Column,
 } from "@react-email/components";
 import * as React from "react";
 import { Layout } from "./components/Layout";
@@ -21,16 +23,20 @@ interface InvoiceProps extends QuotationSentProps {
 export const InvoiceSentCustomer: React.FC<InvoiceProps> = ({
   customer,
   request,
+  subTotal,
+  tax,
+  discountAmount = 0,
   finalTotal,
   paymentLink,
   requestDate,
 }) => {
   const previewText = "【Journey Forward Services】Your Final Invoice is Ready";
 
-  const formattedTotal = new Intl.NumberFormat("en-CA", {
-    style: "currency",
-    currency: "CAD",
-  }).format(finalTotal);
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat("en-CA", {
+      style: "currency",
+      currency: "CAD",
+    }).format(val);
 
   return (
     <Layout previewText={previewText}>
@@ -52,11 +58,47 @@ export const InvoiceSentCustomer: React.FC<InvoiceProps> = ({
       </Text>
 
       <Section className="bg-gray-50 p-4 mt-6 border border-solid border-gray-200 rounded-md text-center">
+        {discountAmount > 0 && (
+          <Section className="mb-4 px-4">
+            <Row>
+              <Column align="left">
+                <Text className="m-0 text-gray-600 text-sm">Subtotal:</Text>
+              </Column>
+              <Column align="right">
+                <Text className="m-0 text-gray-600 text-sm font-medium">
+                  {formatCurrency(subTotal)}
+                </Text>
+              </Column>
+            </Row>
+            <Row>
+              <Column align="left">
+                <Text className="m-0 text-[#E04F4F] text-sm">Discount:</Text>
+              </Column>
+              <Column align="right">
+                <Text className="m-0 text-[#E04F4F] text-sm font-medium">
+                  -{formatCurrency(discountAmount)}
+                </Text>
+              </Column>
+            </Row>
+            <Row>
+              <Column align="left">
+                <Text className="m-0 text-gray-600 text-sm">Tax (12%):</Text>
+              </Column>
+              <Column align="right">
+                <Text className="m-0 text-gray-600 text-sm font-medium">
+                  {formatCurrency(tax)}
+                </Text>
+              </Column>
+            </Row>
+            <Hr className="border-gray-300 my-2" />
+          </Section>
+        )}
+
         <Text className="text-sm font-semibold text-gray-700 m-0">
           Total Amount Due
         </Text>
         <Text className="text-5xl font-extrabold text-red-600 m-0 mt-1">
-          {formattedTotal}
+          {formatCurrency(finalTotal)}
         </Text>
       </Section>
 

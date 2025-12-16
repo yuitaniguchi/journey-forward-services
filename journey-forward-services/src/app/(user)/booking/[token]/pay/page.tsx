@@ -69,6 +69,9 @@ export default async function FinalPaymentPage({ params }: PageProps) {
       subtotal: Number(booking.quotation!.subtotal),
       tax: Number(booking.quotation!.tax),
       total: Number(booking.quotation!.total),
+      discountAmount: booking.quotation!.discountAmount
+        ? Number(booking.quotation!.discountAmount)
+        : 0,
     },
     payment: booking.payment
       ? {
@@ -76,12 +79,13 @@ export default async function FinalPaymentPage({ params }: PageProps) {
           subtotal: Number(booking.payment.subtotal),
           tax: Number(booking.payment.tax),
           total: Number(booking.payment.total),
+          discountAmount: booking.payment.discountAmount
+            ? Number(booking.payment.discountAmount)
+            : 0,
         }
       : null,
   };
 
-  // 4. Stripe PaymentIntent の準備 (Server Side)
-  // 画面表示前に裏でIntentを作っておくことで、ボタンを押した時に即決済できるようにする
   let serverError: string | undefined = undefined;
 
   try {
@@ -96,8 +100,6 @@ export default async function FinalPaymentPage({ params }: PageProps) {
       const currency = payment.currency || "CAD";
       const amountInCents = Math.round(Number(payment.total) * 100);
 
-      // PaymentIntentを作成
-      // (confirm: false で作成し、クライアントからのリクエストで confirm する)
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amountInCents,
         currency,
@@ -114,7 +116,6 @@ export default async function FinalPaymentPage({ params }: PageProps) {
       });
 
       if (paymentIntent.id) {
-        // DBにIntent IDを保存
         await prisma.payment.update({
           where: { requestId: booking.id },
           data: {

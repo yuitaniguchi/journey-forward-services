@@ -1,5 +1,3 @@
-// ❌ "use client" は削除！（サーバコンポーネントになる）
-
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import type { RequestStatus } from "@prisma/client";
@@ -8,7 +6,7 @@ import RequestDetailClient, {
 } from "@/components/admin/RequestDetailClient";
 
 type PageProps = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export default async function RequestDetailPage({ params }: PageProps) {
@@ -24,7 +22,11 @@ export default async function RequestDetailPage({ params }: PageProps) {
     include: {
       customer: true,
       items: true,
-      quotation: true,
+      quotation: {
+        include: {
+          discountCode: true,
+        },
+      },
       payment: true,
     },
   });
@@ -75,9 +77,23 @@ export default async function RequestDetailPage({ params }: PageProps) {
       ? {
           id: data.quotation.id,
           subtotal: Number(data.quotation.subtotal),
+          originalSubtotal: Number(data.quotation.originalSubtotal),
           tax: Number(data.quotation.tax),
           total: Number(data.quotation.total),
+          discountAmount: data.quotation.discountAmount
+            ? Number(data.quotation.discountAmount)
+            : 0,
+          discountRule: data.quotation.discountCode
+            ? {
+                type: data.quotation.discountCode.type, // "FIXED_AMOUNT" | "PERCENTAGE"
+                value: Number(data.quotation.discountCode.value),
+              }
+            : null,
           note: data.quotation.note ?? null,
+          sentAt: data.quotation.sentAt
+            ? data.quotation.sentAt.toISOString()
+            : null,
+          updatedAt: data.quotation.updatedAt.toISOString(),
         }
       : null,
 
@@ -85,12 +101,20 @@ export default async function RequestDetailPage({ params }: PageProps) {
       ? {
           id: data.payment.id,
           total: data.payment.total.toString(),
+          subtotal: Number(data.payment.subtotal),
+          tax: Number(data.payment.tax),
+          discountAmount: data.payment.discountAmount
+            ? Number(data.payment.discountAmount)
+            : 0,
           status: data.payment.status,
           note: data.payment.note ?? null,
+          sentAt: data.payment.sentAt
+            ? data.payment.sentAt.toISOString()
+            : null,
+          updatedAt: data.payment.updatedAt.toISOString(),
         }
       : null,
   };
 
-  // クライアントコンポーネントに初期データを渡して描画
   return <RequestDetailClient initialRequest={request} />;
 }

@@ -1,54 +1,53 @@
-'use client';
+"use client";
 
-import Image from 'next/image';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import Image from "next/image";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default function AboutCTA() {
   return (
-    <section className=" bg-white py-16 md:py-20">
-      <div className="section-inner">
-        {/* White card with same general shape as the rest of the site */}
-        <div className=" border border-slate-200 bg-white px-8 py-10 md:px-12 md:py-12 shadow-sm">
-          {/* Layout: image on the LEFT, text on the RIGHT */}
-          <div className="flex flex-col md:flex-row md:items-center md:gap-10">
-            {/* IMAGE – big, zoomed, left-aligned just like Figma */}
-            <div className="relative md:flex-none md:w-[380px] h-[320px] md:h-[340px] -ml-4 md:-ml-8 overflow-hidden">
-              <Image
-                src="/about-cta-person.webp.webp"
-                alt="Mover carrying box"
-                fill
-                className="object-cover object-left"
-                priority
-              />
-            </div>
+    <section className="bg-white pt-16 md:pt-24">
+      <div className="mx-auto max-w-7xl px-4 md:px-8">
+        <div className="flex flex-col-reverse items-center gap-8 md:flex-row md:gap-16">
+          {/* IMAGE SECTION */}
+          {/* Mobile: Bottom, Desktop: Left */}
+          <div className="relative h-[300px] w-full max-w-[340px] md:h-[500px] md:max-w-[480px] md:flex-1">
+            <Image
+              src="/about/about-cta-person.png"
+              alt="Mover carrying box"
+              fill
+              className="object-contain object-bottom md:object-left"
+              priority
+            />
+          </div>
 
-            {/* TEXT + BUTTONS */}
-            <div className="mt-8 md:mt-0 md:flex-1 md:pl-4 space-y-5">
-              <h2 className="text-2xl md:text-3xl font-semibold text-slate-900">
-                Ready to take an action?
-              </h2>
+          {/* TEXT & BUTTONS SECTION */}
+          {/* Mobile: Top, Desktop: Right */}
+          <div className="flex flex-col items-center text-center md:flex-1 md:items-start md:text-left">
+            <h2 className="mb-4 text-3xl font-bold text-slate-900 md:text-4xl md:leading-tight">
+              Ready to take an action?
+            </h2>
 
-              <p className="max-w-md text-sm md:text-base text-slate-600 leading-relaxed">
-                Your support helps reduce waste, create jobs, and give someone a
-                second chance at life.
-              </p>
+            <p className="mb-8 max-w-md text-base text-slate-600 md:text-lg">
+              your support helps reduce waste, create jobs,
+              <br className="hidden md:block" /> and give someone a second
+              chance at life.
+            </p>
 
-              <div className="flex flex-wrap gap-3 pt-2">
-                {/* Contact – outline */}
-                <Link href="/contact">
-                  <Button className="rounded-md border border-slate-300 bg-white px-8 py-3 text-sm font-semibold text-slate-800 shadow-none hover:bg-slate-50">
-                    Contact
-                  </Button>
-                </Link>
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+              {/* Contact Button (Outline) */}
+              <Link href="/contact" className="w-full sm:w-auto">
+                <Button className="w-full rounded-md border border-[#367D5E] bg-white px-8 py-6 text-base font-semibold text-[#367D5E] hover:bg-[#367D5E]/10">
+                  Contact
+                </Button>
+              </Link>
 
-                {/* Get an Estimate – SAME style as navbar CTA */}
-                <Link href="/booking">
-                  <Button className="rounded-md bg-brand px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-brand-dark">
-                    Get an Estimate
-                  </Button>
-                </Link>
-              </div>
+              {/* Get an Estimate Button (Solid) */}
+              <Link href="/booking" className="w-full sm:w-auto">
+                <Button className="w-full rounded-md bg-[#367D5E] px-8 py-6 text-base font-semibold text-white shadow-md hover:bg-[#2b644b]">
+                  Get an Estimate
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

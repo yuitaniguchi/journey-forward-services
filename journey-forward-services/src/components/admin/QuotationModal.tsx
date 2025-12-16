@@ -109,13 +109,16 @@ export default function QuotationModal({
 
         {/* ★ Note (optional) */}
         <div className="mb-6">
-          <label className="mb-1 block text-sm font-medium text-slate-700">
-            Note (optional)
+          <label className="mb-1 block text-sm font-bold text-slate-900">
+            Internal Note
+            <span className="ml-2 font-normal text-slate-500">
+              (Not visible to customer)
+            </span>
           </label>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Add a note for the customer"
+            placeholder="Write internal memo here. This will NOT be sent in the email."
             rows={4}
             className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
           />

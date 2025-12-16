@@ -11,7 +11,6 @@ type Props = {
 export default function StepConfirmation({ items, setStep }: Props) {
   const { watch } = useFormContext();
 
-  // フォームの値を取得
   const pickupDateTime = watch("pickupDateTime");
   const deliveryRequired = watch("deliveryRequired");
   const address = watch("address");
@@ -22,7 +21,6 @@ export default function StepConfirmation({ items, setStep }: Props) {
   const phone = watch("phone");
   const postalCode = watch("postalCode");
 
-  // 日付フォーマット関数 (画像に合わせて調整: Aug 14, 2025 - 9:00 AM)
   const getFormattedDate = (val: string) => {
     if (!val) return "-";
     const d = new Date(val);
@@ -42,7 +40,6 @@ export default function StepConfirmation({ items, setStep }: Props) {
 
   const pickupDateStr = getFormattedDate(pickupDateTime);
 
-  // 行コンポーネント (ラベル左、値右のレイアウト)
   const InfoRow = ({
     label,
     value,
@@ -58,7 +55,6 @@ export default function StepConfirmation({ items, setStep }: Props) {
 
   return (
     <div className="flex w-full flex-col space-y-8">
-      {/* メインタイトル */}
       <h2 className="text-xl font-bold text-[#22503B]">Confirmation</h2>
 
       {/* ================= Pickup Info ================= */}
@@ -67,7 +63,7 @@ export default function StepConfirmation({ items, setStep }: Props) {
           <h3 className="text-lg font-bold text-[#22503B]">Pickup Info</h3>
           <button
             type="button"
-            onClick={() => setStep(1)} // Date selection step
+            onClick={() => setStep(1)}
             className="rounded border border-[#3F7253] px-4 py-1 text-xs font-semibold text-[#3F7253] hover:bg-[#e7f0eb] transition-colors"
           >
             Edit
@@ -105,7 +101,7 @@ export default function StepConfirmation({ items, setStep }: Props) {
             <h3 className="text-lg font-bold text-[#22503B]">Delivery Info</h3>
             <button
               type="button"
-              onClick={() => setStep(2)} // Address step
+              onClick={() => setStep(2)}
               className="rounded border border-[#3F7253] px-4 py-1 text-xs font-semibold text-[#3F7253] hover:bg-[#e7f0eb] transition-colors"
             >
               Edit
@@ -121,7 +117,8 @@ export default function StepConfirmation({ items, setStep }: Props) {
                     {deliveryAddress?.street}
                     {deliveryAddress?.line2 ? `, ${deliveryAddress.line2}` : ""}
                     <br />
-                    {deliveryAddress?.city}, {deliveryAddress?.province}
+                    {deliveryAddress?.city}, {deliveryAddress?.province},{" "}
+                    {deliveryAddress?.postalCode}
                   </>
                 }
               />
@@ -144,7 +141,7 @@ export default function StepConfirmation({ items, setStep }: Props) {
           <h3 className="text-lg font-bold text-[#22503B]">Item Info</h3>
           <button
             type="button"
-            onClick={() => setStep(3)} // Items step
+            onClick={() => setStep(3)}
             className="rounded border border-[#3F7253] px-4 py-1 text-xs font-semibold text-[#3F7253] hover:bg-[#e7f0eb] transition-colors"
           >
             Edit
@@ -180,7 +177,7 @@ export default function StepConfirmation({ items, setStep }: Props) {
           <h3 className="text-lg font-bold text-[#22503B]">Your Info</h3>
           <button
             type="button"
-            onClick={() => setStep(4)} // User Info step
+            onClick={() => setStep(4)}
             className="rounded border border-[#3F7253] px-4 py-1 text-xs font-semibold text-[#3F7253] hover:bg-[#e7f0eb] transition-colors"
           >
             Edit
@@ -192,7 +189,6 @@ export default function StepConfirmation({ items, setStep }: Props) {
             <InfoRow label="Name" value={`${firstName} ${lastName}`} />
             <InfoRow label="Email" value={email} />
             <InfoRow label="Phone Number" value={phone} />
-            {/* 画像に合わせて住所も表示 (Pickup Addressと同じものを表示) */}
             <InfoRow
               label="Address"
               value={

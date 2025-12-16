@@ -3,12 +3,9 @@ import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { render } from "@react-email/render";
 import QuotationSentCustomer from "@/emails/QuotationSentCustomer";
-
-// [PRODUCTION] Uncomment for SendGrid
-// import sgMail from "@sendgrid/mail";
-
-// [DEMO] Keep for Gmail (Nodemailer)
 import nodemailer from "nodemailer";
+
+// import sgMail from "@sendgrid/mail";
 
 type RouteParams = Promise<{ id: string }>;
 
@@ -28,39 +25,71 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { subtotal, sendEmail } = body;
+    const { subtotal, sendEmail, note } = body;
     const subtotalNum = Number(subtotal);
-    const taxRate = 0.12;
-    const taxNum = subtotalNum * taxRate;
-    const totalNum = subtotalNum + taxNum;
 
-    const token = crypto.randomUUID();
+    const existingQuotation = await prisma.quotation.findUnique({
+      where: { requestId },
+      include: { discountCode: true },
+    });
+
+    let discountAmount = 0;
+    if (existingQuotation?.discountCode) {
+      const dc = existingQuotation.discountCode;
+      if (dc.type === "FIXED_AMOUNT") {
+        discountAmount = Number(dc.value);
+      } else if (dc.type === "PERCENTAGE") {
+        discountAmount = subtotalNum * (Number(dc.value) / 100);
+      }
+      if (discountAmount > subtotalNum) {
+        discountAmount = subtotalNum;
+      }
+    }
+
+    const taxableSubtotal = subtotalNum - discountAmount;
+    const taxRate = 0.12;
+    const taxNum = taxableSubtotal * taxRate;
+    const totalNum = taxableSubtotal + taxNum;
+
+    let bookingLink = existingQuotation?.bookingLink;
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const bookingLink = `${baseUrl}/booking/${token}/confirm`;
+
+    if (!bookingLink) {
+      const token = crypto.randomUUID();
+      bookingLink = `${baseUrl}/booking/${token}/confirm`;
+    }
+
     const pdfLink = `${baseUrl}/api/pdf/quotations/${requestId}`;
 
     const quotation = await prisma.quotation.upsert({
       where: { requestId },
       update: {
         subtotal: subtotalNum,
+        discountAmount: discountAmount,
         tax: taxNum,
         total: totalNum,
         bookingLink,
+        note: note,
+        sentAt: sendEmail ? new Date() : undefined,
       },
       create: {
         requestId,
         subtotal: subtotalNum,
+        discountAmount: discountAmount,
         tax: taxNum,
         total: totalNum,
         bookingLink,
+        note: note,
+        sentAt: sendEmail ? new Date() : null,
       },
     });
 
-    await prisma.request.update({
-      where: { id: requestId },
-      data: { status: "QUOTED" },
-    });
-
+    if (sendEmail) {
+      await prisma.request.update({
+        where: { id: requestId },
+        data: { status: "QUOTED" },
+      });
+    }
     if (sendEmail) {
       const requestData = await prisma.request.findUnique({
         where: { id: requestId },
@@ -71,7 +100,6 @@ export async function POST(
         throw new Error("Customer email not found");
       }
 
-      // --- PREPARE EMAIL CONTENT (Shared) ---
       const dateStr = new Date().toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
@@ -120,6 +148,7 @@ export async function POST(
           }}
           quotationTotal={Number(totalNum)}
           subTotal={Number(subtotalNum)}
+          discountAmount={Number(discountAmount)}
           tax={Number(taxNum)}
           bookingLink={bookingLink}
           pdfLink={pdfLink}

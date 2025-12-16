@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
-// import sgMail from "@sendgrid/mail"; // SendGridは使用しないためコメントアウト
+// import sgMail from "@sendgrid/mail";
 import nodemailer from "nodemailer";
 import { render } from "@react-email/render";
 import CancellationNotificationCustomer from "@/emails/CancellationNotificationCustomer";
@@ -56,6 +56,16 @@ export async function POST(
     if (request.status === "CANCELLED") {
       return NextResponse.json(
         { error: "This booking is already cancelled." },
+        { status: 400 }
+      );
+    }
+
+    if (request.status === "PAID") {
+      return NextResponse.json(
+        {
+          error:
+            "This booking has already been paid and cannot be cancelled online. Please contact support.",
+        },
         { status: 400 }
       );
     }
@@ -183,7 +193,7 @@ export async function POST(
   }
 }
 
-// --- Nodemailer (Gmail) に書き換えた関数 ---
+// --- Nodemailer (Gmail) ---
 async function sendCancellationEmails(request: any, fee: number) {
   const gmailUser = process.env.GMAIL_USER;
   const gmailPass = process.env.GMAIL_PASS;
@@ -251,13 +261,13 @@ async function sendCancellationEmails(request: any, fee: number) {
   try {
     await Promise.all([
       transporter.sendMail({
-        from: gmailUser, // Gmail認証ユーザーと同じアドレス
+        from: gmailUser,
         to: request.customer.email,
         subject: `Booking Cancelled - Request #${request.id}`,
         html: customerHtml,
       }),
       transporter.sendMail({
-        from: gmailUser, // Gmail認証ユーザーと同じアドレス
+        from: gmailUser,
         to: adminEmail,
         subject: `[Cancelled] Request #${request.id}`,
         html: adminHtml,

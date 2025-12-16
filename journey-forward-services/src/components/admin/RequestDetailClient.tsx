@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { RequestStatus } from "@prisma/client";
 import QuotationModal from "@/components/admin/QuotationModal";
 import FinalAmountModal from "@/components/admin/FinalAmountModal";
+import { Check, FileText, AlertCircle } from "lucide-react";
 
 export type RequestDetail = {
   id: number;
@@ -17,7 +18,7 @@ export type RequestDetail = {
   pickupAddressLine2?: string | null;
   pickupCity: string;
   pickupState: string;
-  pickupFloor?: string | null; // ← DB が String? なので string に寄せる
+  pickupFloor?: string | null;
   pickupElevator?: boolean | null;
 
   deliveryPostalCode?: string | null;
@@ -25,7 +26,7 @@ export type RequestDetail = {
   deliveryAddressLine2?: string | null;
   deliveryCity?: string | null;
   deliveryState?: string | null;
-  deliveryFloor?: string | null; // ← 同上
+  deliveryFloor?: string | null;
   deliveryElevator?: boolean | null;
 
   customer: {
@@ -47,16 +48,29 @@ export type RequestDetail = {
   quotation: {
     id: number;
     subtotal: number;
+    originalSubtotal?: number;
     tax: number;
     total: number;
-    note?: string | null; // ★ Quotation note
+    discountAmount?: number | null;
+    discountRule?: {
+      type: "FIXED_AMOUNT" | "PERCENTAGE";
+      value: number;
+    } | null;
+    note?: string | null;
+    sentAt?: string | null;
+    updatedAt: string;
   } | null;
 
   payment: {
     id: number;
     total: string;
+    subtotal?: string | number | null;
+    tax?: string | number | null;
+    discountAmount?: string | number | null;
     status: string;
-    note?: string | null; // ★ Payment note
+    note?: string | null;
+    sentAt?: string | null;
+    updatedAt: string;
   } | null;
 };
 
@@ -96,6 +110,24 @@ const formatCurrency = (val: number) =>
     currency: "CAD",
   }).format(val);
 
+function getBadgeStatus(
+  sentAt: string | null | undefined,
+  updatedAt: string | undefined,
+  currentStatus: RequestStatus
+) {
+  if (!sentAt) return "DRAFT";
+  if (!updatedAt) return "SENT";
+
+  const sentTime = new Date(sentAt).getTime();
+  const updatedTime = new Date(updatedAt).getTime();
+
+  if (updatedTime > sentTime + 2000) {
+    return "UNSYNCED";
+  }
+
+  return "SENT";
+}
+
 export default function RequestDetailClient({ initialRequest }: Props) {
   const router = useRouter();
 
@@ -113,7 +145,6 @@ export default function RequestDetailClient({ initialRequest }: Props) {
   const [confirmingStatus, setConfirmingStatus] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
-  // 🔍 ライトボックス用 state
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
   const [photoItems, setPhotoItems] = useState<RequestDetail["items"]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
@@ -129,7 +160,6 @@ export default function RequestDetailClient({ initialRequest }: Props) {
     );
   }
 
-  // ---- ステータス更新 ----
   async function handleStatusChange(next: RequestStatus): Promise<boolean> {
     if (!request) return false;
     if (next === request.status) return true;
@@ -178,7 +208,6 @@ export default function RequestDetailClient({ initialRequest }: Props) {
     setPendingStatus(null);
   }
 
-  // 🔁 ライトボックスの前後ナビゲーション
   function goPrevPhoto() {
     setCurrentPhotoIndex((i) =>
       photoItems.length === 0
@@ -193,7 +222,6 @@ export default function RequestDetailClient({ initialRequest }: Props) {
     );
   }
 
-  // 🔍 サムネイルクリック時のハンドラ
   function handlePhotoClick(itemId: number) {
     const itemsWithPhotos = request?.items.filter((i) => i.photoUrl) ?? [];
     if (itemsWithPhotos.length === 0) return;
@@ -206,61 +234,85 @@ export default function RequestDetailClient({ initialRequest }: Props) {
     setPhotoViewerOpen(true);
   }
 
-  // ---- 派生値 ----
   const customerName = `${request.customer.firstName} ${request.customer.lastName}`;
   const pickupDate = formatDate(request.preferredDatetime);
-  const finalAmount =
-    request.payment && request.payment.total
-      ? `$${request.payment.total}`
-      : "-";
+
   const paymentAmounts =
     request.payment && request.payment.total
       ? (() => {
           const total = Number(request.payment!.total);
+
+          if (
+            request.payment!.status === "Authorized" ||
+            request.payment!.status === "CANCELLATION_FEE_CHARGED"
+          ) {
+            return null;
+          }
+
+          const subtotal = request.payment.subtotal
+            ? Number(request.payment.subtotal)
+            : total / 1.12;
+          const tax = request.payment.tax
+            ? Number(request.payment.tax)
+            : total - subtotal;
+          const discount = request.payment.discountAmount
+            ? Number(request.payment.discountAmount)
+            : 0;
+
           if (Number.isNaN(total)) return null;
 
-          const rawSubtotal = total / 1.12;
-          const rawTax = total - rawSubtotal;
+          if (!request.payment!.sentAt && total === 0) {
+            return null;
+          }
 
-          // 小数の誤差を軽減（小数第3位で四捨五入）
-          const subtotal = Math.round(rawSubtotal * 100) / 100;
-          const tax = Math.round(rawTax * 100) / 100;
-
-          return { subtotal, tax, total };
+          return { subtotal, tax, total, discount };
         })()
       : null;
 
-  // ボタン制御ロジック
   const canEditQuotation =
     request.status === "RECEIVED" || request.status === "QUOTED";
 
   const canSendFinalAmount =
-    request.status !== "PAID" && request.status !== "CANCELLED";
+    request.status === "CONFIRMED" || request.status === "INVOICED";
 
-  // Items & Photos 表示件数制御
   const itemsToShow = showAllItems ? request.items : request.items.slice(0, 3);
   const hasMoreItems = request.items.length > 3;
 
   return (
-    <main className="min-h-screen bg-[#f8faf9] px-6 py-8 md:px-12 md:py-10">
-      {/* タイトル＋一覧に戻るボタン */}
-      <div className="mb-8 flex items-center justify-between gap-4">
-        <h1 className="text-4xl font-extrabold text-slate-900 md:text-5xl">
-          Request Details
-        </h1>
-
+    <main className="min-h-screen bg-[#f8faf9] py-8 md:px-12 md:py-10">
+      <div className="mb-4">
         <button
           type="button"
           onClick={() => router.push("/admin")}
-          className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
+          className="flex items-center gap-1 text-lg font-semibold text-slate-500 hover:text-slate-800 transition-colors"
         >
-          Back to requests
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2.5}
+            stroke="currentColor"
+            className="w-6 h-6"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15.75 19.5L8.25 12l7.5-7.5"
+            />
+          </svg>
+          Back to Requests
         </button>
       </div>
 
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <h1 className="text-4xl font-extrabold text-slate-900 md:text-5xl">
+          Request #{request.id}
+        </h1>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* 1. Customer */}
-        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+        {/* 1. Customer (Order 1) */}
+        <section className="order-1 rounded-3xl border border-slate-300 bg-white px-8 py-6">
           <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Customer
           </h2>
@@ -278,8 +330,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           </p>
         </section>
 
-        {/* 2. Status Management */}
-        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+        {/* 2. Status Management (Order 2) */}
+        <section className="order-2 rounded-3xl border border-slate-300 bg-white px-8 py-6">
           <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Status Management
           </h2>
@@ -321,8 +373,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           </p>
         </section>
 
-        {/* 3. Booking */}
-        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+        {/* 3. Booking (Order 3) */}
+        <section className="order-3 rounded-3xl border border-slate-300 bg-white px-8 py-6">
           <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Booking
           </h2>
@@ -376,20 +428,68 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           )}
         </section>
 
-        {/* 4. Quotation */}
-        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
-          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
-            Quotation
-          </h2>
+        {/* 4. Quotation (Order: 5 on Mobile, 4 on Desktop) */}
+        <section className="order-5 lg:order-4 rounded-3xl border border-slate-300 bg-white px-8 py-6">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-2xl font-semibold text-slate-900">Quotation</h2>
+
+            {request.quotation &&
+              (() => {
+                const status = getBadgeStatus(
+                  request.quotation.sentAt,
+                  request.quotation.updatedAt,
+                  request.status
+                );
+
+                if (status === "SENT") {
+                  return (
+                    <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
+                      <Check className="h-3.5 w-3.5" />
+                      Sent: {formatDate(request.quotation.sentAt!)}
+                    </span>
+                  );
+                } else if (status === "UNSYNCED") {
+                  return (
+                    <span className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      Unsent Changes
+                    </span>
+                  );
+                } else {
+                  return (
+                    <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                      <FileText className="h-3.5 w-3.5" />
+                      Draft (Unsent)
+                    </span>
+                  );
+                }
+              })()}
+          </div>
 
           {request.quotation ? (
             <div className="mb-6 space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-600">Subtotal:</span>
                 <span className="font-medium">
-                  {formatCurrency(request.quotation.subtotal)}
+                  {formatCurrency(
+                    request.quotation.originalSubtotal &&
+                      request.quotation.originalSubtotal > 0
+                      ? request.quotation.originalSubtotal
+                      : request.quotation.subtotal
+                  )}
                 </span>
               </div>
+
+              {request.quotation.discountAmount &&
+              Number(request.quotation.discountAmount) > 0 ? (
+                <div className="flex justify-between font-medium text-red-600">
+                  <span>Discount:</span>
+                  <span>
+                    -{formatCurrency(request.quotation.discountAmount)}
+                  </span>
+                </div>
+              ) : null}
+
               <div className="flex justify-between">
                 <span className="text-slate-600">Tax (12%):</span>
                 <span className="font-medium">
@@ -401,7 +501,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                 <span>{formatCurrency(request.quotation.total)}</span>
               </div>
               {request.quotation.note && (
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-slate-600 break-all whitespace-pre-wrap">
                   <span className="font-semibold">Note:</span>{" "}
                   {request.quotation.note}
                 </p>
@@ -431,8 +531,8 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           </button>
         </section>
 
-        {/* 5. Items & Photos */}
-        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
+        {/* 5. Items & Photos (Order: 4 on Mobile, 5 on Desktop) */}
+        <section className="order-4 lg:order-5 rounded-3xl border border-slate-300 bg-white px-8 py-6">
           <h2 className="mb-4 text-2xl font-semibold text-slate-900">
             Items &amp; Photos
           </h2>
@@ -444,8 +544,23 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           {request.items.length > 0 && (
             <>
               <ul className="space-y-4">
-                {itemsToShow.map((item) => (
-                  <li key={item.id} className="flex items-start gap-4">
+                {itemsToShow.map((item, index) => (
+                  <li
+                    key={item.id}
+                    className="flex items-start justify-between gap-4"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold">
+                        {index + 1}. {item.name} - {item.size} (x
+                        {item.quantity})
+                      </p>
+                      {item.description && (
+                        <p className="text-sm text-slate-600 whitespace-pre-wrap break-all">
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
+
                     {item.photoUrl && (
                       <button
                         type="button"
@@ -459,16 +574,6 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                         />
                       </button>
                     )}
-                    <div>
-                      <p className="font-semibold">
-                        {item.name} - {item.size} (x{item.quantity})
-                      </p>
-                      {item.description && (
-                        <p className="text-sm text-slate-600">
-                          {item.description}
-                        </p>
-                      )}
-                    </div>
                   </li>
                 ))}
               </ul>
@@ -488,11 +593,46 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           )}
         </section>
 
-        {/* 6. Final Billing */}
-        <section className="rounded-3xl border border-slate-300 bg-white px-8 py-6">
-          <h2 className="mb-4 text-2xl font-semibold text-slate-900">
-            Final Billing
-          </h2>
+        {/* 6. Final Billing (Order 6) */}
+        <section className="order-6 rounded-3xl border border-slate-300 bg-white px-8 py-6">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-2xl font-semibold text-slate-900">
+              Final Billing
+            </h2>
+
+            {paymentAmounts &&
+              request.payment &&
+              (() => {
+                const status = getBadgeStatus(
+                  request.payment.sentAt,
+                  request.payment.updatedAt,
+                  request.status
+                );
+
+                if (status === "SENT") {
+                  return (
+                    <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
+                      <Check className="h-3.5 w-3.5" />
+                      Sent: {formatDate(request.payment.sentAt!)}
+                    </span>
+                  );
+                } else if (status === "UNSYNCED") {
+                  return (
+                    <span className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      Unsent Changes
+                    </span>
+                  );
+                } else {
+                  return (
+                    <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                      <FileText className="h-3.5 w-3.5" />
+                      Draft (Unsent)
+                    </span>
+                  );
+                }
+              })()}
+          </div>
 
           {paymentAmounts ? (
             <div className="mb-6 space-y-2 text-sm">
@@ -502,6 +642,14 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                   {formatCurrency(paymentAmounts.subtotal)}
                 </span>
               </div>
+
+              {paymentAmounts.discount > 0 && (
+                <div className="flex justify-between font-medium text-red-600">
+                  <span>Discount:</span>
+                  <span>-{formatCurrency(paymentAmounts.discount)}</span>
+                </div>
+              )}
+
               <div className="flex justify-between">
                 <span className="text-slate-600">Tax (12%):</span>
                 <span className="font-medium">
@@ -514,7 +662,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
               </div>
 
               {request.payment?.note && (
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-slate-600 break-all whitespace-pre-wrap">
                   <span className="font-semibold">Note:</span>{" "}
                   {request.payment.note}
                 </p>
@@ -522,7 +670,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
             </div>
           ) : (
             <p className="mb-4 text-sm text-slate-500">
-              No final amount has been sent yet.
+              No invoice created yet.
             </p>
           )}
 
@@ -673,7 +821,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
       <QuotationModal
         open={showQuotationModal}
         initialSubtotal={request.quotation?.subtotal ?? 0}
-        initialNote={request.quotation?.note ?? ""} // ★ 追加
+        initialNote={request.quotation?.note ?? ""}
         onClose={() => setShowQuotationModal(false)}
         onSave={async ({ subtotal, sendEmail, note }) => {
           try {
@@ -703,10 +851,16 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                       subtotal: Number(json.quotation.subtotal),
                       tax: Number(json.quotation.tax),
                       total: Number(json.quotation.total),
+                      discountAmount: json.quotation.discountAmount
+                        ? Number(json.quotation.discountAmount)
+                        : null,
                       note: json.quotation.note ?? null,
+                      sentAt: json.quotation.sentAt ?? null,
+                      updatedAt: json.quotation.updatedAt,
                     },
                     status:
-                      prev.status === "RECEIVED" || prev.status === "QUOTED"
+                      sendEmail &&
+                      (prev.status === "RECEIVED" || prev.status === "QUOTED")
                         ? "QUOTED"
                         : prev.status,
                   }
@@ -722,10 +876,21 @@ export default function RequestDetailClient({ initialRequest }: Props) {
       {/* Final Amount Modal */}
       <FinalAmountModal
         open={showFinalAmountModal}
-        initialSubtotal={request.quotation?.subtotal ?? 0}
-        initialNote={request.payment?.note ?? ""} // ★ 追加
+        initialSubtotal={
+          paymentAmounts?.subtotal ??
+          (request.quotation?.originalSubtotal &&
+          request.quotation.originalSubtotal > 0
+            ? request.quotation.originalSubtotal
+            : request.quotation?.subtotal) ??
+          0
+        }
+        initialNote={request.payment?.note ?? ""}
+        initialDiscountAmount={
+          paymentAmounts?.discount ?? request.quotation?.discountAmount ?? 0
+        }
+        discountRule={request.quotation?.discountRule ?? null}
         onClose={() => setShowFinalAmountModal(false)}
-        onSend={async ({ subtotal, note }) => {
+        onSend={async ({ subtotal, note, sendEmail }) => {
           if (subtotal < 0) {
             alert("Final amount must be a non-negative number.");
             throw new Error("Invalid final amount");
@@ -740,6 +905,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                 body: JSON.stringify({
                   subtotal,
                   note,
+                  sendEmail,
                 }),
               }
             );
@@ -760,11 +926,16 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                     ...prev,
                     payment: {
                       id: payment.id,
+                      subtotal: payment.subtotal,
+                      discountAmount: payment.discountAmount,
+                      tax: payment.tax,
                       total: payment.total,
                       status: payment.status,
                       note: payment.note ?? null,
+                      sentAt: payment.sentAt ?? null,
+                      updatedAt: payment.updatedAt,
                     },
-                    status: "INVOICED",
+                    status: sendEmail ? "INVOICED" : prev.status,
                   }
                 : prev
             );

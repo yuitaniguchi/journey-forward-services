@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle } from "lucide-react"; // アイコン用にlucide-reactを使用（なければ省略可）
+import { AlertCircle } from "lucide-react";
 import type { BookingRequest } from "@/types/booking";
 
 type RequestStatus =
@@ -111,13 +111,26 @@ export default function BookingDetailClient({
   );
 
   const freeCancellationDeadline = booking.freeCancellationDeadline
-    ? new Date(booking.freeCancellationDeadline).toLocaleString()
+    ? new Date(booking.freeCancellationDeadline).toLocaleString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "America/Vancouver",
+      })
     : null;
 
-  // キャンセル済みの場合の日付フォーマット
   const cancelledDate = booking.cancelledAt
     ? new Date(booking.cancelledAt).toLocaleString()
     : null;
+
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat("en-CA", {
+      style: "currency",
+      currency: "CAD",
+    }).format(val);
 
   return (
     <main className="min-h-screen bg-white text-black">
@@ -139,7 +152,6 @@ export default function BookingDetailClient({
       </section>
 
       <div className="mx-auto max-w-4xl px-4 py-10 md:px-0">
-        {/* キャンセル済みのアラートバナー */}
         {isAlreadyCancelled && (
           <div className="mb-8 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
             <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
@@ -158,11 +170,9 @@ export default function BookingDetailClient({
           </div>
         )}
 
-        {/* キャンセル済みの場合は全体を少し薄くして「無効感」を出す (opacity-60) */}
         <div
           className={`grid gap-8 md:grid-cols-2 transition-opacity duration-300 ${isAlreadyCancelled ? "opacity-60 grayscale-[30%]" : ""}`}
         >
-          {/* 左カラム */}
           <section className="rounded-xl bg-white">
             <h2 className="mb-6 text-2xl font-bold text-[#1a7c4c]">
               Thank you for Booking!
@@ -217,7 +227,6 @@ export default function BookingDetailClient({
             </div>
           </section>
 
-          {/* 右カラム */}
           <section className="h-fit rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <h2 className="mb-6 text-xl font-bold text-[#1a7c4c]">
               Request Number: {booking.id}
@@ -303,15 +312,26 @@ export default function BookingDetailClient({
                 <div className="ml-auto w-full space-y-2 text-right text-sm">
                   <div className="flex justify-between font-bold text-black">
                     <span>Sub Total:</span>
-                    <span>${Number(quotation.subtotal).toFixed(2)}</span>
+                    <span>{formatCurrency(Number(quotation.subtotal))}</span>
                   </div>
+
+                  {quotation.discountAmount &&
+                  Number(quotation.discountAmount) > 0 ? (
+                    <div className="flex justify-between font-bold text-[#ef4444]">
+                      <span>Discount:</span>
+                      <span>
+                        -{formatCurrency(Number(quotation.discountAmount))}
+                      </span>
+                    </div>
+                  ) : null}
+
                   <div className="flex justify-between font-bold text-black">
                     <span>Tax:</span>
-                    <span>${Number(quotation.tax).toFixed(2)}</span>
+                    <span>{formatCurrency(Number(quotation.tax))}</span>
                   </div>
                   <div className="flex justify-between border-t border-gray-300 pt-2 text-base font-black text-black">
                     <span>Total:</span>
-                    <span>${Number(quotation.total).toFixed(2)}</span>
+                    <span>{formatCurrency(Number(quotation.total))}</span>
                   </div>
                 </div>
               </div>
@@ -319,8 +339,6 @@ export default function BookingDetailClient({
           </section>
         </div>
 
-        {/* キャンセルボタンエリア */}
-        {/* キャンセル済みの場合はボタン自体を表示せず、空白にするか別の要素を表示する */}
         {!isAlreadyCancelled && !isPickupPassed && (
           <div className="mt-12 text-center">
             <h3 className="mb-4 text-lg font-bold text-[#ef4444]">
@@ -347,7 +365,7 @@ export default function BookingDetailClient({
           </div>
         )}
 
-        {/* Modal (キャンセル済みの場合はそもそも開かないが念のため残す) */}
+        {/* Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
             <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-lg">
@@ -368,7 +386,7 @@ export default function BookingDetailClient({
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
-                  className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="rounded-full bg-[#1a7c4c] px-4 py-2 text-sm font-semibold text-white hover:bg-[#15603a] disabled:cursor-not-allowed disabled:bg-gray-300"
                   onClick={() => setIsModalOpen(false)}
                   disabled={isCancelling}
                 >
@@ -376,7 +394,7 @@ export default function BookingDetailClient({
                 </button>
                 <button
                   type="button"
-                  className="rounded-full bg-[#1a7c4c] px-4 py-2 text-sm font-semibold text-white hover:bg-[#15603a] disabled:cursor-not-allowed disabled:bg-gray-300"
+                  className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                   onClick={handleConfirmCancel}
                   disabled={isCancelling}
                 >

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import BookingForm from "@/components/forms/BookingForm";
 
 export default function BookingPage() {
@@ -27,7 +27,9 @@ export default function BookingPage() {
       )}
 
       <section className="mx-auto max-w-4xl px-0 py-0 md:px-4 md:py-12">
-        <BookingForm onComplete={() => setIsCompleted(true)} />
+        <Suspense fallback={<div>Loading form...</div>}>
+          <BookingForm onComplete={() => setIsCompleted(true)} />
+        </Suspense>
       </section>
     </main>
   );

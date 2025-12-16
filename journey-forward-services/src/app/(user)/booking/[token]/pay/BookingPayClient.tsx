@@ -64,6 +64,11 @@ export default function BookingPayClient({
 
   const payment = booking.payment;
   const finalAmount = payment?.total ?? 0;
+
+  const discountAmount = payment?.discountAmount
+    ? Number(payment.discountAmount)
+    : 0;
+
   const canConfirmPayment = finalAmount > 0 && !isConfirming && !errorMessage;
 
   const formatMoney = (val: number) => val.toFixed(2);
@@ -248,6 +253,16 @@ export default function BookingPayClient({
                     ${formatMoney(Number(payment?.subtotal || 0))}
                   </span>
                 </div>
+
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-sm text-red-600">
+                    <span>Discount</span>
+                    <span className="font-medium">
+                      -${formatMoney(discountAmount)}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex justify-between text-sm text-black">
                   <span>Tax</span>
                   <span className="font-medium">

@@ -1,43 +1,48 @@
-// src/components/admin/LogoutButton.tsx
 "use client";
 
 import { useState } from "react";
 
-export default function LogoutButton() {
+interface LogoutButtonProps {
+  className?: string;
+  isMobile?: boolean;
+}
+
+export default function LogoutButton({
+  className = "",
+  isMobile = false,
+}: LogoutButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleLogout = async () => {
     if (loading) return;
-
     try {
       setLoading(true);
-
-      const res = await fetch("/api/admin/logout", {
-        method: "POST",
-      });
-
+      const res = await fetch("/api/admin/logout", { method: "POST" });
       if (!res.ok) {
-        console.error("Failed to logout:", await res.text());
-        alert("Failed to logout. Please try again.");
+        alert("Failed to logout.");
         return;
       }
-
-      // ログアウトできたら、ログインページ or /admin/login に飛ばす想定
       window.location.href = "/admin/login";
     } catch (e) {
-      console.error("Unexpected logout error:", e);
-      alert("Unexpected error during logout.");
+      console.error(e);
+      alert("Error during logout.");
     } finally {
       setLoading(false);
     }
   };
+
+  const desktopClasses =
+    "text-md font-medium text-slate-700 transition-colors hover:text-brand";
+
+  const mobileClasses =
+    "block w-full text-left text-sm font-medium text-slate-700 transition-colors hover:text-brand";
 
   return (
     <button
       type="button"
       onClick={handleLogout}
       disabled={loading}
-      className="text-sm font-semibold text-slate-700 hover:text-slate-900"
+      className={`${isMobile ? mobileClasses : desktopClasses} ${className}`}
     >
       {loading ? "Logging out..." : "Logout"}
     </button>

@@ -1,73 +1,72 @@
-'use client';
+"use client";
 
-import Image from 'next/image';
+import Image from "next/image";
 
-// 👉 Make sure these 3 images exist in /public/images
 const steps = [
   {
-    title: 'Send a Request for Estimate',
+    title: "Send a Request for Estimate",
     description:
-      'Select items and fill in your info to get a detailed estimate.',
-    image: '/service-1.webp',
+      "Select items and fill in your info to get a detailed estimate.",
+    image: "/service-1.webp",
   },
   {
-    title: 'Review & Confirm a Pickup',
+    title: "Review & Confirm a Pickup",
     description:
-      'After you get a detailed estimate by email or text, you can confirm your booking.',
-    image: '/service-2.webp',
+      "After you get a detailed estimate by email or text, you can confirm your booking.",
+    image: "/service-2.webp",
   },
   {
-    title: 'Pick up, Deliver or Donate',
-    description: 'Your items are either delivered or donated.',
-    image: '/service-3.webp',
+    title: "Pick up, Deliver or Donate",
+    description: "Your items are either delivered or donated.",
+    image: "/service-3.webp",
   },
 ];
 
 export function HowItWorks() {
   return (
-    <section className="pt-16 md:pt-20 pb-16">
+    <section className="pt-16 md:pt-20 bg-white">
       <div className="section-inner">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+        <div className="flex flex-col md:flex-row justify-center md:justify-between mb-8 gap-6 text-center md:text-left">
           <div>
-            <p className="text-sm font-semibold text-brand mb-1">
-              Need a hand?
-            </p>
-            <h2 className="text-2xl md:text-3xl font-semibold text-brand-dark">
+            <h2 className="text-3xl md:text-4xl font-bold text-black">
+              <span className="text-[#22503B] mb-1">Need a hand?</span>
+              <br />
               We&apos;ve got you covered.
             </h2>
           </div>
-          <div className="max-w-sm md:text-right md:ml-auto">
-            <h3 className="font-bold text-lg text-brand-dark mb-2">
-              How it works
-            </h3>
-            <p className="text-sm text-gray-500">
+
+          <div className="max-w-sm mx-auto md:ml-auto md:mr-0 text-black">
+            <h3 className="font-bold text-md md:text-lg mb-2">How it works</h3>
+            <p className="text-sm md:text-base text-[#666666]">
               While we can customize your plan to suit your needs, most clients
               schedule pick-up services through these simple steps.
             </p>
           </div>
         </div>
 
+        <hr />
+
         {/* Steps Grid */}
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="flex flex-wrap justify-center gap-8 mt-8">
           {steps.map((step) => (
             <div
               key={step.title}
-              className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden group"
+              className="w-full sm:w-[calc(50%-1rem)] lg:w-[calc(33.33%-1.34rem)]"
             >
-              <div className="relative aspect-[4/3] overflow-hidden">
+              <div className="relative aspect-4/3 overflow-hidden">
                 <Image
                   src={step.image}
                   alt={step.title}
                   fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  className="object-cover rounded-lg"
                 />
               </div>
-              <div className="p-5 md:p-6 space-y-2">
-                <h3 className="font-semibold text-base text-brand-dark">
+              <div className="py-5 md:py-6 space-y-2">
+                <h3 className="font-semibold text-lg text-[#000000] text-center md:text-left">
                   {step.title}
                 </h3>
-                <p className="text-sm text-gray-500 leading-relaxed">
+                <p className="text-md text-[#2F2F2F] leading-relaxed text-center md:text-left">
                   {step.description}
                 </p>
               </div>
