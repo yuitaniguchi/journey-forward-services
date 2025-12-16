@@ -16,7 +16,7 @@ const CONFIRM_IMAGE_URL =
 
 interface ExtendedBookingConfirmedProps extends BookingConfirmedProps {
   pdfLink?: string;
-  manageLink: string;
+  manageLink?: string;
 }
 
 export const BookingConfirmedCustomer: React.FC<
