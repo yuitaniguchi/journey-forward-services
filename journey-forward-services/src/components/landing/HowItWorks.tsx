@@ -7,18 +7,18 @@ const steps = [
     title: "Send a Request for Estimate",
     description:
       "Select items and fill in your info to get a detailed estimate.",
-    image: "/service-1.webp",
+    image: "/home/service-1.webp",
   },
   {
     title: "Review & Confirm a Pickup",
     description:
       "After you get a detailed estimate by email or text, you can confirm your booking.",
-    image: "/service-2.webp",
+    image: "/home/service-2.webp",
   },
   {
     title: "Pick up, Deliver or Donate",
     description: "Your items are either delivered or donated.",
-    image: "/service-3.webp",
+    image: "/home/service-3.webp",
   },
 ];
 
