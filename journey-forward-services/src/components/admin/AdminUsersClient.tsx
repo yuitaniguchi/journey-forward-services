@@ -80,9 +80,6 @@ export default function AdminUsersClient({
               className="flex flex-col justify-between gap-4 rounded-3xl border border-slate-200 bg-white px-6 py-5 shadow-sm md:flex-row md:items-center"
             >
               <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  #{u.id}
-                </p>
                 <p className="text-lg font-bold text-slate-900">{u.username}</p>
                 <p className="text-sm text-slate-700">{u.email}</p>
                 <p className="text-xs text-slate-500" suppressHydrationWarning>
