@@ -57,7 +57,7 @@ export default function RequestCard({
       </td>
 
       <td className="px-4 py-5 whitespace-nowrap align-middle">
-        <span>{pickup}</span>
+        <span suppressHydrationWarning>{pickup}</span>
       </td>
 
       <td className="px-4 py-5 whitespace-nowrap align-middle">

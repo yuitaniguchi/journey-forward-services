@@ -158,7 +158,10 @@ export default function BookingDetailClient({
             <div>
               <p className="font-bold">This booking has been cancelled.</p>
               {cancelledDate && (
-                <p className="text-sm mt-1 text-red-700">
+                <p
+                  className="text-sm mt-1 text-red-700"
+                  suppressHydrationWarning
+                >
                   Cancelled on: {cancelledDate}
                 </p>
               )}
@@ -245,7 +248,10 @@ export default function BookingDetailClient({
                 {booking.customer.phone || "-"}
               </div>
               <div>
-                <span className="font-bold">Pickup Date:</span> {pickupDateTime}
+                <span className="font-bold" suppressHydrationWarning>
+                  Pickup Date:
+                </span>{" "}
+                {pickupDateTime}
               </div>
 
               <div>
@@ -341,7 +347,10 @@ export default function BookingDetailClient({
 
         {!isAlreadyCancelled && !isPickupPassed && (
           <div className="mt-12 text-center">
-            <h3 className="mb-4 text-lg font-bold text-[#ef4444]">
+            <h3
+              className="mb-4 text-lg font-bold text-[#ef4444]"
+              suppressHydrationWarning
+            >
               {freeCancellationDeadline
                 ? `Free cancelation up to ${freeCancellationDeadline}`
                 : "Free cancelation deadline information is not available."}

@@ -85,7 +85,7 @@ export default function AdminUsersClient({
                 </p>
                 <p className="text-lg font-bold text-slate-900">{u.username}</p>
                 <p className="text-sm text-slate-700">{u.email}</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500" suppressHydrationWarning>
                   Created:{" "}
                   {new Date(u.createdAt).toLocaleDateString(undefined, {
                     year: "numeric",

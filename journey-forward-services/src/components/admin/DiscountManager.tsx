@@ -222,7 +222,10 @@ export default function DiscountManager({ initialDiscounts }: Props) {
                       <td className="px-6 py-4 text-gray-600">
                         {discount.type === "FIXED_AMOUNT" ? "Fixed" : "Percent"}
                       </td>
-                      <td className="px-6 py-4 font-bold text-gray-900">
+                      <td
+                        className="px-6 py-4 font-bold text-gray-900"
+                        suppressHydrationWarning
+                      >
                         {discount.type === "FIXED_AMOUNT" ? "$" : ""}
                         {Number(discount.value).toLocaleString()}
                         {discount.type === "PERCENTAGE" ? "%" : ""}
@@ -231,7 +234,10 @@ export default function DiscountManager({ initialDiscounts }: Props) {
                         <div className="flex items-center gap-2 text-sm text-gray-700 bg-white border border-gray-200 p-1 rounded-lg w-fit whitespace-nowrap">
                           <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">
+                            <span
+                              className="font-medium"
+                              suppressHydrationWarning
+                            >
                               {formatDate(discount.startsAt)}
                             </span>
                             <ArrowRight className="h-3 w-3 text-gray-400" />
@@ -241,6 +247,7 @@ export default function DiscountManager({ initialDiscounts }: Props) {
                                   ? "font-medium"
                                   : "text-gray-500 italic"
                               }
+                              suppressHydrationWarning
                             >
                               {formatDate(discount.expiresAt)}
                             </span>
@@ -361,7 +368,10 @@ export default function DiscountManager({ initialDiscounts }: Props) {
                     <span className="text-xs text-gray-500 block mb-1">
                       Value
                     </span>
-                    <div className="font-bold text-gray-900 text-lg">
+                    <div
+                      className="font-bold text-gray-900 text-lg"
+                      suppressHydrationWarning
+                    >
                       {discount.type === "FIXED_AMOUNT" ? "$" : ""}
                       {Number(discount.value).toLocaleString()}
                       {discount.type === "PERCENTAGE" ? "%" : ""}
@@ -372,12 +382,15 @@ export default function DiscountManager({ initialDiscounts }: Props) {
                 <div className="flex items-center gap-2 text-sm text-gray-600 bg-white border border-gray-100 p-2 rounded-lg mb-4">
                   <Calendar className="w-4 h-4 text-gray-400" />
                   <div className="flex items-center gap-2 w-full justify-between">
-                    <span>{formatDate(discount.startsAt)}</span>
+                    <span suppressHydrationWarning>
+                      {formatDate(discount.startsAt)}
+                    </span>
                     <ArrowRight className="w-3 h-3 text-gray-300" />
                     <span
                       className={
                         discount.expiresAt ? "" : "text-gray-400 italic"
                       }
+                      suppressHydrationWarning
                     >
                       {formatDate(discount.expiresAt)}
                     </span>

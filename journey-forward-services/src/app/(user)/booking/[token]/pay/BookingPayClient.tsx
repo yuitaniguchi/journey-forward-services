@@ -148,7 +148,7 @@ export default function BookingPayClient({
                       <span className="font-bold block text-gray-500 text-xs uppercase tracking-wider mb-1">
                         Date & Time
                       </span>
-                      <p>{pickupDateTime}</p>
+                      <p suppressHydrationWarning>{pickupDateTime}</p>
                     </div>
                   </div>
 

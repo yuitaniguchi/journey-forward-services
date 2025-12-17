@@ -387,7 +387,9 @@ export default function RequestDetailClient({ initialRequest }: Props) {
             , {request.pickupCity}
           </p>
           <p className="mb-2">
-            <span className="font-semibold">Preferred: </span>
+            <span className="font-semibold" suppressHydrationWarning>
+              Preferred:{" "}
+            </span>
             {pickupDate}
           </p>
           <p className="mb-2">
@@ -443,7 +445,10 @@ export default function RequestDetailClient({ initialRequest }: Props) {
 
                 if (status === "SENT") {
                   return (
-                    <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
+                    <span
+                      className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800"
+                      suppressHydrationWarning
+                    >
                       <Check className="h-3.5 w-3.5" />
                       Sent: {formatDate(request.quotation.sentAt!)}
                     </span>
@@ -611,7 +616,10 @@ export default function RequestDetailClient({ initialRequest }: Props) {
 
                 if (status === "SENT") {
                   return (
-                    <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
+                    <span
+                      className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800"
+                      suppressHydrationWarning
+                    >
                       <Check className="h-3.5 w-3.5" />
                       Sent: {formatDate(request.payment.sentAt!)}
                     </span>

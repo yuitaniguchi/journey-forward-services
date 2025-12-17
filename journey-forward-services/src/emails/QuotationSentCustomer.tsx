@@ -49,6 +49,7 @@ export const QuotationSentCustomer: React.FC<ExtendedQuotationSentProps> = ({
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
+      timeZone: "America/Vancouver",
     }).format(d);
   };
 

@@ -177,6 +177,7 @@ const formatDate = (date: string | Date) => {
     month: "numeric",
     day: "numeric",
     year: "numeric",
+    timeZone: "America/Vancouver",
   });
 };
 
@@ -267,7 +268,14 @@ export const QuotationPdf = ({ request, customer, quotation, logo }: any) => {
             {/* Pickup */}
             <Text style={styles.textLine}>
               Pickup date:{" "}
-              {new Date(request.preferredDatetime).toLocaleString()}
+              {new Date(request.preferredDatetime).toLocaleString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+                timeZone: "America/Vancouver",
+              })}
             </Text>
             <Text style={styles.textLine}>
               Pickup address: {request.pickupAddress}

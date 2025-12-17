@@ -231,7 +231,10 @@ function ConfirmPageContent({
                 {booking.customer.phone}
               </div>
               <div>
-                <span className="font-bold">Pickup Date:</span> {pickupDateTime}
+                <span className="font-bold" suppressHydrationWarning>
+                  Pickup Date:
+                </span>{" "}
+                <span suppressHydrationWarning>{pickupDateTime}</span>
               </div>
               <div>
                 <span className="font-bold">Pickup Address:</span>{" "}

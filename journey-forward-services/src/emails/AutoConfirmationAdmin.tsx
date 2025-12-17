@@ -32,6 +32,7 @@ export const AutoConfirmationAdmin: React.FC<AutoConfirmationAdminProps> = ({
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
+      timeZone: "America/Vancouver",
     }).format(d);
   };
 
