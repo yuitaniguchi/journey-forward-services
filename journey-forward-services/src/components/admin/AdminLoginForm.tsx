@@ -34,8 +34,7 @@ export default function AdminLoginForm({ next }: Props) {
         setL(false);
         return;
       }
-      router.refresh();
-      router.replace(next);
+      window.location.href = next;
     } catch {
       setE("Network error");
       setL(false);
