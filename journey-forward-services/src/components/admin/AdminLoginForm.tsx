@@ -34,6 +34,7 @@ export default function AdminLoginForm({ next }: Props) {
         setL(false);
         return;
       }
+      router.refresh();
       router.replace(next);
     } catch {
       setE("Network error");
