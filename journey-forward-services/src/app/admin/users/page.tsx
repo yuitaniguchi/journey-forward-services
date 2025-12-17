@@ -3,6 +3,8 @@ import AdminUsersClient, {
   AdminUser,
 } from "@/components/admin/AdminUsersClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminUsersPage() {
   const admins = await prisma.admin.findMany({
     orderBy: { id: "asc" },

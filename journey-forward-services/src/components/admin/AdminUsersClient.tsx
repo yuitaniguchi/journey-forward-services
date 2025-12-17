@@ -122,6 +122,7 @@ export default function AdminUsersClient({
         onClose={() => setShowCreate(false)}
         onCreated={(user) => {
           setUsers((prev) => [...prev, user]);
+          router.refresh();
         }}
       />
 
@@ -132,6 +133,7 @@ export default function AdminUsersClient({
         onClose={() => setEditingUser(null)}
         onUpdated={(user) => {
           setUsers((prev) => prev.map((u) => (u.id === user.id ? user : u)));
+          router.refresh();
         }}
       />
 
@@ -142,6 +144,7 @@ export default function AdminUsersClient({
         onClose={() => setDeletingUser(null)}
         onDeleted={(id) => {
           setUsers((prev) => prev.filter((u) => u.id !== id));
+          router.refresh();
         }}
       />
     </div>
