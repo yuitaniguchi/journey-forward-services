@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { RequestStatus } from "@prisma/client";
 import QuotationModal from "@/components/admin/QuotationModal";
 import FinalAmountModal from "@/components/admin/FinalAmountModal";
-import { Check, FileText, AlertCircle } from "lucide-react";
+// import { Check, FileText, AlertCircle } from "lucide-react";
 
 export type RequestDetail = {
   id: number;
@@ -110,23 +110,23 @@ const formatCurrency = (val: number) =>
     currency: "CAD",
   }).format(val);
 
-function getBadgeStatus(
-  sentAt: string | null | undefined,
-  updatedAt: string | undefined,
-  currentStatus: RequestStatus
-) {
-  if (!sentAt) return "DRAFT";
-  if (!updatedAt) return "SENT";
+// function getBadgeStatus(
+//   sentAt: string | null | undefined,
+//   updatedAt: string | undefined,
+//   currentStatus: RequestStatus
+// ) {
+//   if (!sentAt) return "DRAFT";
+//   if (!updatedAt) return "SENT";
 
-  const sentTime = new Date(sentAt).getTime();
-  const updatedTime = new Date(updatedAt).getTime();
+//   const sentTime = new Date(sentAt).getTime();
+//   const updatedTime = new Date(updatedAt).getTime();
 
-  if (updatedTime > sentTime + 2000) {
-    return "UNSYNCED";
-  }
+//   if (updatedTime > sentTime + 2000) {
+//     return "UNSYNCED";
+//   }
 
-  return "SENT";
-}
+//   return "SENT";
+// }
 
 export default function RequestDetailClient({ initialRequest }: Props) {
   const router = useRouter();
@@ -435,7 +435,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-2xl font-semibold text-slate-900">Quotation</h2>
 
-            {request.quotation &&
+            {/* {request.quotation &&
               (() => {
                 const status = getBadgeStatus(
                   request.quotation.sentAt,
@@ -468,7 +468,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                     </span>
                   );
                 }
-              })()}
+              })()} */}
           </div>
 
           {request.quotation ? (
@@ -605,7 +605,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
               Final Billing
             </h2>
 
-            {paymentAmounts &&
+            {/* {paymentAmounts &&
               request.payment &&
               (() => {
                 const status = getBadgeStatus(
@@ -639,7 +639,7 @@ export default function RequestDetailClient({ initialRequest }: Props) {
                     </span>
                   );
                 }
-              })()}
+              })()} */}
           </div>
 
           {paymentAmounts ? (
