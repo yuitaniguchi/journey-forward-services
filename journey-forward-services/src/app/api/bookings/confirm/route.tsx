@@ -213,6 +213,7 @@ export async function POST(req: NextRequest) {
     const pdfLink = `${baseUrl}/api/pdf/quotations/${requestData.id}`;
 
     const dateStr = requestData.preferredDatetime.toLocaleDateString("en-US", {
+      timeZone: "America/Vancouver",
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -221,6 +222,7 @@ export async function POST(req: NextRequest) {
     });
     const cancellationDeadline =
       requestData.freeCancellationDeadline.toLocaleDateString("en-US", {
+        timeZone: "America/Vancouver",
         month: "short",
         day: "numeric",
         hour: "numeric",
