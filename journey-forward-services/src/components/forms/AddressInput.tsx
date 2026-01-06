@@ -4,7 +4,13 @@ import React from "react";
 import { useFormContext } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 
-export const ALLOWED_CITIES = ["Vancouver", "Burnaby", "Richmond", "Surrey"];
+export const ALLOWED_CITIES = [
+  "Vancouver",
+  "Burnaby",
+  "New Westminster",
+  "Richmond",
+  "Surrey",
+];
 
 type Props = {
   prefix?: string;
